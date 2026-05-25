@@ -23,33 +23,19 @@ interface Alert {
   timestamp: string;
 }
 
-// ── Datos demo ────────────────────────────────────────────────────────────────
-const DEMO_STUDENTS: Student[] = [
-  { id:'s1', name:'Isabella Torres',   group:'11-B', progress:68, score:72, aiHelpsUsed:3, aiHelpsMax:5, status:'active',   areas:{Matemáticas:64,Lectura:78,Ciencias:55,Inglés:71}, lastQuestion:14, totalQuestions:45, mirrorSuccessRate:67, helpDependency:43, cognitiveStress:62, concentration:84 },
-  { id:'s2', name:'Carlos Mendoza',    group:'11-B', progress:82, score:85, aiHelpsUsed:1, aiHelpsMax:5, status:'active',   areas:{Matemáticas:88,Lectura:82,Ciencias:79,Inglés:76}, lastQuestion:18, totalQuestions:45, mirrorSuccessRate:100,helpDependency:12, cognitiveStress:28, concentration:91 },
-  { id:'s3', name:'Valentina Ríos',    group:'11-B', progress:45, score:48, aiHelpsUsed:5, aiHelpsMax:5, status:'risk',     areas:{Matemáticas:42,Lectura:55,Ciencias:38,Inglés:48}, lastQuestion:10, totalQuestions:45, mirrorSuccessRate:20, helpDependency:95, cognitiveStress:88, concentration:42 },
-  { id:'s4', name:'Sebastián Castro',  group:'11-B', progress:71, score:69, aiHelpsUsed:2, aiHelpsMax:5, status:'active',   areas:{Matemáticas:71,Lectura:74,Ciencias:63,Inglés:65}, lastQuestion:15, totalQuestions:45, mirrorSuccessRate:50, helpDependency:28, cognitiveStress:45, concentration:78 },
-  { id:'s5', name:'Daniela Vargas',    group:'11-B', progress:90, score:91, aiHelpsUsed:0, aiHelpsMax:5, status:'active',   areas:{Matemáticas:92,Lectura:90,Ciencias:88,Inglés:85}, lastQuestion:20, totalQuestions:45, mirrorSuccessRate:0,  helpDependency:0,  cognitiveStress:18, concentration:96 },
-  { id:'s6', name:'Andrés Morales',    group:'11-B', progress:33, score:41, aiHelpsUsed:4, aiHelpsMax:5, status:'risk',     areas:{Matemáticas:38,Lectura:48,Ciencias:30,Inglés:44}, lastQuestion:7,  totalQuestions:45, mirrorSuccessRate:25, helpDependency:82, cognitiveStress:79, concentration:51 },
-  { id:'s7', name:'Camila Jiménez',    group:'11-B', progress:60, score:63, aiHelpsUsed:2, aiHelpsMax:5, status:'idle',     areas:{Matemáticas:60,Lectura:68,Ciencias:58,Inglés:62}, lastQuestion:13, totalQuestions:45, mirrorSuccessRate:50, helpDependency:31, cognitiveStress:50, concentration:70 },
-  { id:'s8', name:'Felipe Gutiérrez',  group:'11-B', progress:55, score:57, aiHelpsUsed:3, aiHelpsMax:5, status:'active',   areas:{Matemáticas:52,Lectura:62,Ciencias:50,Inglés:55}, lastQuestion:12, totalQuestions:45, mirrorSuccessRate:33, helpDependency:56, cognitiveStress:65, concentration:68 },
-];
-
-const DEMO_ALERTS: Alert[] = [
-  { id:'a1', studentId:'s3', studentName:'Valentina Ríos',   type:'ai_limit',       message:'Agotó las 5 ayudas IA. Puntaje en riesgo.',           severity:'critical', timestamp:'10:42 AM' },
-  { id:'a2', studentId:'s6', studentName:'Andrés Morales',   type:'high_dependency',message:'Dependencia IA >80%. 4/5 ayudas usadas.',             severity:'critical', timestamp:'10:38 AM' },
-  { id:'a3', studentId:'s3', studentName:'Valentina Ríos',   type:'cognitive_stress',message:'Estrés cognitivo alto (88%). Posible bloqueo.',       severity:'warning',  timestamp:'10:35 AM' },
-  { id:'a4', studentId:'s8', studentName:'Felipe Gutiérrez', type:'high_dependency',message:'Tasa espejo: 33%. Comprensión socrática limitada.',    severity:'warning',  timestamp:'10:30 AM' },
-  { id:'a5', studentId:'s7', studentName:'Camila Jiménez',   type:'idle',           message:'Sin actividad en los últimos 8 minutos.',              severity:'info',     timestamp:'10:28 AM' },
-];
+// ── Datos reales ──────────────────────────────────────────────────────────────
+const INITIAL_STUDENTS: Student[] = [];
+const INITIAL_ALERTS: Alert[] = [];
 
 const AREAS = ['Matemáticas','Lectura','Ciencias','Inglés'];
 const AREA_COLORS: Record<string,string> = { Matemáticas:'#00d4ff', Lectura:'#10b981', Ciencias:'#f59e0b', Inglés:'#a78bfa' };
+const avg = (students: Student[], pick: (student: Student) => number) =>
+  students.length ? Math.round(students.reduce((a, s) => a + pick(s), 0) / students.length) : 0;
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function TeacherDashboard() {
-  const [students,       ] = useState<Student[]>(DEMO_STUDENTS);
-  const [alerts,         ] = useState<Alert[]>(DEMO_ALERTS);
+  const [students,       ] = useState<Student[]>(INITIAL_STUDENTS);
+  const [alerts,         ] = useState<Alert[]>(INITIAL_ALERTS);
   const [selectedStudent, setSelected] = useState<Student | null>(null);
   const [tab,            setTab]       = useState<'overview'|'ai'|'cognitive'|'alerts'>('overview');
   const [dismissedAlerts, setDismissed]= useState<Set<string>>(new Set());
@@ -64,7 +50,7 @@ export default function TeacherDashboard() {
 
   const activeAlerts = alerts.filter(a => !dismissedAlerts.has(a.id));
   const riskStudents = students.filter(s => s.status === 'risk');
-  const avgScore     = Math.round(students.reduce((a,s) => a + s.score, 0) / students.length);
+  const avgScore     = avg(students, s => s.score);
   const totalAIHelps = students.reduce((a,s) => a + s.aiHelpsUsed, 0);
 
   return (
@@ -192,6 +178,15 @@ export default function TeacherDashboard() {
                       </tr>
                     ))}
                   </tbody>
+                  {students.length === 0 && (
+                    <tbody>
+                      <tr>
+                        <td colSpan={6} style={{padding:'28px 10px',textAlign:'center',color:'#475569'}}>
+                          Sin estudiantes reales registrados para este grupo.
+                        </td>
+                      </tr>
+                    </tbody>
+                  )}
                 </table>
               </div>
             </>
@@ -203,8 +198,8 @@ export default function TeacherDashboard() {
               <div style={S.kpiRow}>
                 {[
                   { label:'Ayudas usadas',        val:totalAIHelps,                                           color:'#fbbf24' },
-                  { label:'Tasa espejo exitosa',   val:`${Math.round(students.reduce((a,s)=>a+s.mirrorSuccessRate,0)/students.length)}%`, color:'#34d399' },
-                  { label:'Dependencia promedio',  val:`${Math.round(students.reduce((a,s)=>a+s.helpDependency,0)/students.length)}%`,    color:'#f87171' },
+                  { label:'Tasa espejo exitosa',   val:`${avg(students, s => s.mirrorSuccessRate)}%`, color:'#34d399' },
+                  { label:'Dependencia promedio',  val:`${avg(students, s => s.helpDependency)}%`,    color:'#f87171' },
                   { label:'Estudiantes en riesgo', val:riskStudents.length,                                   color:'#ef4444' },
                 ].map(k=>(
                   <div key={k.label} style={S.kpi}>
@@ -253,15 +248,15 @@ export default function TeacherDashboard() {
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               <div style={{fontSize:12,color:'#475569',marginBottom:4}}>Dominio por área — promedio del grupo</div>
               {AREAS.map(area=>{
-                const avg = Math.round(students.reduce((a,s)=>a+(s.areas[area]||0),0)/students.length);
+                const areaAvg = avg(students, s => s.areas[area] || 0);
                 return (
                   <div key={area} style={S.areaRow}>
                     <div style={{width:100,fontSize:11,color:'#94a3b8'}}>{area}</div>
                     <div style={{flex:1,height:8,background:'rgba(255,255,255,0.05)',borderRadius:4,overflow:'hidden'}}>
-                      <div style={{height:'100%',width:`${avg}%`,background:AREA_COLORS[area],borderRadius:4,transition:'width 0.8s ease'}}/>
+                      <div style={{height:'100%',width:`${areaAvg}%`,background:AREA_COLORS[area],borderRadius:4,transition:'width 0.8s ease'}}/>
                     </div>
-                    <div style={{width:40,textAlign:'right',fontSize:11,fontWeight:500,color:AREA_COLORS[area]}}>{avg}%</div>
-                    {avg < 55 && <span style={S.riskTag}>Brecha</span>}
+                    <div style={{width:40,textAlign:'right',fontSize:11,fontWeight:500,color:AREA_COLORS[area]}}>{areaAvg}%</div>
+                    {students.length > 0 && areaAvg < 55 && <span style={S.riskTag}>Brecha</span>}
                   </div>
                 );
               })}
