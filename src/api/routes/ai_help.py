@@ -2,6 +2,7 @@
 #  src/api/routes/ai_help.py  — Endpoints del Modo Ayuda Socrático
 # =============================================================================
 from __future__ import annotations
+import json as _json
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -51,34 +52,29 @@ async def request_ai_help(
 
     # 3. Obtener pregunta
     question = await db.execute(
-        text("SELECT * FROM question_items WHERE id=:id"), {"id": question_id}
+        text("""
+            SELECT id, area, enunciado AS stem,
+                   opcion_a, opcion_b, opcion_c, opcion_d
+            FROM preguntas_icfes WHERE id=:id
+        """),
+        {"id": int(question_id)}
     )
     q_row = question.fetchone()
     if not q_row:
         raise HTTPException(status_code=404, detail="Pregunta no encontrada")
 
-    # 4. Obtener opciones
-    opts_result = await db.execute(
-        text("SELECT label, text FROM question_options WHERE question_id=:qid ORDER BY label"),
-        {"qid": question_id}
-    )
-    options = [QuestionOption(label=r.label, text=r.text) for r in opts_result.fetchall()]
+    # 4. Construir opciones desde columnas de preguntas_icfes
+    options = [
+        QuestionOption(label="A", text=q_row.opcion_a),
+        QuestionOption(label="B", text=q_row.opcion_b),
+        QuestionOption(label="C", text=q_row.opcion_c),
+        QuestionOption(label="D", text=q_row.opcion_d),
+    ]
 
-    # 5. Descontar token de ayuda + bloquear pregunta original
-    await db.execute(
-        text("""
-            UPDATE exam_attempts
-            SET remaining_ai_helps = remaining_ai_helps - 1
-            WHERE id = :id
-        """),
-        {"id": attempt_id}
-    )
-    await db.commit()
-
-    # 6. Determinar número de ayuda
+    # 5. Determinar número de ayuda
     help_number = 5 - attempt_row.remaining_ai_helps + 1
 
-    # 7. Ejecutar AI Orchestrator
+    # 6. Ejecutar AI Orchestrator
     ai_request = AIHelpRequest(
         question_id    = question_id,
         student_id     = body.student_id,
@@ -92,9 +88,29 @@ async def request_ai_help(
         locale         = body.locale,
     )
 
-    response = await orchestrator.run_help_session(ai_request)
+    try:
+        response = await orchestrator.run_help_session(ai_request)
+    except ValueError as e:
+        await db.rollback()
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
-    # 8. Persistir sesión de ayuda en DB
+    # 7. Descontar token y persistir sesión solo si la IA respondió bien
+    token_update = await db.execute(
+        text("""
+            UPDATE exam_attempts
+            SET remaining_ai_helps = remaining_ai_helps - 1
+            WHERE id = :id
+              AND remaining_ai_helps > 0
+        """),
+        {"id": attempt_id}
+    )
+    if token_update.rowcount != 1:
+        await db.rollback()
+        raise HTTPException(
+            status_code=403,
+            detail="Límite de ayudas IA alcanzado. Máximo 5 ayudas por examen."
+        )
+
     await db.execute(
         text("""
             INSERT INTO ai_help_sessions
@@ -109,7 +125,7 @@ async def request_ai_help(
         {
             "id":                  response.session_id,
             "attempt_id":          attempt_id,
-            "question_id":         question_id,
+            "question_id":         int(question_id),
             "help_number":         help_number,
             "prompt_version":      response.prompt_bundle_version,
             "whiteboard_json":     response.whiteboard.model_dump_json(),
@@ -147,11 +163,11 @@ async def answer_mirror_question(
 
     # Obtener puntaje original de la pregunta
     q = await db.execute(
-        text("SELECT points FROM question_items WHERE id=:id"),
+        text("SELECT id FROM preguntas_icfes WHERE id=:id"),
         {"id": sess_row.question_id}
     )
     q_row = q.fetchone()
-    original_points = float(q_row.points) if q_row else 1.0
+    original_points = 1.0
 
     # Regla de negocio: 50% si acierta, 0% si falla
     awarded = original_points * 0.5 if is_correct else 0.0

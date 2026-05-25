@@ -1,8 +1,7 @@
 // =============================================================================
 //  src/features/ai-help/NeuralAudioPlayer.tsx
-//  Reproductor de audio pedagógico con onda neural animada
 // =============================================================================
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 interface Props {
   audioBase64: string;
@@ -11,120 +10,264 @@ interface Props {
   durationSec: number;
 }
 
-export default function NeuralAudioPlayer({ audioBase64, script, gender, durationSec }: Props) {
-  const audioRef            = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying]   = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [elapsed,  setElapsed]  = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+// ── Voice names known to be female / male in Spanish ─────────────────────────
+const FEMALE_HINTS = [
+  'sabina','helena','laura','maria','isabel','luciana','mónica','paloma',
+  'paulina','penélope','soledad','valeria','dalia','conchita','camila',
+  'female','mujer','woman','girl','fernanda','natalia','daniela','sofía',
+  'paola','andrea','claudia','rosa','alicia','beatriz',
+];
+const MALE_HINTS = [
+  'pablo','juan','jorge','raúl','diego','enrique','carlos','andrés',
+  'alvaro','arturo','male','hombre','man','boy','emilio','miguel','antonio',
+  'rodrigo','felipe','alejandro','sergio','manuel','javier',
+];
 
-  // Cargar audio base64
+function pickVoice(gender: 'male' | 'female' | 'neutral'): SpeechSynthesisVoice | null {
+  const all = window.speechSynthesis.getVoices();
+  const spanish = all.filter(v => /^es/i.test(v.lang));
+  if (!spanish.length) return null;
+
+  const nameLower = (v: SpeechSynthesisVoice) => v.name.toLowerCase();
+  const isFemale  = (v: SpeechSynthesisVoice) => FEMALE_HINTS.some(h => nameLower(v).includes(h));
+  const isMale    = (v: SpeechSynthesisVoice) => MALE_HINTS.some(h => nameLower(v).includes(h));
+
+  const score = (v: SpeechSynthesisVoice): number => {
+    let s = 0;
+    // Online/neural voices are far less robotic → big bonus
+    if (!v.localService) s += 20;
+    // Language preference: CO > US > MX > ES > other
+    if (v.lang === 'es-CO') s += 6;
+    else if (v.lang === 'es-US') s += 4;
+    else if (v.lang === 'es-MX') s += 3;
+    else if (v.lang === 'es-ES') s += 2;
+    // Gender match
+    if (gender === 'female' && isFemale(v)) s += 8;
+    if (gender === 'male'   && isMale(v))   s += 8;
+    // Prefer voices whose names contain "natural" or "neural"
+    if (nameLower(v).includes('natural') || nameLower(v).includes('neural')) s += 5;
+    return s;
+  };
+
+  const sorted = [...spanish].sort((a, b) => score(b) - score(a));
+  // Debug: log what voices are available and what was picked
+  console.debug('[TTS] Spanish voices:', sorted.map(v => `${v.name} (${v.lang}, local=${v.localService})`));
+  console.debug('[TTS] Selected:', sorted[0]?.name);
+  return sorted[0] ?? null;
+}
+
+export default function NeuralAudioPlayer({ audioBase64, script, gender, durationSec }: Props) {
+  const audioRef    = useRef<HTMLAudioElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const mountedRef  = useRef(true);
+
+  const [playing,     setPlaying]     = useState(false);
+  const [progress,    setProgress]    = useState(0);
+  const [elapsed,     setElapsed]     = useState(0);
+  const [voiceName,   setVoiceName]   = useState('');
+  const [voicesReady, setVoicesReady] = useState(false);
+
+  const hasGoogleAudio = !!audioBase64;
+  const hasSpeech      = !hasGoogleAudio && !!script && typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const canPlay        = hasGoogleAudio || hasSpeech;
+
+  // Load voices (async on Chrome)
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const load = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length) {
+        setVoicesReady(true);
+        const picked = pickVoice(gender);
+        setVoiceName(picked?.name ?? '');
+      }
+    };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, [gender]);
+
+  // Load mp3 blob
   useEffect(() => {
     if (!audioBase64 || !audioRef.current) return;
-    const blob = base64ToBlob(audioBase64, 'audio/mp3');
+    const binary = atob(audioBase64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'audio/mp3' });
     const url  = URL.createObjectURL(blob);
     audioRef.current.src = url;
     return () => URL.revokeObjectURL(url);
   }, [audioBase64]);
 
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
+  // Cleanup
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       clearInterval(intervalRef.current);
-    } else {
-      audioRef.current.play();
-      intervalRef.current = setInterval(() => {
-        if (!audioRef.current) return;
-        const pct = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-        setProgress(isNaN(pct) ? 0 : pct);
-        setElapsed(Math.floor(audioRef.current.currentTime));
-      }, 200);
-    }
-    setPlaying(p => !p);
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  const startTimer = (totalSec: number) => {
+    let secs = 0;
+    clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      if (!mountedRef.current) return;
+      secs += 0.3;
+      setElapsed(Math.floor(secs));
+      setProgress(Math.min(99, (secs / totalSec) * 100));
+    }, 300);
   };
 
-  const onEnded = () => {
-    setPlaying(false);
-    setProgress(100);
+  // ── Speech Synthesis ─────────────────────────────────────────────────────
+  const playSpeech = useCallback(() => {
+    window.speechSynthesis.cancel();
+    const cleanText = script
+      .replace(/\[pausa breve\]/gi, ',')   // comma gives a tiny natural pause
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const utter  = new SpeechSynthesisUtterance(cleanText);
+    const voice  = pickVoice(gender);
+
+    if (voice) {
+      utter.voice = voice;
+      utter.lang  = voice.lang;
+    } else {
+      utter.lang = 'es-CO';
+    }
+
+    // Natural-sounding parameters — avoid extreme values
+    utter.rate  = 0.88;
+    utter.pitch = gender === 'male' ? 0.9 : 1.1;
+    utter.volume = 1.0;
+
+    utter.onstart = () => {
+      if (mountedRef.current) {
+        setPlaying(true);
+        setProgress(0);
+        setElapsed(0);
+        const estimatedSec = durationSec || Math.max(30, Math.ceil(cleanText.length / 13));
+        startTimer(estimatedSec);
+      }
+    };
+    utter.onend = () => {
+      clearInterval(intervalRef.current);
+      if (mountedRef.current) { setPlaying(false); setProgress(100); }
+    };
+    utter.onerror = (e) => {
+      if (e.error !== 'interrupted') console.error('[TTS] Error:', e.error);
+      clearInterval(intervalRef.current);
+      if (mountedRef.current) setPlaying(false);
+    };
+
+    window.speechSynthesis.speak(utter);
+  }, [script, gender, durationSec]);
+
+  const pauseSpeech = () => {
+    window.speechSynthesis.cancel();
     clearInterval(intervalRef.current);
+    if (mountedRef.current) setPlaying(false);
+  };
+
+  // ── HTML Audio ───────────────────────────────────────────────────────────
+  const playAudio = async () => {
+    if (!audioRef.current) return;
+    try {
+      await audioRef.current.play();
+      if (mountedRef.current) {
+        setPlaying(true);
+        startTimer(durationSec || audioRef.current.duration || 60);
+      }
+    } catch (_) {}
+  };
+  const pauseAudio = () => {
+    audioRef.current?.pause();
+    clearInterval(intervalRef.current);
+    if (mountedRef.current) setPlaying(false);
+  };
+  const onAudioEnded = () => {
+    clearInterval(intervalRef.current);
+    if (mountedRef.current) { setPlaying(false); setProgress(100); }
+  };
+
+  const togglePlay = () => {
+    if (!canPlay) return;
+    if (hasSpeech)      { playing ? pauseSpeech() : playSpeech(); }
+    else if (audioRef.current) { playing ? pauseAudio() : playAudio(); }
   };
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const totalSec = durationSec || 100;
 
-  const voiceLabel = gender === 'female'
-    ? 'Voz femenina colombiana · Neural2-A'
-    : gender === 'male'
-    ? 'Voz masculina colombiana · Neural2-B'
-    : 'Voz neutra colombiana';
+  // Voice label for UI
+  const voiceDisplay = hasGoogleAudio
+    ? (gender === 'female' ? 'Voz femenina · Google Neural2-A' : gender === 'male' ? 'Voz masculina · Google Neural2-B' : 'Voz neutra · Google Neural2-A')
+    : voiceName || (gender === 'male' ? 'Voz masculina · Español' : 'Voz femenina · Español');
+
+  const voiceMeta = hasGoogleAudio
+    ? 'Google TTS Neural · Español colombiano'
+    : voicesReady
+      ? (hasSpeech ? `Web Speech · ${voiceName || 'Español'}` : 'Audio no disponible')
+      : 'Cargando voces...';
 
   return (
     <div style={s.card}>
-      <audio ref={audioRef} onEnded={onEnded} style={{ display: 'none' }} />
+      <audio ref={audioRef} onEnded={onAudioEnded} style={{ display: 'none' }} />
 
-      {/* Header */}
       <div style={s.header}>
-        <div style={s.avatar}>🎙</div>
+        <div style={s.avatar}>{gender === 'male' ? '🎙' : '🎙'}</div>
         <div style={{ flex: 1 }}>
-          <div style={s.voiceName}>{voiceLabel}</div>
-          <div style={s.voiceMeta}>
-            Google TTS Neural · Español colombiano neutro · {durationSec}s estimados
-          </div>
+          <div style={s.voiceName}>{voiceDisplay}</div>
+          <div style={s.voiceMeta}>{voiceMeta} · {totalSec}s</div>
         </div>
-        <div style={s.ttsTag}>TTS pedagógico</div>
+        <span style={s.ttsTag}>TTS pedagógico</span>
       </div>
 
-      {/* Onda neural */}
+      {/* Waveform */}
       <div style={s.waveWrap} aria-hidden="true">
-        {Array.from({ length: 40 }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              ...s.waveBar,
-              animationDelay: `${(i * 0.07) % 1.2}s`,
-              height: playing ? `${8 + Math.sin(i * 0.7) * 14}px` : '4px',
-              opacity: playing ? 0.9 : 0.3,
-              background: i % 3 === 0 ? '#7c3aed' : i % 3 === 1 ? '#00d4ff' : '#534AB7',
-              transition: 'height 0.3s ease, opacity 0.3s',
-            }}
-          />
+        {Array.from({ length: 32 }).map((_, i) => (
+          <div key={i} style={{
+            width: 3, borderRadius: 2, minHeight: 4,
+            background: i % 3 === 0 ? '#7c3aed' : i % 3 === 1 ? '#00d4ff' : '#534AB7',
+            height: playing ? `${8 + Math.sin(i * 0.7 + Date.now() * 0.002) * 12}px` : '4px',
+            opacity: playing ? 0.9 : 0.3,
+            transition: 'height 0.3s ease, opacity 0.3s',
+          }} />
         ))}
       </div>
 
-      {/* Controles */}
+      {/* Controls */}
       <div style={s.controls}>
-        <button style={s.playBtn} onClick={togglePlay} aria-label={playing ? 'Pausar' : 'Reproducir'}>
+        <button
+          style={{ ...s.playBtn, opacity: canPlay ? 1 : 0.3, cursor: canPlay ? 'pointer' : 'not-allowed' }}
+          onClick={togglePlay}
+          disabled={!canPlay}
+          aria-label={playing ? 'Pausar' : 'Reproducir'}
+        >
           {playing ? '⏸' : '▶'}
         </button>
         <div style={s.progressWrap}>
           <div style={{ ...s.progressFill, width: `${progress}%` }} />
         </div>
-        <span style={s.timeText}>{fmt(elapsed)} / {fmt(durationSec)}</span>
+        <span style={s.timeText}>{fmt(elapsed)} / {fmt(totalSec)}</span>
       </div>
 
-      {/* Tags de accesibilidad */}
-      <div style={s.tagRow}>
-        {['Pausas cognitivas', 'Anti-ansiedad', 'Carga reducida', 'TDAH-friendly', 'Prosodia pedagógica'].map(t => (
-          <span key={t} style={s.tag}>{t}</span>
-        ))}
-      </div>
-
-      {/* Transcripción */}
+      {/* Transcription */}
       {script && (
-        <details style={s.transcript}>
-          <summary style={s.transcriptLabel}>Ver transcripción</summary>
-          <p style={s.transcriptText}>{script}</p>
+        <details style={{ marginTop: 8 }}>
+          <summary style={{ fontSize: 10, color: '#475569', cursor: 'pointer' }}>
+            Ver transcripción
+          </summary>
+          <p style={{ fontSize: 10, color: '#64748b', lineHeight: 1.7, marginTop: 6 }}>
+            {script.replace(/\[pausa breve\]/gi, '')}
+          </p>
         </details>
       )}
     </div>
   );
-}
-
-function base64ToBlob(b64: string, type: string): Blob {
-  const binary = atob(b64);
-  const bytes  = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type });
 }
 
 const s: Record<string, React.CSSProperties> = {
@@ -148,22 +291,14 @@ const s: Record<string, React.CSSProperties> = {
     padding: '2px 8px', borderRadius: 20,
     border: '0.5px solid rgba(124,58,237,0.2)',
   },
-  waveWrap: {
-    display: 'flex', alignItems: 'center', gap: 2,
-    height: 36, marginBottom: 8,
-  },
-  waveBar: {
-    width: 3, borderRadius: 2, minHeight: 4,
-    animation: 'waveAnim 1.2s ease-in-out infinite',
-  },
-  controls: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 },
+  waveWrap: { display: 'flex', alignItems: 'center', gap: 2, height: 36, marginBottom: 8 },
+  controls: { display: 'flex', alignItems: 'center', gap: 8 },
   playBtn: {
     width: 32, height: 32, borderRadius: '50%',
     border: '1.5px solid #7c3aed',
     background: 'rgba(124,58,237,0.15)',
     color: '#a78bfa', fontSize: 13,
-    cursor: 'pointer', display: 'flex',
-    alignItems: 'center', justifyContent: 'center',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   progressWrap: {
     flex: 1, height: 3, background: 'rgba(255,255,255,0.06)',
@@ -172,17 +307,7 @@ const s: Record<string, React.CSSProperties> = {
   progressFill: {
     height: '100%',
     background: 'linear-gradient(90deg,#7c3aed,#00d4ff)',
-    borderRadius: 2, transition: 'width 0.2s',
+    borderRadius: 2, transition: 'width 0.3s',
   },
   timeText: { fontSize: 10, color: '#334155', minWidth: 60 },
-  tagRow: { display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 },
-  tag: {
-    fontSize: 9, color: '#7c3aed',
-    background: 'rgba(124,58,237,0.08)',
-    padding: '2px 6px', borderRadius: 20,
-    border: '0.5px solid rgba(124,58,237,0.2)',
-  },
-  transcript: { marginTop: 4 },
-  transcriptLabel: { fontSize: 10, color: '#475569', cursor: 'pointer' },
-  transcriptText: { fontSize: 10, color: '#475569', lineHeight: 1.6, marginTop: 6 },
 };

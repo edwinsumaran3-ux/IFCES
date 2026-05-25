@@ -53,7 +53,49 @@ class RedMarkerBlock(BaseModel):
     content: str = ""
     visual_warning: str = ""
 
+class FormulaSpec(BaseModel):
+    type: str = ""
+    equation: str = ""
+    reactants: list[str] = []
+    products: list[str] = []
+    variables: dict[str, Any] = {}
+    steps: list[str] = []
+
+class VisualElement(BaseModel):
+    type: str = ""
+    title: str = ""
+    caption: str = ""
+    shape: str = ""
+    left_label: str = ""
+    right_label: str = ""
+    rows: list[list[Any]] = []
+    headers: list[str] = []
+    labels: list[str] = []
+    values: list[float] = []
+    items: list[str] = []
+    points: list[dict[str, Any]] = []
+
+class OptionAnalysis(BaseModel):
+    option: str = ""
+    status: str = ""
+    reason: str = ""
+
+class AudioSyncMarker(BaseModel):
+    time_seconds: int = 0
+    label: str = ""
+    section: str = ""
+
 class WhiteboardOutput(BaseModel):
+    board_style: str = "professional_acrylic"
+    subject: str = ""
+    title: str = ""
+    formula: FormulaSpec | None = None
+    blue_reasoning: list[WhiteboardBlock] = []
+    red_traps: list[RedMarkerBlock] = []
+    visual_elements: list[VisualElement] = []
+    options_analysis: list[OptionAnalysis] = []
+    final_close: str = ""
+    audio_sync_markers: list[AudioSyncMarker] = []
     blue_marker_blocks: list[WhiteboardBlock] = []
     red_marker_blocks: list[RedMarkerBlock] = []
     final_student_instruction: str = ""

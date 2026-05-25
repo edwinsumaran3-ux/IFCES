@@ -1,0 +1,27 @@
+ORCHESTRATOR:
+Traceback (most recent call last):
+  File "C:\Users\USUARIO\Downloads\Pruebas ICFES,\src\ai\orchestrator.py", line 143, in _json
+    return json.loads(clean)
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\json\decoder.py", line 341, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 49 column 1 (char 1623)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\USUARIO\Downloads\Pruebas ICFES,\src\api\routes\ai_help.py", line 104, in request_ai_help
+    # 8. Persistir sesión de ayuda en DB
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USUARIO\Downloads\Pruebas ICFES,\src\ai\orchestrator.py", line 46, in run_help_session
+    mirror   = await self._mirror(request, clf, sid)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USUARIO\Downloads\Pruebas ICFES,\src\ai\orchestrator.py", line 103, in _mirror
+    return MirrorQuestion(**self._json(r, sid, "mirror"))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USUARIO\Downloads\Pruebas ICFES,\src\ai\orchestrator.py", line 146, in _json
+    raise ValueError(f"JSON inválido en paso '{step}': {e}")
+ValueError: JSON inválido en paso 'mirror': Extra data: line 49 column 1 (char 1623)

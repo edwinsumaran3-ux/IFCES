@@ -2,7 +2,7 @@
 //  src/features/ai-help/AIHelpModal.tsx
 //  Panel completo de ayuda IA — orquesta pizarra + audio + espejo
 // =============================================================================
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AcrylicWhiteboard  from './AcrylicWhiteboard';
 import NeuralAudioPlayer  from './NeuralAudioPlayer';
 import MirrorQuestion     from './MirrorQuestion';
@@ -29,6 +29,24 @@ export default function AIHelpModal({
   const [data,     setData]     = useState<any>(null);
   const [error,    setError]    = useState('');
   const [loadMsg,  setLoadMsg]  = useState('');
+  const [voiceGender, setVoiceGender] = useState<'female' | 'male'>(
+    studentGender === 'male' ? 'male' : 'female'
+  );
+
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+
+    const loadVoices = () => {
+      window.speechSynthesis.getVoices();
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   const LOAD_MESSAGES = [
     'Clasificando pregunta ICFES...',
@@ -59,15 +77,17 @@ export default function AIHelpModal({
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             student_id:    studentId,
-            student_gender: studentGender,
+            student_gender: voiceGender,
             locale:        'es-CO',
           }),
         }
       );
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Error al solicitar ayuda IA');
+        const text = await res.text()
+        let detail = 'Error al solicitar ayuda IA'
+        try { detail = JSON.parse(text).detail ?? detail } catch {}
+        throw new Error(detail)
       }
 
       const helpData = await res.json();
@@ -114,7 +134,31 @@ export default function AIHelpModal({
         {/* Cuerpo */}
         <div style={s.body}>
 
-          {/* IDLE */}
+          
+          <div style={s.voicePanel}>
+            <span style={s.voiceLabel}>Voz de la IA:</span>
+            <button
+              style={{
+                ...s.voiceBtn,
+                ...(voiceGender === 'female' ? s.voiceBtnActive : {}),
+              }}
+              onClick={() => setVoiceGender('female')}
+              type="button"
+            >
+              Mujer colombiana
+            </button>
+            <button
+              style={{
+                ...s.voiceBtn,
+                ...(voiceGender === 'male' ? s.voiceBtnActive : {}),
+              }}
+              onClick={() => setVoiceGender('male')}
+              type="button"
+            >
+              Hombre colombiano
+            </button>
+          </div>
+{/* IDLE */}
           {step === 'idle' && (
             <div style={s.idlePane}>
               <div style={s.idleIcon}>🎯</div>
@@ -171,7 +215,7 @@ export default function AIHelpModal({
               <NeuralAudioPlayer
                 audioBase64={data.audio_mp3_base64 || ''}
                 script={data.audio_script?.tts_script || ''}
-                gender={studentGender}
+                gender={voiceGender}
                 durationSec={data.audio_script?.estimated_duration_seconds || 58}
               />
               <MirrorQuestion
@@ -215,7 +259,7 @@ const s: Record<string, React.CSSProperties> = {
     background: '#070c1b',
     border: '0.5px solid rgba(0,212,255,0.2)',
     borderRadius: 14,
-    width: '100%', maxWidth: 760,
+    width: '100%', maxWidth: 1320,
     maxHeight: '90vh',
     display: 'flex', flexDirection: 'column',
     overflow: 'hidden',
@@ -246,7 +290,37 @@ const s: Record<string, React.CSSProperties> = {
     color: '#475569', fontSize: 16, cursor: 'pointer',
     padding: '4px 8px',
   },
-  body: { flex: 1, overflowY: 'auto', padding: 14 },
+  body: { flex: 1, overflowY: 'auto', overflowX: 'auto', padding: 14 },
+  voicePanel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    padding: '8px 10px',
+    borderRadius: 8,
+    background: 'rgba(15,23,42,0.7)',
+    border: '0.5px solid rgba(0,212,255,0.12)',
+    flexWrap: 'wrap',
+  },
+  voiceLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginRight: 4,
+  },
+  voiceBtn: {
+    padding: '6px 10px',
+    borderRadius: 7,
+    border: '0.5px solid rgba(148,163,184,0.25)',
+    background: 'rgba(15,23,42,0.9)',
+    color: '#94a3b8',
+    fontSize: 11,
+    cursor: 'pointer',
+  },
+  voiceBtnActive: {
+    background: 'rgba(0,212,255,0.12)',
+    border: '0.5px solid rgba(0,212,255,0.45)',
+    color: '#67e8f9',
+  },
   idlePane: {
     display: 'flex', flexDirection: 'column',
     alignItems: 'center', textAlign: 'center',
@@ -298,3 +372,5 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 11, cursor: 'pointer',
   },
 };
+
+
