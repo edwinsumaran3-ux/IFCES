@@ -2394,3 +2394,19 @@ asyncio.exceptions.CancelledError
 INFO:     Started server process [3212]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'panel\email_service.py', 'panel\main_final.py', 'panel\admin_routes.py', 'panel\main_with_auth.py', 'panel\exams_with_plans.py', 'panel\plan_restrictions.py', 'panel\auth_backend.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3212]
+INFO:     Started server process [21152]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'panel\panel\main_final.py', 'panel\panel\admin_routes.py', 'panel\panel\main_with_auth.py', 'panel\panel\auth_backend.py', 'panel\panel\email_service.py', 'panel\panel\exams_with_plans.py', 'panel\panel\plan_restrictions.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21152]
+INFO:     Started server process [22608]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
