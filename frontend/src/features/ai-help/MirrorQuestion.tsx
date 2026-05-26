@@ -25,7 +25,7 @@ export default function MirrorQuestion({ mirror, sessionId, originalPoints, onAn
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/v1/exam-attempts/mirror-questions/${sessionId}/answer`,
+        `https://ifces-production.up.railway.app/api/v1/exam-attempts/mirror-questions/${sessionId}/answer`,
         {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },

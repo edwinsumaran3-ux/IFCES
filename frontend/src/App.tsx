@@ -40,7 +40,7 @@ export default function App() {
   const startExam = async () => {
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/v1/exams/start', {
+      const res = await fetch('https://ifces-production.up.railway.app/api/v1/exams/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,7 +48,12 @@ export default function App() {
         },
         body: JSON.stringify({ student_id: user?.id || 'demo', student_gender: 'neutral', locale: 'es-CO' }),
       })
-      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Error') }
+      if (res.status === 402) { setShowPayment(true); return }
+      if (!res.ok) {
+        let detail = 'Error al iniciar simulacro'
+        try { detail = (await res.json()).detail || detail } catch {}
+        throw new Error(detail)
+      }
       const data = await res.json()
       setExamState({ attemptId: data.attempt_id, questions: data.questions, durationSecs: data.duration_secs })
       setView('exam')

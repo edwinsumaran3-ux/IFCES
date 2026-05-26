@@ -48,7 +48,7 @@ export default function PaymentPage({ user, onPaid, onClose, upgradeMode }: Prop
     if (ref.trim().length < 6) { setError('La referencia debe tener al menos 6 caracteres'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/v1/admin/payments', {
+      const res = await fetch('https://ifces-production.up.railway.app/api/v1/admin/payments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

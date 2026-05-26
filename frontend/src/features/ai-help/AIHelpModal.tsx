@@ -71,7 +71,7 @@ export default function AIHelpModal({
 
     try {
       const res = await fetch(
-        `/api/v1/exam-attempts/${attemptId}/questions/${questionId}/ai-help`,
+        `https://ifces-production.up.railway.app/api/v1/exam-attempts/${attemptId}/questions/${questionId}/ai-help`,
         {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },

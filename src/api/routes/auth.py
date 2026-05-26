@@ -68,8 +68,8 @@ async def register_student(body: RegisterRequest, db=Depends(get_db)):
     full_name = body.full_name.strip() or email
     try:
         result = await db.execute(text("""
-            INSERT INTO users (email, password_hash, full_name, role, status)
-            VALUES (:email, :hash, :full_name, 'student', 'active')
+            INSERT INTO users (email, password_hash, full_name, role, status, plan_code)
+            VALUES (:email, :hash, :full_name, 'student', 'active', 'pending')
             RETURNING id, email, full_name, role
         """), {"email": email, "hash": hashed, "full_name": full_name})
         await db.commit()

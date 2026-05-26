@@ -41,11 +41,16 @@ class AnswerRequest(BaseModel):
 async def start_exam(body: StartExamRequest, db=Depends(get_db)):
     attempt_id = str(uuid4())
 
-    # Verificar que el plan no este bloqueado
+    # Verificar estado del plan
     user_check = (await db.execute(
         text("SELECT plan_code FROM users WHERE id=:id"),
         {"id": body.student_id}
     )).fetchone()
+    if user_check and user_check.plan_code == "pending":
+        raise HTTPException(
+            status_code=402,
+            detail="PAGO_PENDIENTE"
+        )
     if user_check and user_check.plan_code == "blocked":
         raise HTTPException(
             status_code=403,
