@@ -147,6 +147,46 @@ async def create_payment(body: PaymentRequest, db=Depends(get_db)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@router.post("/questions/batch")
+async def import_questions_batch(questions: list[dict], db=Depends(get_db)):
+    inserted = 0
+    skipped  = 0
+    for q in questions:
+        opts = {o["label"].upper(): o["text"] for o in q.get("options", [])}
+        try:
+            await db.execute(text("""
+                INSERT INTO preguntas_icfes
+                    (codigo, area, enunciado, opcion_a, opcion_b, opcion_c, opcion_d,
+                     respuesta, explicacion, dificultad)
+                VALUES (:codigo, :area, :enunciado, :a, :b, :c, :d, :resp, :expl, :dif)
+                ON CONFLICT DO NOTHING
+            """), {
+                "codigo":    q.get("id", ""),
+                "area":      q.get("area", ""),
+                "enunciado": q.get("stem", ""),
+                "a": opts.get("A", ""), "b": opts.get("B", ""),
+                "c": opts.get("C", ""), "d": opts.get("D", ""),
+                "resp": (q.get("correct_option") or "A").upper(),
+                "expl": q.get("explanation", ""),
+                "dif":  (q.get("difficulty") or "MEDIA").upper(),
+            })
+            inserted += 1
+        except Exception:
+            skipped += 1
+    await db.commit()
+    return {"inserted": inserted, "skipped": skipped}
+
+@router.get("/questions/count")
+async def count_questions(db=Depends(get_db)):
+    try:
+        row = (await db.execute(text(
+            "SELECT COUNT(*) AS n, area FROM preguntas_icfes GROUP BY area ORDER BY area"
+        ))).fetchall()
+        total = sum(r.n for r in row)
+        return {"total": total, "by_area": {r.area: r.n for r in row}}
+    except Exception:
+        return {"total": 0, "by_area": {}}
+
 @router.post("/payments/{payment_id}/approve")
 async def approve_payment(payment_id: str, db=Depends(get_db)):
     payment = (await db.execute(
