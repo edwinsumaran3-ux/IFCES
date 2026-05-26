@@ -27,7 +27,7 @@ export default function LoginPage({ onLogin }: Props) {
     if (!email || !password) { setError('Completa todos los campos'); return }
     setLoading(true)
     try {
-      const BASE = window.location.hostname === 'localhost' ? '' : 'https://ifces-production.up.railway.app'
+      const BASE = 'https://ifces-production.up.railway.app'
       const url  = tab === 'login' ? `${BASE}/api/v1/auth/login` : `${BASE}/api/v1/auth/register-student`
       const body = tab === 'login'
         ? { email, password, role }
