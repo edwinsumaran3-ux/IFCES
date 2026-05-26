@@ -29,13 +29,22 @@ def create_token(data: dict) -> str:
 
 @router.post("/login")
 async def login(body: LoginRequest, db=Depends(get_db)):
-    user = (await db.execute(
-        text("SELECT * FROM users WHERE email=:email AND is_active=true"),
-        {"email": body.email.lower().strip()}
-    )).fetchone()
+    try:
+        user = (await db.execute(
+            text("SELECT * FROM users WHERE email=:email"),
+            {"email": body.email.lower().strip()}
+        )).fetchone()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
     if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    # Support both is_active and status column schemas
+    is_active = getattr(user, 'is_active', None)
+    status    = getattr(user, 'status', None)
+    if is_active is False or status in ('inactive', 'suspended', 'disabled'):
+        raise HTTPException(status_code=401, detail="Cuenta desactivada")
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": user.full_name or user.email})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name or user.email, "role": user.role}}
+    full_name = getattr(user, 'full_name', None) or user.email
+    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": full_name})
+    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": full_name, "role": user.role}}
