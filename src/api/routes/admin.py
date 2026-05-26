@@ -99,6 +99,38 @@ async def get_payments(db=Depends(get_db)):
 
 @router.post("/payments")
 async def create_payment(body: PaymentRequest, db=Depends(get_db)):
+    ref = body.nequi_ref.strip()
+    if not ref:
+        raise HTTPException(status_code=400, detail="La referencia Nequi es requerida")
+
+    # Verificar que la referencia no haya sido usada antes
+    existing = (await db.execute(
+        text("SELECT id, status FROM payments WHERE nequi_ref = :ref"),
+        {"ref": ref}
+    )).fetchone()
+    if existing:
+        if existing.status == "approved":
+            raise HTTPException(
+                status_code=400,
+                detail="Esta referencia Nequi ya fue utilizada y aprobada. Cada pago tiene un código único."
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Esta referencia Nequi ya está registrada y en espera de confirmación."
+            )
+
+    # Verificar que el usuario no tenga ya un pago pendiente
+    pending = (await db.execute(
+        text("SELECT id FROM payments WHERE user_id=:uid AND status='pending'"),
+        {"uid": body.user_id}
+    )).fetchone()
+    if pending:
+        raise HTTPException(
+            status_code=400,
+            detail="Ya tienes un pago pendiente de confirmación. Espera que el administrador lo apruebe."
+        )
+
     try:
         payment_id = str(uuid4())
         await db.execute(
@@ -108,7 +140,7 @@ async def create_payment(body: PaymentRequest, db=Depends(get_db)):
             """),
             {"id": payment_id, "user_id": body.user_id,
              "plan": body.plan_code, "amount": body.amount,
-             "ref": body.nequi_ref}
+             "ref": ref}
         )
         await db.commit()
         return {"success": True, "payment_id": payment_id}

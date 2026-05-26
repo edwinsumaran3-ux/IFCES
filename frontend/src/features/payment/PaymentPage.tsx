@@ -65,7 +65,9 @@ export default function PaymentPage({ user, onPaid, onClose, upgradeMode }: Prop
         setStep('done')
         onPaid()
       } else {
-        throw new Error('Error al registrar el pago')
+        let msg = 'Error al registrar el pago'
+        try { msg = (await res.json()).detail || msg } catch {}
+        throw new Error(msg)
       }
     } catch (e: any) {
       setError(e.message)
