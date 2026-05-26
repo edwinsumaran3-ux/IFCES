@@ -154,6 +154,25 @@ async def run_migrations():
                 created_at  TIMESTAMPTZ DEFAULT NOW()
             )
         """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS ai_help_sessions (
+                id                   UUID PRIMARY KEY,
+                attempt_id           UUID NOT NULL,
+                question_id          UUID,
+                help_number          INTEGER DEFAULT 1,
+                prompt_version       VARCHAR(50),
+                whiteboard_json      TEXT,
+                audio_script         TEXT,
+                mirror_question_json TEXT,
+                mirror_answer        VARCHAR(2),
+                mirror_correct       BOOLEAN,
+                awarded_score        FLOAT DEFAULT 0.0,
+                approved             BOOLEAN DEFAULT true,
+                risk_level           VARCHAR(20),
+                latency_ms           INTEGER,
+                created_at           TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
 
 @app.get("/health")
 async def health():
