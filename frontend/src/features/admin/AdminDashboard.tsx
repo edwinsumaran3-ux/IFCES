@@ -8,7 +8,7 @@ interface Payment { id: string; student_name: string; plan: string; amount: numb
 type Tab = 'overview' | 'students' | 'teachers' | 'import' | 'payments' | 'plans'
 
 const API = (path: string, opts?: RequestInit) =>
-  fetch(`/api/v1${path}`, {
+  fetch(`https://ifces-production.up.railway.app/api/v1${path}`, {
     ...opts,
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('access_token')}`, ...opts?.headers }
   }).then(r => r.json())

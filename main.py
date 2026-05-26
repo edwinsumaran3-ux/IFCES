@@ -51,6 +51,7 @@ async def run_migrations():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS status     VARCHAR(20) DEFAULT 'active'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone      VARCHAR(20)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_code  VARCHAR(20) DEFAULT 'basic'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active  BOOLEAN DEFAULT true",
         ]:
             await conn.execute(text(col_sql))
         # Seed admin user (password: Admin1234)
@@ -86,6 +87,66 @@ async def run_migrations():
                 ('Plus',    'plus',    8000, 3),
                 ('Premium', 'premium', 12000, 5)
             ON CONFLICT (code) DO NOTHING
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS exam_attempts (
+                id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id          UUID NOT NULL,
+                student_gender      VARCHAR(10) DEFAULT 'neutral',
+                status              VARCHAR(20) DEFAULT 'in_progress',
+                remaining_ai_helps  INTEGER DEFAULT 1,
+                score_weighted      FLOAT DEFAULT 0.0,
+                created_at          TIMESTAMPTZ DEFAULT NOW(),
+                finished_at         TIMESTAMPTZ
+            )
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS exam_attempt_questions (
+                id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                attempt_id  UUID NOT NULL,
+                pregunta_id UUID NOT NULL,
+                orden       INTEGER,
+                answered    BOOLEAN DEFAULT false,
+                locked      BOOLEAN DEFAULT false
+            )
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS student_answers (
+                id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                attempt_id      UUID NOT NULL,
+                question_id     UUID NOT NULL,
+                selected_option VARCHAR(2),
+                is_correct      BOOLEAN DEFAULT false,
+                answered_at     TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (attempt_id, question_id)
+            )
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id     UUID NOT NULL,
+                plan_code   VARCHAR(30) NOT NULL,
+                amount_cop  INTEGER NOT NULL DEFAULT 0,
+                nequi_ref   VARCHAR(100),
+                status      VARCHAR(20) DEFAULT 'pending',
+                created_at  TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS preguntas_icfes (
+                id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                codigo      VARCHAR(30),
+                area        VARCHAR(80) NOT NULL,
+                enunciado   TEXT NOT NULL,
+                opcion_a    TEXT,
+                opcion_b    TEXT,
+                opcion_c    TEXT,
+                opcion_d    TEXT,
+                respuesta   VARCHAR(2) NOT NULL,
+                explicacion TEXT,
+                dificultad  VARCHAR(20) DEFAULT 'MEDIA',
+                created_at  TIMESTAMPTZ DEFAULT NOW()
+            )
         """))
 
 @app.get("/health")
