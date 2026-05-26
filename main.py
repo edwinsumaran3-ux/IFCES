@@ -51,16 +51,20 @@ async def run_migrations():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_code  VARCHAR(20) DEFAULT 'basic'",
         ]:
             await conn.execute(text(col_sql))
-        # Seed admin user  (password: Admin1234)
+        # Seed admin user (password: Admin1234)
         await conn.execute(text("""
             INSERT INTO users (email, password_hash, full_name, role, status)
             VALUES (
                 'admin@icfes.edu.co',
-                '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGNwNmFOqBqGcbMETZkJqTqrUTe',
+                '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.',
                 'Administrador General',
                 'admin',
                 'active'
-            ) ON CONFLICT (email) DO NOTHING
+            ) ON CONFLICT (email) DO UPDATE SET
+                password_hash = '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.',
+                full_name = 'Administrador General',
+                role = 'admin',
+                status = 'active'
         """))
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS subscription_plans (
