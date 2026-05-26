@@ -6,6 +6,7 @@ from src.api.routes.admin   import router as admin_router
 from src.api.routes.exams   import router as exams_router
 from src.api.routes.ai_help import router as ai_help_router
 from src.api.routes.teacher import router as teacher_router
+from src.api.routes.oauth   import router as oauth_router
 from src.infrastructure.database import engine
 from sqlalchemy import text
 
@@ -24,6 +25,7 @@ app.include_router(admin_router,   prefix="/api/v1")
 app.include_router(exams_router,   prefix="/api/v1")
 app.include_router(ai_help_router, prefix="/api/v1")
 app.include_router(teacher_router, prefix="/api/v1")
+app.include_router(oauth_router,   prefix="/api/v1")
 
 @app.on_event("startup")
 async def run_migrations():
