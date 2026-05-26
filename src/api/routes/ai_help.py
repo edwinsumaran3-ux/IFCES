@@ -57,7 +57,7 @@ async def request_ai_help(
                    opcion_a, opcion_b, opcion_c, opcion_d
             FROM preguntas_icfes WHERE id=:id
         """),
-        {"id": int(question_id)}
+        {"id": question_id}
     )
     q_row = question.fetchone()
     if not q_row:
@@ -125,7 +125,7 @@ async def request_ai_help(
         {
             "id":                  response.session_id,
             "attempt_id":          attempt_id,
-            "question_id":         int(question_id),
+            "question_id":         question_id,
             "help_number":         help_number,
             "prompt_version":      response.prompt_bundle_version,
             "whiteboard_json":     response.whiteboard.model_dump_json(),
