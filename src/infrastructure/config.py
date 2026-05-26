@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     google_application_credentials: str = ""
     secret_key: str = "change-me-in-production"
     app_env: str = "development"
+    # OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    microsoft_client_id: str = ""
+    microsoft_client_secret: str = ""
+    frontend_url: str = "https://ifces-wmo9.vercel.app"
 
     @field_validator("database_url", mode="before")
     @classmethod

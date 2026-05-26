@@ -1,5 +1,7 @@
 // frontend/src/features/auth/LoginPage.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+
+const BACKEND = 'https://ifces-production.up.railway.app'
 
 interface Props {
   onLogin: (user: { id: string; email: string; full_name: string; role: string }, token: string) => void
@@ -22,13 +24,33 @@ export default function LoginPage({ onLogin }: Props) {
   const [error,    setError]    = useState('')
   const [showPass, setShowPass] = useState(false)
 
+  // Handle OAuth callback: ?token=...&user=...
+  useEffect(() => {
+    const params    = new URLSearchParams(window.location.search)
+    const token     = params.get('token')
+    const userRaw   = params.get('user')
+    const oauthErr  = params.get('error')
+    if (token && userRaw) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userRaw))
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+        window.history.replaceState({}, '', window.location.pathname)
+        onLogin(user, token)
+      } catch { /* malformed — ignore */ }
+    }
+    if (oauthErr) {
+      setError('Error al iniciar sesión con red social')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   const submit = async () => {
     setError('')
     if (!email || !password) { setError('Completa todos los campos'); return }
     setLoading(true)
     try {
-      const BASE = 'https://ifces-production.up.railway.app'
-      const url  = tab === 'login' ? `${BASE}/api/v1/auth/login` : `${BASE}/api/v1/auth/register-student`
+      const url = tab === 'login' ? `${BACKEND}/api/v1/auth/login` : `${BACKEND}/api/v1/auth/register-student`
       const body = tab === 'login'
         ? { email, password, role }
         : { email, password, full_name: name }
@@ -163,6 +185,33 @@ export default function LoginPage({ onLogin }: Props) {
           border-radius: 8px; padding: 8px 12px;
           font-size: 12px; color: #f87171; margin-bottom: 12px;
         }
+        .social-divider {
+          display: flex; align-items: center; gap: 8px;
+          margin: 14px 0 12px; color: #334155; font-size: 11px;
+        }
+        .social-divider::before, .social-divider::after {
+          content: ''; flex: 1; height: 1px;
+          background: rgba(255,255,255,0.06);
+        }
+        .social-btn {
+          display: flex; align-items: center; justify-content: center;
+          gap: 8px; width: 100%; padding: 10px 12px; border-radius: 9px;
+          font-size: 12px; font-weight: 600; cursor: pointer;
+          border: 1px solid; transition: all 0.2s;
+          font-family: 'Inter', sans-serif; margin-bottom: 8px;
+        }
+        .social-btn-google {
+          background: rgba(234,67,53,0.06);
+          border-color: rgba(234,67,53,0.25);
+          color: #fca5a5;
+        }
+        .social-btn-google:hover { background: rgba(234,67,53,0.12); transform: translateY(-1px); }
+        .social-btn-microsoft {
+          background: rgba(0,120,215,0.06);
+          border-color: rgba(0,120,215,0.25);
+          color: #93c5fd;
+        }
+        .social-btn-microsoft:hover { background: rgba(0,120,215,0.12); transform: translateY(-1px); }
         @media (max-width: 768px) {
           .login-body { grid-template-columns: 1fr; padding: 20px 16px; }
           .login-left { display: none; }
@@ -258,6 +307,17 @@ export default function LoginPage({ onLogin }: Props) {
                   </button>
                 </div>
               </div>
+
+              {/* SOCIAL LOGIN */}
+              <div className="social-divider">— o continúa con —</div>
+              <button className="social-btn social-btn-google" onClick={() => { window.location.href = `${BACKEND}/api/v1/auth/google` }}>
+                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"/><path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987z"/><path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21z"/><path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067z"/></svg>
+                Continuar con Google
+              </button>
+              <button className="social-btn social-btn-microsoft" onClick={() => { window.location.href = `${BACKEND}/api/v1/auth/microsoft` }}>
+                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#F25022" d="M0 0h11.377v11.372H0z"/><path fill="#7FBA00" d="M12.623 0H24v11.372H12.623z"/><path fill="#00A4EF" d="M0 12.623h11.377V24H0z"/><path fill="#FFB900" d="M12.623 12.623H24V24H12.623z"/></svg>
+                Continuar con Microsoft / Hotmail
+              </button>
 
               {tab==='login' && (
                 <>
