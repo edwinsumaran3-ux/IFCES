@@ -6,6 +6,8 @@ from src.api.routes.admin   import router as admin_router
 from src.api.routes.exams   import router as exams_router
 from src.api.routes.ai_help import router as ai_help_router
 from src.api.routes.teacher import router as teacher_router
+from src.infrastructure.database import engine
+from sqlalchemy import text
 
 app = FastAPI(title="ERP ICFES Neuro-IA", version="4.0.0")
 
@@ -22,6 +24,55 @@ app.include_router(admin_router,   prefix="/api/v1")
 app.include_router(exams_router,   prefix="/api/v1")
 app.include_router(ai_help_router, prefix="/api/v1")
 app.include_router(teacher_router, prefix="/api/v1")
+
+@app.on_event("startup")
+async def run_migrations():
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS users (
+                id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email           VARCHAR(120) NOT NULL UNIQUE,
+                password_hash   TEXT NOT NULL,
+                full_name       VARCHAR(120) NOT NULL,
+                role            VARCHAR(20) NOT NULL DEFAULT 'student',
+                institution_id  UUID,
+                phone           VARCHAR(20),
+                status          VARCHAR(20) DEFAULT 'active',
+                plan_code       VARCHAR(20) DEFAULT 'basic',
+                created_at      TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS subscription_plans (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(50) NOT NULL,
+                code VARCHAR(30) UNIQUE NOT NULL,
+                price_cop INTEGER NOT NULL DEFAULT 0,
+                max_ai_helps INTEGER NOT NULL DEFAULT 1,
+                status VARCHAR(20) DEFAULT 'active',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        # Seed admin user (password: Admin1234)
+        await conn.execute(text("""
+            INSERT INTO users (email, password_hash, full_name, role, status)
+            VALUES (
+                'admin@icfes.edu.co',
+                '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGNwNmFOqBqGcbMETZkJqTqrUTe',
+                'Administrador General',
+                'admin',
+                'active'
+            ) ON CONFLICT (email) DO NOTHING
+        """))
+        # Seed subscription plans
+        await conn.execute(text("""
+            INSERT INTO subscription_plans (name, code, price_cop, max_ai_helps)
+            VALUES
+                ('Basico',  'basic',   6000, 1),
+                ('Plus',    'plus',    8000, 3),
+                ('Premium', 'premium', 12000, 5)
+            ON CONFLICT (code) DO NOTHING
+        """))
 
 @app.get("/health")
 async def health():
