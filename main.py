@@ -127,10 +127,16 @@ async def run_migrations():
                 user_id     UUID NOT NULL,
                 plan_code   VARCHAR(30) NOT NULL,
                 amount_cop  INTEGER NOT NULL DEFAULT 0,
-                nequi_ref   VARCHAR(100),
+                nequi_ref   VARCHAR(100) UNIQUE,
                 status      VARCHAR(20) DEFAULT 'pending',
                 created_at  TIMESTAMPTZ DEFAULT NOW()
             )
+        """))
+        # Ensure unique index exists even if table was created before without it
+        await conn.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS payments_nequi_ref_idx
+            ON payments (nequi_ref)
+            WHERE nequi_ref IS NOT NULL
         """))
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS preguntas_icfes (
