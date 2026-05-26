@@ -12,8 +12,8 @@ from src.ai.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-MODEL_RICH  = "claude-sonnet-4-6"        # Pizarra (JSON rico y largo)
-MODEL_FAST  = "claude-haiku-4-5-20251001" # Tareas rápidas (~80% más barato)
+MODEL_RICH  = "claude-haiku-4-5-20251001"  # Pizarra — Haiku suficiente y 4x más barato
+MODEL_FAST  = "claude-haiku-4-5-20251001"  # Tareas rápidas
 MAX_TOKENS  = 4096
 MAX_REPAIRS = 1  # Máx 1 reparación (antes 2) para ahorrar créditos
 
