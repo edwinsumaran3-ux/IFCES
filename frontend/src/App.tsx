@@ -1,5 +1,6 @@
 // frontend/src/App.tsx — con autenticacion
 import React, { useState, useEffect } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import LoginPage from './features/auth/LoginPage'
 import ExamEngine from './features/exam/ExamEngine'
 import TeacherDashboard from './features/teacher/TeacherDashboard'
@@ -173,6 +174,7 @@ export default function App() {
       {view==='teacher' && <TeacherDashboard />}
       {showPayment && user && <PaymentPage user={user} onPaid={()=>setShowPayment(false)} onClose={()=>setShowPayment(false)} />}
       {user?.role === 'admin' && view==='home' && <AdminDashboard />}
+      <Analytics />
     </div>
   )
 }
