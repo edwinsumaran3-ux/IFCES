@@ -28,12 +28,13 @@ app.include_router(teacher_router, prefix="/api/v1")
 @app.on_event("startup")
 async def run_migrations():
     async with engine.begin() as conn:
+        # Create users table if not exists (new schema)
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS users (
                 id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 email           VARCHAR(120) NOT NULL UNIQUE,
-                password_hash   TEXT NOT NULL,
-                full_name       VARCHAR(120) NOT NULL,
+                password_hash   TEXT,
+                full_name       VARCHAR(120),
                 role            VARCHAR(20) NOT NULL DEFAULT 'student',
                 institution_id  UUID,
                 phone           VARCHAR(20),
@@ -41,6 +42,25 @@ async def run_migrations():
                 plan_code       VARCHAR(20) DEFAULT 'basic',
                 created_at      TIMESTAMPTZ DEFAULT NOW()
             )
+        """))
+        # Add missing columns if table already existed with old schema
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name  VARCHAR(120)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS status     VARCHAR(20) DEFAULT 'active'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone      VARCHAR(20)",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_code  VARCHAR(20) DEFAULT 'basic'",
+        ]:
+            await conn.execute(text(col_sql))
+        # Seed admin user  (password: Admin1234)
+        await conn.execute(text("""
+            INSERT INTO users (email, password_hash, full_name, role, status)
+            VALUES (
+                'admin@icfes.edu.co',
+                '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGNwNmFOqBqGcbMETZkJqTqrUTe',
+                'Administrador General',
+                'admin',
+                'active'
+            ) ON CONFLICT (email) DO NOTHING
         """))
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS subscription_plans (
@@ -53,18 +73,6 @@ async def run_migrations():
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         """))
-        # Seed admin user (password: Admin1234)
-        await conn.execute(text("""
-            INSERT INTO users (email, password_hash, full_name, role, status)
-            VALUES (
-                'admin@icfes.edu.co',
-                '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiGNwNmFOqBqGcbMETZkJqTqrUTe',
-                'Administrador General',
-                'admin',
-                'active'
-            ) ON CONFLICT (email) DO NOTHING
-        """))
-        # Seed subscription plans
         await conn.execute(text("""
             INSERT INTO subscription_plans (name, code, price_cop, max_ai_helps)
             VALUES
