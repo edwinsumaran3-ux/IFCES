@@ -3,3 +3,6 @@ dist/
 frontend/dist/
 build/
 .env
+__pycache__/
+*.pyc
+*.log
