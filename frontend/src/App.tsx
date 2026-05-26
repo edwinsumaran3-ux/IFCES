@@ -97,7 +97,8 @@ export default function App() {
             </div>
             <span style={{ fontSize:11,color:'#94a3b8' }}>{user.full_name?.split(' ')[0]}</span>
           </div>
-          <button className="nav-btn" onClick={()=>setShowPayment(true)} style={{ border:"1px solid rgba(37,99,235,0.2)",background:"transparent",color:"#60a5fa" }}>💳 Planes</button>`n          <button className="nav-btn" onClick={logout} style={{ border:'1px solid rgba(239,68,68,0.2)',background:'transparent',color:'#f87171' }}>Salir</button>
+          <button className="nav-btn" onClick={()=>setShowPayment(true)} style={{ border:"1px solid rgba(37,99,235,0.2)",background:"transparent",color:"#60a5fa" }}>💳 Planes</button>
+          <button className="nav-btn" onClick={logout} style={{ border:'1px solid rgba(239,68,68,0.2)',background:'transparent',color:'#f87171' }}>Salir</button>
         </div>
       </nav>
 

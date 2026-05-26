@@ -37,8 +37,10 @@ export default function LoginPage({ onLogin }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Error de autenticación')
+      const text = await res.text()
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { /* server returned non-JSON */ }
+      if (!res.ok) throw new Error(data.detail || `Error ${res.status}`)
       localStorage.setItem('access_token', data.access_token)
       localStorage.setItem('user', JSON.stringify(data.user))
       onLogin(data.user, data.access_token)
