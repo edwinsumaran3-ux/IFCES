@@ -90,9 +90,9 @@ async def request_ai_help(
 
     try:
         response = await orchestrator.run_help_session(ai_request)
-    except ValueError as e:
+    except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=502, detail=str(e)) from e
+        raise HTTPException(status_code=502, detail=f"Error en servicio IA: {str(e)}") from e
 
     # 7. Descontar token y persistir sesión solo si la IA respondió bien
     token_update = await db.execute(

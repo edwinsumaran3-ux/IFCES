@@ -34,18 +34,29 @@ class AIOrchestrator:
         t0  = time.time()
         logger.info(f"[{sid}] Iniciando ayuda IA pregunta={request.question_id}")
 
-        clf      = await self._classify(request, sid)
-        plan     = await self._plan(request, clf, sid)
-        wb       = await self._whiteboard(request, clf, plan, sid)
-        audio_sc = await self._audio_script(request, clf, plan, wb, sid)
-        mirror   = await self._mirror(request, clf, sid)
-        leakage  = await self._leakage(request, wb, mirror, sid)
+        # Round 1: classify → plan (secuencial, plan depende de classify)
+        clf  = await self._classify(request, sid)
+        plan = await self._plan(request, clf, sid)
+
+        # Round 2: whiteboard + mirror en paralelo
+        wb, mirror = await asyncio.gather(
+            self._whiteboard(request, clf, plan, sid),
+            self._mirror(request, clf, sid),
+        )
+
+        # Round 3: audio_script + leakage en paralelo
+        audio_sc, leakage = await asyncio.gather(
+            self._audio_script(request, clf, plan, wb, sid),
+            self._leakage(request, wb, mirror, sid),
+        )
 
         for i in range(MAX_REPAIRS):
             if leakage.approved: break
             logger.warning(f"[{sid}] Reparación {i+1} — risk={leakage.risk_level}")
-            wb      = await self._whiteboard(request, clf, plan, sid)
-            mirror  = await self._mirror(request, clf, sid)
+            wb, mirror = await asyncio.gather(
+                self._whiteboard(request, clf, plan, sid),
+                self._mirror(request, clf, sid),
+            )
             leakage = await self._leakage(request, wb, mirror, sid)
 
 
