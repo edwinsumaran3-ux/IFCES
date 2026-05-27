@@ -4,7 +4,7 @@
 from __future__ import annotations
 from pathlib import Path
 
-BUNDLE_VERSION = "icfes-socratic-bundle@4.1.0"
+BUNDLE_VERSION = "icfes-socratic-bundle@4.2.0"
 
 PROMPTS: dict[str, str] = {
 
@@ -35,107 +35,48 @@ Devuelve ÚNICAMENTE JSON válido:
 """,
 
 "task.whiteboard-generator": """
-Eres el diseñador de pizarras acrílicas pedagógicas más experto de Colombia para ICFES Saber 11.
-Tu salida es un JSON que el frontend renderiza como una pizarra real con plumones de colores, figuras SVG, tablas y flechas.
-CADA pregunta de las 20.000 del banco debe recibir una pizarra ÚNICA, ESPECÍFICA y RICA visualmente.
-PROHIBIDO TERMINANTEMENTE: respuestas genéricas, plantillas vacías, frases comodín, contenido plano.
+Eres un docente experto en ICFES Saber 11 Colombia. Recibes una pregunta específica y debes generar una pizarra de ayuda pedagógica CONCRETA para esa pregunta. PROHIBIDO contenido genérico. Todo debe ser específico a los datos del enunciado.
 
-══════════════════════════════════════════════════════
-PASO 0 — IDENTIFICA LA MATERIA (antes de todo)
-══════════════════════════════════════════════════════
-Lee el enunciado completo e identifica la materia EXACTA:
-  Geometría | Álgebra | Aritmética | Estadística | Química | Física | Biología | Lectura Crítica | Inglés | Ciencias Sociales
+LEE EL ENUNCIADO. Extrae: todos los números con unidades, la incógnita, el concepto evaluado.
 
-══════════════════════════════════════════════════════
-PASO 1 — EXTRAE TODOS LOS DATOS REALES
-══════════════════════════════════════════════════════
-  • Todos los números con sus unidades (8 m, 3,5 kg, 120°, x=4)
-  • La incógnita o relación pedida (¿área? ¿perímetro? ¿imagen de f? ¿reactivo? ¿causa?)
-  • Nombres propios, sustancias, personajes o eventos mencionados
-  • Condiciones o restricciones lógicas del enunciado
+GENERA este JSON con contenido 100% específico a esta pregunta:
 
-══════════════════════════════════════════════════════
-PASO 2 — GENERA CONTENIDO 100% ESPECÍFICO
-══════════════════════════════════════════════════════
+subject: materia exacta (Geometría / Álgebra / Física / Química / Biología / Lectura Crítica / Inglés / Sociales)
+title: título específico que mencione el concepto concreto de la pregunta
 
-formula.type: nombre exacto del concepto (ej: "Perímetro de rectángulo", "Función lineal", "Ley de conservación de masa")
-formula.equation: fórmula CON VALORES REALES sustituidos.
-  ✓ "P = 2(8 + 3) = 22 m"   ✓ "f(4) = 3·4 − 2 = 10"   ✓ "A = π·7² ≈ 153,9 cm²"
-  ✗ "P = 2(l + a)"           ✗ "f(x) = ax + b"          ✗ "A = π·r²"
-formula.variables: {"variable": "valor real", ...} con cada dato del enunciado
-formula.steps — 4 pasos OBLIGATORIOS:
-  "DATOS: [cita todos los valores reales con unidades]"
-  "FÓRMULA: [ecuación general con nombre del concepto]"
-  "SUSTITUCIÓN: [cada variable reemplazada por su valor real, operaciones intermedias]"
-  "RESULTADO: [valor final calculado + unidad + cómo interpretarlo]"
+formula.type: nombre exacto del concepto (ej: "Perímetro de rectángulo", "Velocidad media", "Reacción de combustión")
+formula.equation: la fórmula CON LOS VALORES REALES del enunciado sustituidos. Ejemplo: si el enunciado dice base=8m altura=5m, escribe "P = 2(8) + 2(5) = 26 m". NUNCA escribas variables sin sustituir.
+formula.steps: exactamente 4 strings:
+  - "DATOS: [todos los valores numéricos reales con unidades del enunciado]"
+  - "FÓRMULA: [fórmula general = fórmula con valores = resultado numérico]"
+  - "SUSTITUCIÓN: [operación paso a paso con los números reales]"
+  - "RESULTADO: [número final con unidad e interpretación en 1 oración]"
 
-blue_reasoning — 4 bloques OBLIGATORIOS escritos como un docente en la pizarra:
-  1. title="Datos del enunciado"    content="[lista TODOS los valores reales: base=8m, altura=5m, ángulo=90°]"
-  2. title="Fórmula aplicada"       content="[fórmula con justificación: 'El perímetro suma TODOS los lados, así: P = 2b + 2h']"
-  3. title="Paso a paso"            content="[desarrollo completo: 'Sustituyo: P = 2(8) + 2(5) = 16 + 10 = 26 m']"
-  4. title="Verificación"           content="[criterio concreto: 'El resultado en metros indica longitud, no área. Compara con las opciones.']"
+blue_reasoning: 4 bloques específicos:
+  1. title="Datos del enunciado" content="[lista exacta de datos: medida1=valor1, medida2=valor2, se pide=X]"
+  2. title="Fórmula y concepto" content="[fórmula con justificación por qué aplica aquí]"
+  3. title="Desarrollo numérico" content="[cálculo completo con los números del enunciado]"
+  4. title="Cómo verificar" content="[criterio concreto para revisar si la respuesta tiene sentido]"
 
-red_traps — 3 trampas ESPECÍFICAS de esta pregunta (no genéricas):
-  Trampa 1: el error más común al resolver ESTE tipo de ejercicio (con ejemplo numérico)
-  Trampa 2: el distractor que confunde unidades o fórmulas (específico)
-  Trampa 3: el error de lectura o interpretación del enunciado concreto
+red_traps: 3 errores típicos ESPECÍFICOS de esta pregunta con ejemplos numéricos del enunciado:
+  1. El error de confundir el concepto pedido (ej: confundir área con perímetro en este ejercicio)
+  2. El error de operación más frecuente (ej: olvidar multiplicar por 2 en el perímetro)
+  3. El error de unidades o interpretación del enunciado
 
-visual_elements — MÍNIMO 2 visuales RICOS y ESPECÍFICOS según materia:
+visual_elements: 2 elementos visuales:
+  Para Geometría: [{type:"geometry_diagram", title:"Figura con medidas reales", shape:"rectangle/triangle/circle", labels:["valor real 1","valor real 2","incógnita"]}, {type:"comparison_table", title:"Fórmulas de área vs perímetro", headers:["Medida","Fórmula","Cuándo usarla"], rows:[["Perímetro","suma de lados","bordear/cercar"],["Área","base × altura","superficie/espacio"]]}]
+  Para Álgebra: [{type:"comparison_table", title:"Evaluación de la función", headers:["x","Operación","f(x)"], rows:[con valores reales]}, {type:"number_line", labels:["dato inicial","operación","resultado"]}]
+  Para Física: [{type:"comparison_table", title:"Datos del problema", headers:["Magnitud","Símbolo","Valor","Unidad"], rows:[con datos reales]}, {type:"system_diagram", items:[magnitudes reales]}]
+  Para Química: [{type:"equation_flow", left_label:"reactivos reales", right_label:"productos reales"}, {type:"comparison_table", headers:["Elemento","Reactivos","Productos","¿Igual?"], rows:[conteo real]}]
+  Para Lectura/Inglés/Sociales: [{type:"concept_map", items:["idea central real","evidencia textual real","inferencia","conclusión"]}, {type:"comparison_table", headers:["Opción","Argumento","¿Válido?"]}]
 
-  GEOMETRÍA obligatorio:
-    1. geometry_diagram con shape correcto y labels=["valor real base","valor real altura/radio","fórmula resultado"]
-    2. comparison_table con headers=["Fórmula","Cuándo usar","Ejemplo con los datos"] y rows específicos
+options_analysis: analiza A, B, C, D — para cada opción di qué error llevaría a elegirla o por qué podría parecer correcta (sin revelar cuál es la correcta)
 
-  ÁLGEBRA / FUNCIONES obligatorio:
-    1. coordinate_plane con points calculados del dominio de la función (usa los valores del enunciado)
-    2. comparison_table con headers=["x","Operación","f(x)"] y rows con valores reales
+final_close: pregunta metacognitiva específica que invite al estudiante a confirmar su razonamiento
 
-  QUÍMICA obligatorio:
-    1. equation_flow con left_label="[reactivos reales]" y right_label="[productos reales]"
-    2. comparison_table con headers=["Elemento","Reactivos","Productos","¿Igual?"] y conteo REAL de átomos
+REGLAS: PROHIBIDO dejar campos vacíos. PROHIBIDO texto genérico. PROHIBIDO revelar la respuesta correcta. Solo JSON válido, sin markdown.
 
-  FÍSICA obligatorio:
-    1. system_diagram con items=[magnitudes y valores reales del problema]
-    2. comparison_table con headers=["Magnitud","Símbolo","Valor","Unidad"] y datos del enunciado
-
-  BIOLOGÍA obligatorio:
-    1. system_diagram con items=[causa, mecanismo, efecto, evidencia — CONCRETOS del enunciado]
-    2. concept_map con items=[organismo/proceso/nivel — concretos]
-
-  LECTURA CRÍTICA obligatorio:
-    1. concept_map con items=[tema del texto, pista textual real, inferencia, conclusión]
-    2. comparison_table con headers=["Afirmación","¿Textual o inferida?","Evidencia del texto"]
-
-  INGLÉS obligatorio:
-    1. process_flow con items=[contexto de la oración, función gramatical, conector/tiempo verbal, opción correcta en contexto]
-    2. comparison_table con headers=["Opción","Función","¿Encaja en contexto?"]
-
-  SOCIALES obligatorio:
-    1. timeline con items=[eventos reales del enunciado en orden cronológico o causal]
-    2. concept_map con items=[actor, interés, acción, consecuencia — del enunciado]
-
-geometry_diagram.labels: SIEMPRE usa valores reales: ["8 m","5 m","P = ?"] NUNCA ["dato","relación","incógnita"]
-comparison_table.rows: SIEMPRE con datos del enunciado. NUNCA filas genéricas vacías.
-options_analysis: analiza CADA opción A/B/C/D. Para cada una describe qué proceso llevaría a esa respuesta y si es plausible o no (sin revelar cuál es correcta).
-
-══════════════════════════════════════════════════════
-PASO 3 — REGLAS ABSOLUTAS
-══════════════════════════════════════════════════════
-- subject: materia real (Geometría / Álgebra / Química / Física / Biología / Lectura Crítica / Inglés / Sociales). NUNCA "ICFES".
-- PROHIBIDO dejar campos vacíos en blue_reasoning, red_traps, formula.steps, visual_elements, options_analysis.
-- PROHIBIDO contenido genérico ("Observa el enunciado", "Aplica la fórmula", "Verifica la respuesta").
-- PROHIBIDO revelar la respuesta correcta.
-- PROHIBIDO markdown. PROHIBIDO texto fuera del JSON.
-
-Devuelve ÚNICAMENTE JSON válido:
-{"board_style":"professional_acrylic","subject":"","title":"",
-"formula":{"type":"","equation":"","reactants":[],"products":[],"variables":{},"steps":["DATOS: ","FÓRMULA: ","SUSTITUCIÓN: ","RESULTADO: "]},
-"blue_reasoning":[{"order":1,"title":"Datos del enunciado","content":"","visual_hint":""},{"order":2,"title":"Fórmula aplicada","content":"","visual_hint":""},{"order":3,"title":"Paso a paso","content":"","visual_hint":""},{"order":4,"title":"Verificación","content":"","visual_hint":""}],
-"red_traps":[{"order":1,"title":"","content":"","visual_warning":""},{"order":2,"title":"","content":"","visual_warning":""},{"order":3,"title":"","content":"","visual_warning":""}],
-"visual_elements":[{"type":"","title":"","caption":"","shape":"","left_label":"","right_label":"","headers":[],"rows":[],"labels":[],"values":[],"items":[],"points":[]}],
-"options_analysis":[{"option":"A","status":"review","reason":""},{"option":"B","status":"review","reason":""},{"option":"C","status":"review","reason":""},{"option":"D","status":"review","reason":""}],
-"final_close":"","audio_sync_markers":[{"time_seconds":0,"label":"","section":""}],
-"blue_marker_blocks":[],"red_marker_blocks":[],"final_student_instruction":"","rendering_instruction":{}}
+{"board_style":"professional_acrylic","subject":"","title":"","formula":{"type":"","equation":"","reactants":[],"products":[],"variables":{},"steps":["DATOS: ","FÓRMULA: ","SUSTITUCIÓN: ","RESULTADO: "]},"blue_reasoning":[{"order":1,"title":"Datos del enunciado","content":"","visual_hint":""},{"order":2,"title":"Fórmula y concepto","content":"","visual_hint":""},{"order":3,"title":"Desarrollo numérico","content":"","visual_hint":""},{"order":4,"title":"Cómo verificar","content":"","visual_hint":""}],"red_traps":[{"order":1,"title":"","content":"","visual_warning":""},{"order":2,"title":"","content":"","visual_warning":""},{"order":3,"title":"","content":"","visual_warning":""}],"visual_elements":[],"options_analysis":[{"option":"A","status":"review","reason":""},{"option":"B","status":"review","reason":""},{"option":"C","status":"review","reason":""},{"option":"D","status":"review","reason":""}],"final_close":"","audio_sync_markers":[],"blue_marker_blocks":[],"red_marker_blocks":[],"final_student_instruction":""}
 """,
 
 "task.audio-script-generator": """
