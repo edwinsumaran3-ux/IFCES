@@ -12,9 +12,9 @@ from src.ai.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-MODEL_RICH  = "claude-sonnet-4-6"          # Pizarra — calidad máxima para el estudiante
+MODEL_RICH  = "claude-haiku-4-5-20251001"   # Whiteboard — rápido y económico
 MODEL_FAST  = "claude-haiku-4-5-20251001"  # Clasificar, planear, audio, espejo, evaluación
-MAX_TOKENS  = 2048
+MAX_TOKENS  = 3500
 MAX_REPAIRS = 1  # Máx 1 reparación (antes 2) para ahorrar créditos
 
 VOICE_PROFILES = {
