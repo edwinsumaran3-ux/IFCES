@@ -16,18 +16,29 @@ interface Props {
   durationSecs:  number;
 }
 
+const AREA_COLORS: Record<string, { color: string; bg: string; border: string }> = {
+  'Matemáticas':         { color: '#3fb950', bg: 'rgba(63,185,80,0.12)',  border: 'rgba(63,185,80,0.35)' },
+  'Ciencias naturales':  { color: '#79c0ff', bg: 'rgba(121,192,255,0.1)', border: 'rgba(121,192,255,0.3)' },
+  'Lectura critica':     { color: '#d29922', bg: 'rgba(210,153,34,0.12)', border: 'rgba(210,153,34,0.35)' },
+  'Sociales y ciudadanas':{ color: '#f85149', bg: 'rgba(248,81,73,0.1)',  border: 'rgba(248,81,73,0.3)' },
+  'Ingles':              { color: '#56d364', bg: 'rgba(86,211,100,0.1)',  border: 'rgba(86,211,100,0.3)' },
+};
+
+function getArea(area: string) {
+  return AREA_COLORS[area] ?? { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.3)' };
+}
+
 export default function ExamEngine({
   attemptId, studentId, studentGender, questions, durationSecs,
 }: Props) {
-  const [currentIdx,     setCurrentIdx]     = useState(0);
-  const [answers,        setAnswers]        = useState<Record<string, string>>({});
-  const [lockedQuestions,setLocked]         = useState<Set<string>>(new Set());
-  const [remainingHelps, setRemainingHelps] = useState(5);
-  const [showHelp,       setShowHelp]       = useState(false);
-  const [timeLeft,       setTimeLeft]       = useState(durationSecs);
-  const [scores,         setScores]         = useState<Record<string, number>>({});
+  const [currentIdx,      setCurrentIdx]     = useState(0);
+  const [answers,         setAnswers]        = useState<Record<string, string>>({});
+  const [lockedQuestions, setLocked]         = useState<Set<string>>(new Set());
+  const [remainingHelps,  setRemainingHelps] = useState(5);
+  const [showHelp,        setShowHelp]       = useState(false);
+  const [timeLeft,        setTimeLeft]       = useState(durationSecs);
+  const [scores,          setScores]         = useState<Record<string, number>>({});
 
-  // Temporizador
   useEffect(() => {
     const t = setInterval(() => setTimeLeft(s => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
@@ -38,6 +49,8 @@ export default function ExamEngine({
 
   const isLocked   = lockedQuestions.has(q.id);
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+  const areaTheme  = getArea(q.area);
+  const urgent     = timeLeft < 300;
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -57,66 +70,89 @@ export default function ExamEngine({
     setShowHelp(false);
   };
 
+  const progress = ((currentIdx + 1) / questions.length) * 100;
+  const answered  = Object.keys(answers).length;
+
   return (
-    <div style={s.shell}>
-      {/* TOPBAR */}
-      <div style={s.topbar}>
-        <div style={s.brand}>
-          <span style={{ fontSize: 18, color: '#00d4ff' }}>🧠</span>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>ERP ICFES Neuro-IA</span>
-          <span style={s.brandTag}>Saber 11 · Simulacro oficial</span>
+    <div style={styles.shell}>
+      {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
+      <div style={styles.topbar}>
+        <div style={styles.brand}>
+          <span style={{ fontSize: 20 }}>🧠</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', letterSpacing: '.02em' }}>
+              ERP ICFES Neuro-IA
+            </div>
+            <div style={{ fontSize: 10, color: '#475569' }}>Saber 11 · Simulacro oficial</div>
+          </div>
         </div>
-        <div style={s.topMeta}>
-          <span style={s.pill('#10b981', 'rgba(16,185,129,0.12)')}>
-            🏆 {totalScore.toFixed(1)} pts
-          </span>
-          <span style={s.pill('#fbbf24', 'rgba(245,158,11,0.12)')}>
-            🤖 {remainingHelps}/5 ayudas
-          </span>
-          <span style={s.pill(timeLeft < 300 ? '#f87171' : '#94a3b8', 'rgba(255,255,255,0.06)')}>
-            ⏱ {fmt(timeLeft)}
-          </span>
+
+        <div style={styles.topStats}>
+          <Stat icon="✅" label="Respondidas" value={`${answered}/${questions.length}`} color="#3fb950" />
+          <Stat icon="🏆" label="Puntaje" value={`${totalScore.toFixed(1)} pts`} color="#fbbf24" />
+          <Stat icon="🤖" label="Ayudas IA" value={`${remainingHelps}/5`} color="#a78bfa" />
+          <Stat
+            icon="⏱"
+            label="Tiempo"
+            value={fmt(timeLeft)}
+            color={urgent ? '#f87171' : '#94a3b8'}
+            pulse={urgent}
+          />
         </div>
       </div>
 
-      {/* BODY */}
-      <div style={s.body}>
-        {/* Pregunta */}
-        <div style={s.qCard}>
-          <div style={s.qMeta}>
-            <span style={s.tag('#00d4ff')}>{q.area}</span>
-            <span style={s.tag('#a78bfa')}>Pregunta {currentIdx + 1} / {questions.length}</span>
+      {/* ── PROGRESS BAR ───────────────────────────────────────────────────── */}
+      <div style={styles.progressWrap}>
+        <div style={{ ...styles.progressFill, width: `${progress}%`, background: areaTheme.color }} />
+      </div>
+
+      {/* ── BODY ───────────────────────────────────────────────────────────── */}
+      <div style={styles.body}>
+
+        {/* ── QUESTION CARD ───────────────────────────────────────────────── */}
+        <div style={{ ...styles.qCard, borderColor: areaTheme.border }}>
+
+          {/* Área + número */}
+          <div style={styles.qHeader}>
+            <span style={{ ...styles.areaTag, color: areaTheme.color, background: areaTheme.bg, border: `1px solid ${areaTheme.border}` }}>
+              {q.area}
+            </span>
+            <span style={styles.qNum}>Pregunta {currentIdx + 1} / {questions.length}</span>
             {isLocked && (
-              <span style={s.tag('#f87171')}>🔒 Bloqueada — responde la pregunta espejo</span>
+              <span style={styles.lockedTag}>🔒 Bloqueada — responde la pregunta espejo</span>
             )}
           </div>
 
-          <p style={s.qText}>{q.stem}</p>
+          {/* Enunciado */}
+          <p style={styles.qText}>{q.stem}</p>
 
-          <div style={s.optGrid}>
+          {/* Opciones */}
+          <div style={styles.optList}>
             {q.options.map(opt => {
               const sel = answers[q.id] === opt.label;
               return (
                 <button
                   key={opt.label}
                   style={{
-                    ...s.optBtn,
-                    opacity:     isLocked ? 0.35 : 1,
-                    borderColor: sel ? '#00d4ff' : 'rgba(255,255,255,0.06)',
-                    background:  sel ? 'rgba(0,212,255,0.06)' : 'rgba(255,255,255,0.02)',
-                    cursor:      isLocked ? 'not-allowed' : 'pointer',
+                    ...styles.optBtn,
+                    borderColor:  sel ? areaTheme.color : 'rgba(255,255,255,0.08)',
+                    background:   sel ? areaTheme.bg     : 'rgba(255,255,255,0.02)',
+                    opacity:      isLocked ? 0.4 : 1,
+                    cursor:       isLocked ? 'not-allowed' : 'pointer',
+                    boxShadow:    sel ? `0 0 0 1px ${areaTheme.color}44` : 'none',
                   }}
                   onClick={() => selectAnswer(opt.label)}
                   disabled={isLocked}
                 >
                   <span style={{
-                    ...s.optLabel,
-                    borderColor: sel ? '#00d4ff' : 'rgba(255,255,255,0.1)',
-                    color:       sel ? '#00d4ff' : '#64748b',
+                    ...styles.optLetter,
+                    color:       sel ? '#fff'          : '#64748b',
+                    background:  sel ? areaTheme.color : 'rgba(255,255,255,0.05)',
+                    borderColor: sel ? areaTheme.color : 'rgba(255,255,255,0.1)',
                   }}>
                     {opt.label}
                   </span>
-                  <span style={{ fontSize: 12, color: '#94a3b8' }}>{opt.text}</span>
+                  <span style={styles.optText}>{opt.text}</span>
                 </button>
               );
             })}
@@ -126,47 +162,65 @@ export default function ExamEngine({
           {!isLocked && (
             <button
               style={{
-                ...s.aiBtn,
-                opacity: remainingHelps > 0 ? 1 : 0.4,
+                ...styles.aiBtn,
+                opacity: remainingHelps > 0 ? 1 : 0.35,
                 cursor:  remainingHelps > 0 ? 'pointer' : 'not-allowed',
               }}
               onClick={() => remainingHelps > 0 && setShowHelp(true)}
             >
-              🧠 Activar ayuda socrática IA
-              <span style={s.aiBtnSub}>consume 1 token · bloquea pregunta original</span>
+              <span style={styles.aiBtnLeft}>
+                <span style={{ fontSize: 18 }}>🧠</span>
+                <span>
+                  <span style={styles.aiBtnTitle}>Activar ayuda socrática IA</span>
+                  <span style={styles.aiBtnSub}>Pizarra · Audio · Pregunta espejo</span>
+                </span>
+              </span>
+              <span style={styles.aiBtnRight}>
+                {remainingHelps > 0 ? `${remainingHelps} restantes` : 'Sin ayudas'}
+              </span>
             </button>
           )}
         </div>
 
-        {/* Navegación */}
-        <div style={s.navRow}>
+        {/* ── NAV ─────────────────────────────────────────────────────────── */}
+        <div style={styles.nav}>
           <button
-            style={s.navBtn('#334155')}
+            style={styles.navBtnGhost}
             onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
             disabled={currentIdx === 0}
           >
             ← Anterior
           </button>
-          <div style={s.qDots}>
-            {questions.map((_, i) => (
-              <button
-                key={i}
-                style={{
-                  ...s.qDot,
-                  background: i === currentIdx
-                    ? '#00d4ff'
-                    : answers[questions[i].id]
-                    ? '#10b981'
-                    : lockedQuestions.has(questions[i].id)
-                    ? '#f59e0b'
-                    : '#1e293b',
-                }}
-                onClick={() => setCurrentIdx(i)}
-              />
-            ))}
+
+          <div style={styles.dotsWrap}>
+            {questions.map((qq, i) => {
+              const isDone   = !!answers[qq.id];
+              const isCurr   = i === currentIdx;
+              const isLock   = lockedQuestions.has(qq.id);
+              return (
+                <button
+                  key={i}
+                  title={`Pregunta ${i + 1}`}
+                  style={{
+                    ...styles.dot,
+                    background: isCurr
+                      ? areaTheme.color
+                      : isDone
+                      ? '#3fb950'
+                      : isLock
+                      ? '#f59e0b'
+                      : 'rgba(255,255,255,0.07)',
+                    transform: isCurr ? 'scale(1.35)' : 'scale(1)',
+                    boxShadow: isCurr ? `0 0 6px ${areaTheme.color}88` : 'none',
+                  }}
+                  onClick={() => setCurrentIdx(i)}
+                />
+              );
+            })}
           </div>
+
           <button
-            style={s.navBtn('#00d4ff')}
+            style={styles.navBtnPrimary}
             onClick={() => setCurrentIdx(i => Math.min(questions.length - 1, i + 1))}
             disabled={currentIdx === questions.length - 1}
           >
@@ -175,7 +229,6 @@ export default function ExamEngine({
         </div>
       </div>
 
-      {/* Modal de ayuda IA */}
       {showHelp && (
         <AIHelpModal
           attemptId={attemptId}
@@ -193,72 +246,206 @@ export default function ExamEngine({
   );
 }
 
-const s: Record<string, any> = {
-  shell: { background: '#050914', minHeight: '100vh', display: 'flex', flexDirection: 'column' },
+// ── Stat chip ─────────────────────────────────────────────────────────────────
+function Stat({ icon, label, value, color, pulse }: {
+  icon: string; label: string; value: string; color: string; pulse?: boolean
+}) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 10, padding: '6px 14px', minWidth: 72,
+      animation: pulse ? 'urgentPulse 1s ease-in-out infinite' : 'none',
+    }}>
+      <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, color, marginTop: 2 }}>{value}</span>
+      <span style={{ fontSize: 9, color: '#475569', marginTop: 1, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const styles: Record<string, React.CSSProperties> = {
+  shell: {
+    background: '#0d1117',
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: "'Segoe UI', system-ui, sans-serif",
+  },
   topbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 20px',
-    background: 'rgba(8,12,28,0.95)',
-    borderBottom: '0.5px solid rgba(0,212,255,0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 24px',
+    background: '#161b22',
+    borderBottom: '1px solid #21262d',
+    gap: 16,
   },
-  brand:    { display: 'flex', alignItems: 'center', gap: 8 },
-  brandTag: { fontSize: 10, color: '#475569', background: 'rgba(0,212,255,0.08)', padding: '2px 8px', borderRadius: 20 },
-  topMeta:  { display: 'flex', alignItems: 'center', gap: 8 },
-  pill: (color: string, bg: string): React.CSSProperties => ({
-    fontSize: 11, color, background: bg,
-    padding: '4px 10px', borderRadius: 20,
-    border: `0.5px solid ${color}44`,
-  }),
-  body: { flex: 1, padding: '20px', maxWidth: 760, margin: '0 auto', width: '100%' },
+  brand: { display: 'flex', alignItems: 'center', gap: 10 },
+  topStats: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  progressWrap: { height: 3, background: '#21262d' },
+  progressFill: { height: 3, transition: 'width .5s ease, background .5s ease' },
+  body: {
+    flex: 1,
+    maxWidth: 780,
+    margin: '0 auto',
+    width: '100%',
+    padding: '24px 20px 100px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
   qCard: {
-    background: 'rgba(15,22,41,0.8)',
-    border: '0.5px solid rgba(0,212,255,0.15)',
-    borderRadius: 12, padding: 16, marginBottom: 14,
-    position: 'relative', overflow: 'hidden',
+    background: '#161b22',
+    border: '1px solid',
+    borderRadius: 14,
+    padding: '22px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 18,
   },
-  qMeta: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  tag: (color: string): React.CSSProperties => ({
-    fontSize: 10, color, background: `${color}18`,
-    border: `0.5px solid ${color}33`,
-    padding: '2px 8px', borderRadius: 20,
-  }),
-  qText: { fontSize: 13, color: '#94a3b8', lineHeight: 1.7, marginBottom: 14 },
-  optGrid: { display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 12 },
+  qHeader: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  areaTag: {
+    fontSize: 11,
+    fontWeight: 700,
+    padding: '4px 12px',
+    borderRadius: 20,
+    textTransform: 'uppercase',
+    letterSpacing: '.06em',
+  },
+  qNum: {
+    fontSize: 12,
+    color: '#8b949e',
+    background: '#21262d',
+    border: '1px solid #30363d',
+    padding: '4px 12px',
+    borderRadius: 20,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  lockedTag: {
+    fontSize: 11,
+    color: '#f85149',
+    background: 'rgba(248,81,73,0.1)',
+    border: '1px solid rgba(248,81,73,0.3)',
+    padding: '4px 12px',
+    borderRadius: 20,
+  },
+  qText: {
+    fontSize: 16,
+    color: '#e6edf3',
+    lineHeight: 1.8,
+    margin: 0,
+  },
+  optList: { display: 'flex', flexDirection: 'column', gap: 10 },
   optBtn: {
-    display: 'flex', alignItems: 'center', gap: 9,
-    padding: '9px 12px', borderRadius: 8,
-    border: '0.5px solid', transition: 'all 0.15s', width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    padding: '14px 16px',
+    borderRadius: 10,
+    border: '1px solid',
+    transition: 'all .15s',
+    width: '100%',
+    textAlign: 'left',
   },
-  optLabel: {
-    width: 22, height: 22, borderRadius: 6,
-    border: '0.5px solid', display: 'flex',
-    alignItems: 'center', justifyContent: 'center',
-    fontSize: 10, fontWeight: 600, flexShrink: 0,
+  optLetter: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    border: '1px solid',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 13,
+    fontWeight: 700,
+    flexShrink: 0,
+    transition: 'all .15s',
+  },
+  optText: {
+    fontSize: 14,
+    color: '#c9d1d9',
+    lineHeight: 1.6,
   },
   aiBtn: {
-    width: '100%', padding: '10px 14px',
-    background: 'rgba(124,58,237,0.1)',
-    border: '0.5px solid rgba(124,58,237,0.3)',
-    borderRadius: 8, color: '#a78bfa',
-    fontSize: 12, fontWeight: 500,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 18px',
+    background: 'rgba(124,58,237,0.12)',
+    border: '1px solid rgba(124,58,237,0.35)',
+    borderRadius: 10,
+    transition: 'all .2s',
+    gap: 12,
   },
-  aiBtnSub: { fontSize: 10, color: '#475569', fontWeight: 400 },
-  navRow: {
-    display: 'flex', alignItems: 'center',
-    justifyContent: 'space-between', gap: 12,
+  aiBtnLeft: { display: 'flex', alignItems: 'center', gap: 12 },
+  aiBtnTitle: {
+    display: 'block',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#c4b5fd',
   },
-  navBtn: (color: string): React.CSSProperties => ({
-    padding: '8px 16px', borderRadius: 8,
-    border: `0.5px solid ${color}55`,
-    background: `${color}11`, color,
-    fontSize: 12, cursor: 'pointer',
-    transition: 'all 0.15s',
-  }),
-  qDots: { display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center', flex: 1 },
-  qDot: {
-    width: 10, height: 10, borderRadius: '50%',
-    border: 'none', cursor: 'pointer', transition: 'background 0.2s',
+  aiBtnSub: {
+    display: 'block',
+    fontSize: 11,
+    color: '#6e7681',
+    marginTop: 2,
+  },
+  aiBtnRight: {
+    fontSize: 12,
+    color: '#a78bfa',
+    background: 'rgba(124,58,237,0.2)',
+    border: '1px solid rgba(124,58,237,0.4)',
+    padding: '4px 12px',
+    borderRadius: 20,
+    whiteSpace: 'nowrap',
+    fontWeight: 600,
+  },
+  nav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  navBtnGhost: {
+    padding: '10px 18px',
+    borderRadius: 8,
+    border: '1px solid #30363d',
+    background: 'transparent',
+    color: '#8b949e',
+    fontSize: 13,
+    cursor: 'pointer',
+    transition: 'all .15s',
+    fontFamily: 'inherit',
+  },
+  navBtnPrimary: {
+    padding: '10px 18px',
+    borderRadius: 8,
+    border: '1px solid rgba(31,111,235,0.5)',
+    background: 'rgba(31,111,235,0.15)',
+    color: '#58a6ff',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all .15s',
+    fontFamily: 'inherit',
+  },
+  dotsWrap: {
+    display: 'flex',
+    gap: 5,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    flex: 1,
+    maxHeight: 60,
+    overflow: 'hidden',
+  },
+  dot: {
+    width: 11,
+    height: 11,
+    borderRadius: '50%',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all .15s',
+    padding: 0,
   },
 };
