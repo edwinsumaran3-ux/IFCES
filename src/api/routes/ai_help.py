@@ -3,7 +3,8 @@
 # =============================================================================
 from __future__ import annotations
 import json as _json
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from src.ai.orchestrator import AIOrchestrator
@@ -12,6 +13,12 @@ from src.infrastructure.database import get_db
 from src.infrastructure.config import settings
 
 router = APIRouter(prefix="/exam-attempts", tags=["AI Help"])
+
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Allow-Headers": "*",
+}
 
 def get_orchestrator() -> AIOrchestrator:
     return AIOrchestrator(anthropic_key=settings.anthropic_api_key)
@@ -26,7 +33,7 @@ class MirrorAnswerRequest(BaseModel):
     selected_option: str
 
 # ── POST /exam-attempts/{attemptId}/questions/{questionId}/ai-help ────────────
-@router.post("/{attempt_id}/questions/{question_id}/ai-help", response_model=AIHelpResponse)
+@router.post("/{attempt_id}/questions/{question_id}/ai-help")
 async def request_ai_help(
     attempt_id: str,
     question_id: str,
@@ -34,6 +41,19 @@ async def request_ai_help(
     db=Depends(get_db),
     orchestrator: AIOrchestrator = Depends(get_orchestrator),
 ):
+    try:
+        return await _handle_ai_help(attempt_id, question_id, body, db, orchestrator)
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code,
+                            content={"detail": e.detail},
+                            headers=CORS_HEADERS)
+    except Exception as e:
+        return JSONResponse(status_code=502,
+                            content={"detail": f"Error IA: {str(e)}"},
+                            headers=CORS_HEADERS)
+
+
+async def _handle_ai_help(attempt_id, question_id, body, db, orchestrator):
     # 1. Validar intento activo
     attempt = await db.execute(
         text("SELECT * FROM exam_attempts WHERE id=:id AND status='in_progress'"),
