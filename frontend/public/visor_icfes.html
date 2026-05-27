@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICFES Saber 11 — Banco de Preguntas</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']] },
+  svg: { fontCache: 'global' },
+  startup: { typeset: false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#2d333b;
+  --border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#58a6ff;--green:#3fb950;--orange:#d29922;--red:#f85149;
+  --purple:#bc8cff;--cyan:#79c0ff;--accent:#1f6feb;--accent2:#388bfd;
+  --page-w:900px;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 24px;height:52px}
+.topbar-logo{font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:.05em;white-space:nowrap}
+.topbar-sep{color:var(--border2);font-size:18px}
+.topbar-info{font-size:13px;color:var(--text2);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.topbar-badge{font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;white-space:nowrap}
+.badge-area{background:#161f2e;color:var(--blue);border:1px solid #1f4b6e}
+.badge-prog{background:#0d1f0d;color:var(--green);border:1px solid #1d4a1d}
+.badge-diff{background:#2a1f0d;color:var(--orange);border:1px solid #5a3e10}
+.progress-bar-wrap{position:fixed;top:52px;left:0;right:0;z-index:99;height:3px;background:var(--bg3)}
+.progress-bar-fill{height:3px;background:linear-gradient(90deg,var(--accent),var(--blue));transition:width .4s ease}
+.main{max-width:var(--page-w);margin:0 auto;padding:80px 24px 120px}
+.q-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.q-card-header{padding:18px 24px 14px;border-bottom:1px solid var(--border);background:var(--bg3);display:flex;align-items:flex-start;gap:14px}
+.q-number-block{background:var(--accent);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;white-space:nowrap}
+.q-meta{flex:1}
+.q-subject-label{font-size:11px;font-weight:600;color:var(--orange);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.q-text{font-size:16px;line-height:1.75;color:var(--text)}
+.q-body{padding:20px 24px}
+.section{margin-bottom:20px}
+.section-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-title::before{content:'';display:block;width:3px;height:14px;border-radius:2px;background:var(--accent)}
+.canvas-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{display:block;max-width:100%;height:auto}
+.formula-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px 20px;text-align:center;font-size:1.1em;overflow-x:auto}
+.formula-small{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 14px;text-align:center;font-size:.95em;overflow-x:auto}
+.formula-label{font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.steps-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.step-row{display:flex;gap:12px;align-items:flex-start}
+.step-num{width:24px;height:24px;border-radius:6px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-text{font-size:13px;color:var(--text2);line-height:1.6}
+.step-math{font-size:13px;color:var(--cyan);font-family:'Courier New',monospace}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:var(--bg4);padding:8px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border2)}
+.data-table td{padding:8px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--bg3)}
+.td-mono{font-family:'Courier New',monospace;color:var(--cyan)}
+.td-ok{color:var(--green);font-weight:600}
+.td-bad{color:var(--red)}
+.td-calc{color:var(--blue)}
+.td-num{text-align:right;font-family:'Courier New',monospace}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:620px){.split,.formula-grid{grid-template-columns:1fr}}
+.chem-eq{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:14px 0}
+.chem-molecule{background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:10px 18px;font-size:16px;font-weight:600;text-align:center;min-width:80px}
+.chem-arrow{font-size:22px;color:var(--text3)}
+.chem-plus{font-size:18px;color:var(--text3)}
+.chem-coef{font-size:11px;color:var(--text3);margin-bottom:3px;text-align:center;letter-spacing:.05em}
+.concept-map{display:flex;flex-direction:column;gap:8px}
+.concept-node{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text2);position:relative}
+.concept-node.main{border-color:var(--accent);color:var(--blue);font-weight:600}
+.concept-node.support{border-color:var(--green);color:#9dc99d}
+.concept-node.warn{border-color:var(--orange);color:#d9b060}
+.concept-node::before{content:'▶';position:absolute;left:-16px;color:var(--border2);font-size:10px;top:50%;transform:translateY(-50%)}
+.concept-node:first-child::before{display:none}
+.text-passage{background:var(--bg3);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:14px 18px;font-size:14px;line-height:1.8;color:var(--text2);margin-bottom:12px}
+.text-passage .hl-blue{color:var(--blue);font-weight:600}
+.text-passage .hl-orange{color:var(--orange);font-weight:600}
+.text-passage .hl-green{color:var(--green);font-weight:600}
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.options-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.option{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;background:var(--bg2);user-select:none}
+.option:hover{border-color:var(--border2);background:var(--bg3)}
+.option.selected{border-color:var(--accent2);background:#0c1929}
+.option.correct{border-color:var(--green);background:#071a07}
+.option.wrong{border-color:var(--red);background:#1a0707}
+.opt-letter{width:30px;height:30px;border-radius:6px;flex-shrink:0;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text2);font-family:'Courier New',monospace;transition:all .15s}
+.option.selected .opt-letter{background:var(--accent);border-color:var(--accent);color:#fff}
+.option.correct .opt-letter{background:var(--green);border-color:var(--green);color:#0d1117;font-size:16px}
+.option.wrong .opt-letter{background:var(--red);border-color:var(--red);color:#fff}
+.opt-text{font-size:14px;color:var(--text);line-height:1.6;padding-top:4px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-primary:disabled{background:var(--bg4);color:var(--text3);cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+.btn-ghost:disabled{opacity:.35;cursor:not-allowed}
+.btn-success{background:#1a4a1a;color:var(--green);border:1px solid #2a6a2a}
+.btn-success:hover{background:#1f5a1f}
+.explanation{margin-top:14px;padding:14px 18px;background:#071a07;border:1px solid #1d4a1d;border-radius:8px;display:none}
+.explanation.show{display:block}
+.expl-title{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.expl-text{font-size:14px;color:#9dc99d;line-height:1.75}
+.divider{height:1px;background:var(--border);margin:18px 0}
+.graph-container{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;overflow:hidden}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:var(--bg2);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:12px}
+.nav-counter{font-size:13px;color:var(--text2);font-family:'Courier New',monospace;flex:1;text-align:center}
+.nav-dots{display:flex;gap:4px;flex:1;justify-content:center;flex-wrap:wrap;max-width:440px;max-height:48px;overflow:hidden}
+.nav-dot{width:22px;height:22px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);font-size:9px;font-family:'Courier New',monospace;color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .1s;flex-shrink:0}
+.nav-dot:hover{border-color:var(--border2);color:var(--text2)}
+.nav-dot.answered-ok{background:#071a07;border-color:#1d4a1d;color:var(--green)}
+.nav-dot.answered-bad{background:#1a0707;border-color:#4a1d1d;color:var(--red)}
+.nav-dot.current{background:var(--accent);border-color:var(--accent2);color:#fff;font-weight:700}
+.area-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.tag-mat{background:#1a2a1a;color:#3fb950;border:1px solid #2d4a2d}
+.tag-fis{background:#1a1a2e;color:#79c0ff;border:1px solid #2d2d4a}
+.tag-qui{background:#2e1a2e;color:#bc8cff;border:1px solid #4a2d4a}
+.tag-bio{background:#1a2e1a;color:#56d364;border:1px solid #2d4a2d}
+.tag-lec{background:#2e2a1a;color:#d29922;border:1px solid #4a3e2d}
+.tag-soc{background:#2e1a1a;color:#f85149;border:1px solid #4a2d2d}
+.tag-ing{background:#1a2e2e;color:#79c0ff;border:1px solid #2d4a4a}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="topbar-logo">◈ ICFES Saber 11</span>
+  <span class="topbar-sep">|</span>
+  <span class="topbar-info" id="topbar-info">Cargando...</span>
+  <span class="topbar-badge badge-area" id="badge-area">—</span>
+  <span class="topbar-badge badge-diff" id="badge-diff">—</span>
+  <span class="topbar-badge badge-prog" id="badge-prog">0 / 0</span>
+</div>
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+<div class="main"><div id="question-container"></div></div>
+<div class="bottom-nav">
+  <button class="btn btn-ghost" id="btn-prev" onclick="navigate(-1)">← Anterior</button>
+  <div class="nav-dots" id="nav-dots"></div>
+  <span class="nav-counter" id="nav-counter">1 / 1</span>
+  <button class="btn btn-primary" id="btn-next" onclick="navigate(1)">Siguiente →</button>
+</div>
+
+<script>
+// ── Retina-ready canvas helper ──────────────────────────────────────────────
+function C(id, w, h) {
+  const cv = document.getElementById(id);
+  if (!cv) return null;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = w * dpr; cv.height = h * dpr;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return ctx;
+}
+function grid(ctx, ox, oy, cols, rows, sz, color='#1e2530') {
+  ctx.strokeStyle = color; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= cols; i++) { ctx.beginPath(); ctx.moveTo(ox + i*sz, oy); ctx.lineTo(ox + i*sz, oy + rows*sz); ctx.stroke(); }
+  for (let i = 0; i <= rows; i++) { ctx.beginPath(); ctx.moveTo(ox, oy + i*sz); ctx.lineTo(ox + cols*sz, oy + i*sz); ctx.stroke(); }
+}
+function arrow(ctx, x1,y1,x2,y2,color='#58a6ff',lw=2) {
+  const angle = Math.atan2(y2-y1, x2-x1);
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8*Math.cos(angle-0.35), y2 - 8*Math.sin(angle-0.35));
+  ctx.lineTo(x2 - 8*Math.cos(angle+0.35), y2 - 8*Math.sin(angle+0.35));
+  ctx.closePath(); ctx.fill();
+}
+
+// ── PREGUNTAS ────────────────────────────────────────────────────────────────
+const PREGUNTAS = [
+
+// ─── Q1 GEOMETRÍA — Pitágoras ────────────────────────────────────────────────
+{
+  id:1, area:'Matemáticas', tema:'Geometría', subtema:'Teorema de Pitágoras', dificultad:'Media',
+  enunciado:'En el triángulo rectángulo ABC, el cateto AB = 6 cm y el cateto BC = 8 cm. ¿Cuánto mide la hipotenusa AC y cuál es el área del triángulo?',
+  opciones:['AC = 8 cm  y  Área = 20 cm²','AC = 10 cm  y  Área = 24 cm²','AC = 12 cm  y  Área = 30 cm²','AC = 10 cm  y  Área = 48 cm²'],
+  correcta:1,
+  explicacion:'Pitágoras: c² = 6² + 8² = 36 + 64 = 100 → c = 10 cm. Área = (base × altura)/2 = (6 × 8)/2 = 24 cm².',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📐 Figura geométrica con medidas</div>
+  <div class="split">
+    <div class="canvas-box"><canvas id="cg1" width="250" height="210"></canvas></div>
+    <div class="steps-box">
+      <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Datos:</b> cateto a = <span class="step-math">6 cm</span>, cateto b = <span class="step-math">8 cm</span></div></div>
+      <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Fórmula:</b> <span class="step-math">c² = a² + b²</span></div></div>
+      <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Sustitución:</b> <span class="step-math">c² = 36 + 64 = 100</span></div></div>
+      <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Hipotenusa:</b> <span class="step-math">c = √100 = 10 cm</span></div></div>
+      <div class="step-row"><div class="step-num">5</div><div class="step-text"><b>Área:</b> <span class="step-math">A = (6×8)/2 = 24 cm²</span></div></div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Tabla de medidas</div>
+  <table class="data-table">
+    <thead><tr><th>Lado</th><th>Símbolo</th><th>Valor</th><th>Fórmula</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Cateto horizontal</td><td class="td-mono">a (AB)</td><td class="td-num">6 cm</td><td class="td-mono">—</td><td class="td-ok">✓ Dato</td></tr>
+      <tr><td>Cateto vertical</td><td class="td-mono">b (BC)</td><td class="td-num">8 cm</td><td class="td-mono">—</td><td class="td-ok">✓ Dato</td></tr>
+      <tr><td>Hipotenusa</td><td class="td-mono">c (AC)</td><td class="td-num td-calc">10 cm</td><td class="td-mono">√(a²+b²)</td><td class="td-calc">Calculado</td></tr>
+      <tr><td>Área</td><td class="td-mono">A</td><td class="td-num td-calc">24 cm²</td><td class="td-mono">(a×b)/2</td><td class="td-calc">Calculado</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    const ctx = C('cg1',250,210); if(!ctx) return;
+    const ox=30,oy=175,s=20;
+    grid(ctx,ox,oy-8*s,8,9,s);
+    // Fill
+    ctx.fillStyle='rgba(88,166,255,0.1)';
+    ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+6*s,oy);ctx.lineTo(ox+6*s,oy-8*s);ctx.closePath();ctx.fill();
+    // Triangle edges
+    ctx.strokeStyle='#58a6ff';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+6*s,oy);ctx.lineTo(ox+6*s,oy-8*s);ctx.closePath();ctx.stroke();
+    // Right angle mark
+    ctx.strokeStyle='#79c0ff';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(ox+6*s-12,oy);ctx.lineTo(ox+6*s-12,oy-12);ctx.lineTo(ox+6*s,oy-12);ctx.stroke();
+    // Dimension arrows
+    arrow(ctx,ox,oy+14,ox+6*s,oy+14,'#3fb950',1.5);
+    arrow(ctx,ox+6*s,oy+14,ox,oy+14,'#3fb950',1.5);
+    arrow(ctx,ox+6*s+14,oy,ox+6*s+14,oy-8*s,'#3fb950',1.5);
+    arrow(ctx,ox+6*s+14,oy-8*s,ox+6*s+14,oy,'#3fb950',1.5);
+    // Labels
+    ctx.font='bold 13px Segoe UI,sans-serif'; ctx.fillStyle='#e6edf3';
+    ctx.fillText('A',ox-16,oy+5); ctx.fillText('B',ox+6*s+4,oy+5); ctx.fillText('C',ox+6*s+4,oy-8*s-6);
+    ctx.font='bold 12px Courier New,monospace';
+    ctx.fillStyle='#3fb950'; ctx.fillText('6 cm',ox+2.5*s-14,oy+26);
+    ctx.fillStyle='#3fb950'; ctx.fillText('8 cm',ox+6*s+18,oy-4*s+4);
+    ctx.fillStyle='#f85149'; ctx.font='bold 13px Courier New,monospace';
+    ctx.save(); ctx.translate(ox+2.5*s-30,oy-4.5*s+10); ctx.rotate(-Math.atan2(8,6)); ctx.fillText('? = 10 cm',0,0); ctx.restore();
+  }
+},
+
+// ─── Q2 GEOMETRÍA — Círculo ──────────────────────────────────────────────────
+{
+  id:2, area:'Matemáticas', tema:'Geometría', subtema:'Círculo y circunferencia', dificultad:'Fácil',
+  enunciado:'Un círculo tiene radio r = 7 cm. Calcula el área y la longitud de la circunferencia. Usa π ≈ 3.1416.',
+  opciones:['Área = 153.94 cm²  y  C = 43.98 cm','Área = 49 cm²  y  C = 14 cm','Área = 153.94 cm²  y  C = 21.99 cm','Área = 78 cm²  y  C = 43.98 cm'],
+  correcta:0,
+  explicacion:'Área = π r² = 3.1416 × 49 = 153.94 cm². Circunferencia = 2πr = 2 × 3.1416 × 7 = 43.98 cm.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">🔵 Figura: Círculo con medidas</div>
+  <div class="split">
+    <div class="canvas-box"><canvas id="cg2" width="220" height="220"></canvas></div>
+    <div class="steps-box">
+      <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Dato:</b> radio <span class="step-math">r = 7 cm</span></div></div>
+      <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Área:</b> <span class="step-math">A = π × r²</span></div></div>
+      <div class="step-row"><div class="step-num">3</div><div class="step-text"><span class="step-math">A = 3.1416 × 7² = 3.1416 × 49</span></div></div>
+      <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Resultado:</b> <span class="step-math">A = 153.94 cm²</span></div></div>
+      <div class="step-row"><div class="step-num">5</div><div class="step-text"><b>Circunf.:</b> <span class="step-math">C = 2π × 7 = 43.98 cm</span></div></div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Tabla de resultados</div>
+  <table class="data-table">
+    <thead><tr><th>Medida</th><th>Fórmula</th><th>Sustitución</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Radio</td><td class="td-mono">r</td><td class="td-num">—</td><td class="td-ok td-num">7 cm</td></tr>
+      <tr><td>Diámetro</td><td class="td-mono">2r</td><td class="td-num">2 × 7</td><td class="td-calc td-num">14 cm</td></tr>
+      <tr><td>Circunferencia</td><td class="td-mono">2πr</td><td class="td-num">2 × 3.1416 × 7</td><td class="td-calc td-num">43.98 cm</td></tr>
+      <tr><td>Área</td><td class="td-mono">πr²</td><td class="td-num">3.1416 × 49</td><td class="td-calc td-num">153.94 cm²</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    const ctx = C('cg2',220,220); if(!ctx) return;
+    const cx=110,cy=110,r=85;
+    grid(ctx,cx-r-5,cy-r-5,11,11,17,'#1e2530');
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(220,cy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,220);ctx.stroke();
+    // Shaded sector (quarter)
+    ctx.fillStyle='rgba(88,166,255,0.08)';
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    // Circle
+    ctx.strokeStyle='#58a6ff';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+    // Center
+    ctx.fillStyle='#58a6ff';ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fill();
+    // Radius
+    ctx.strokeStyle='#3fb950';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+r,cy);ctx.stroke();
+    ctx.setLineDash([]);
+    // Diameter
+    ctx.strokeStyle='rgba(248,81,73,0.4)';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(cx-r,cy);ctx.lineTo(cx+r,cy);ctx.stroke();
+    ctx.setLineDash([]);
+    // Labels
+    ctx.fillStyle='#3fb950';ctx.font='bold 13px Courier New,monospace';ctx.fillText('r = 7 cm',cx+8,cy-10);
+    ctx.fillStyle='#e6edf3';ctx.font='bold 12px Segoe UI';ctx.fillText('O',cx+6,cy+18);
+    ctx.fillStyle='#f85149';ctx.font='11px Courier New,monospace';ctx.fillText('C = 2πr = 43.98 cm',3,18);
+    ctx.fillStyle='#bc8cff';ctx.fillText('A = πr² = 153.94 cm²',3,34);
+  }
+},
+
+// ─── Q3 QUÍMICA — Combustión Metano ──────────────────────────────────────────
+{
+  id:3, area:'Ciencias Naturales', tema:'Química', subtema:'Estequiometría — Combustión', dificultad:'Media',
+  enunciado:'La combustión completa del metano (CH₄) produce dióxido de carbono y agua. Si se queman 3 moles de CH₄, ¿cuántos moles de CO₂ se producen? Balancea la ecuación primero.',
+  opciones:['1 mol de CO₂','3 moles de CO₂','6 moles de CO₂','9 moles de CO₂'],
+  correcta:1,
+  explicacion:'Ecuación balanceada: CH₄ + 2O₂ → CO₂ + 2H₂O. Relación molar CH₄:CO₂ = 1:1. Por tanto, 3 mol CH₄ → 3 mol CO₂.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">⚗️ Ecuación química balanceada</div>
+  <div class="chem-eq">
+    <div><div class="chem-coef">1 mol</div><div class="chem-molecule" style="color:#bc8cff;border-color:#4a2d7a">CH<sub>4</sub></div><div class="chem-coef">Metano</div></div>
+    <span class="chem-plus">+</span>
+    <div><div class="chem-coef">2 mol</div><div class="chem-molecule" style="color:#d29922;border-color:#5a3e10">2O<sub>2</sub></div><div class="chem-coef">Oxígeno</div></div>
+    <span class="chem-arrow">⟶</span>
+    <div><div class="chem-coef">1 mol</div><div class="chem-molecule" style="color:#79c0ff;border-color:#1f4b6e">CO<sub>2</sub></div><div class="chem-coef">Dióxido carbono</div></div>
+    <span class="chem-plus">+</span>
+    <div><div class="chem-coef">2 mol</div><div class="chem-molecule" style="color:#58a6ff;border-color:#1f3b6e">2H<sub>2</sub>O</div><div class="chem-coef">Agua</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">🔢 Estequiometría con 3 moles de CH₄</div>
+  <div class="steps-box" style="margin-bottom:12px">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text">Relación molar: <span class="step-math">1 mol CH₄ : 1 mol CO₂</span> (mismo coeficiente)</div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text">Factor de conversión: <span class="step-math">3 mol CH₄ × (1 mol CO₂ / 1 mol CH₄)</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Resultado:</b> <span class="step-math">= 3 moles de CO₂ ✓</span></div></div>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>Sustancia</th><th>Fórmula</th><th>Coef.</th><th>Moles (×3)</th><th>Masa (g)</th></tr></thead>
+    <tbody>
+      <tr><td>Metano</td><td class="td-mono" style="color:#bc8cff">CH₄</td><td class="td-num">1</td><td class="td-num">3 mol</td><td class="td-num">48.12 g</td></tr>
+      <tr><td>Oxígeno</td><td class="td-mono" style="color:#d29922">O₂</td><td class="td-num">2</td><td class="td-num">6 mol</td><td class="td-num">192.00 g</td></tr>
+      <tr><td>Dióxido de carbono</td><td class="td-mono" style="color:#79c0ff">CO₂</td><td class="td-num">1</td><td class="td-num td-ok">3 mol ✓</td><td class="td-num">132.03 g</td></tr>
+      <tr><td>Agua</td><td class="td-mono" style="color:#58a6ff">H₂O</td><td class="td-num">2</td><td class="td-num">6 mol</td><td class="td-num">108.12 g</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="section">
+  <div class="section-title">⚖️ Verificación: Ley de conservación de masa</div>
+  <table class="data-table">
+    <thead><tr><th>Elemento</th><th>Reactivos</th><th>Productos</th><th>¿Conservado?</th></tr></thead>
+    <tbody>
+      <tr><td>Carbono (C)</td><td class="td-num">1</td><td class="td-num">1</td><td class="td-ok">✓ Sí</td></tr>
+      <tr><td>Hidrógeno (H)</td><td class="td-num">4</td><td class="td-num">4</td><td class="td-ok">✓ Sí</td></tr>
+      <tr><td>Oxígeno (O)</td><td class="td-num">4</td><td class="td-num">4</td><td class="td-ok">✓ Sí</td></tr>
+    </tbody>
+  </table>
+</div>`;
+  }
+},
+
+// ─── Q4 FÍSICA — Cinemática ──────────────────────────────────────────────────
+{
+  id:4, area:'Ciencias Naturales', tema:'Física', subtema:'Cinemática — Lanzamiento vertical', dificultad:'Media',
+  enunciado:'Un objeto se lanza verticalmente con velocidad inicial v₀ = 20 m/s. Con g = 10 m/s², calcula la altura máxima y el tiempo total de vuelo.',
+  opciones:['h_max = 10 m  y  t = 2 s','h_max = 20 m  y  t = 4 s','h_max = 40 m  y  t = 8 s','h_max = 20 m  y  t = 2 s'],
+  correcta:1,
+  explicacion:'Altura máxima: h = v₀²/(2g) = 400/20 = 20 m. Tiempo de subida: t = v₀/g = 2 s. Tiempo total (sube + baja simétricamente): t_total = 4 s.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📈 Gráfica h(t) = 20t − 5t²</div>
+  <div class="graph-container"><canvas id="cg4" width="820" height="200" style="max-width:100%;height:auto"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">📐 Pasos de solución</div>
+  <div class="steps-box">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Datos:</b> <span class="step-math">v₀ = 20 m/s, g = 10 m/s²</span></div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Altura máx.:</b> <span class="step-math">h_max = v₀²/(2g) = (20)²/(2×10) = 400/20 = 20 m</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Tiempo subida:</b> <span class="step-math">t_sub = v₀/g = 20/10 = 2 s</span></div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Tiempo total:</b> <span class="step-math">t_total = 2 × t_sub = 2 × 2 = 4 s</span></div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Tabla posición–velocidad por segundo</div>
+  <table class="data-table">
+    <thead><tr><th>Tiempo (s)</th><th>Altura h (m)</th><th>Velocidad v (m/s)</th><th>Fase</th></tr></thead>
+    <tbody>
+      ${[[0,0,20,'🚀 Lanzamiento'],[1,15,10,'↑ Subida'],[2,20,0,'⭐ Altura máxima'],[3,15,-10,'↓ Bajada'],[4,0,-20,'💥 Impacto']].map(([t,h,v,f])=>`
+      <tr><td class="td-num">${t}</td><td class="td-num td-calc">${h}</td><td class="td-num" style="color:${v>=0?'var(--green)':'var(--red)'}">${v}</td><td>${f}</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg4',820,200); if(!ctx) return;
+      const W=820,H=200,px=52,py=16,gw=W-px-16,gh=H-py-28;
+      ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
+      for(let i=0;i<=4;i++){const x=px+i*gw/4;ctx.beginPath();ctx.moveTo(x,py);ctx.lineTo(x,py+gh);ctx.stroke();}
+      for(let i=0;i<=4;i++){const y=py+i*gh/4;ctx.beginPath();ctx.moveTo(px,y);ctx.lineTo(px+gw,y);ctx.stroke();}
+      ctx.strokeStyle='#444c56';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+gh);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px,py+gh);ctx.lineTo(px+gw,py+gh);ctx.stroke();
+      // Gradient fill
+      const grad=ctx.createLinearGradient(0,py,0,py+gh);
+      grad.addColorStop(0,'rgba(210,153,34,0.18)');grad.addColorStop(1,'rgba(210,153,34,0.01)');
+      ctx.fillStyle=grad;ctx.beginPath();
+      for(let i=0;i<=80;i++){const t=i*4/80,hv=20*t-5*t*t;const x=px+t/4*gw,y=py+gh-hv/20*gh;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+      ctx.lineTo(px+gw,py+gh);ctx.lineTo(px,py+gh);ctx.closePath();ctx.fill();
+      // Curve
+      ctx.strokeStyle='#d29922';ctx.lineWidth=3;ctx.beginPath();
+      for(let i=0;i<=80;i++){const t=i*4/80,hv=20*t-5*t*t;const x=px+t/4*gw,y=py+gh-hv/20*gh;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+      ctx.stroke();
+      // Max point
+      const mx=px+gw/2,my=py;
+      ctx.fillStyle='#f85149';ctx.beginPath();ctx.arc(mx,my,7,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#f85149';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx,py+gh);ctx.stroke();ctx.setLineDash([]);
+      // Data points
+      [[0,0],[1,15],[2,20],[3,15],[4,0]].forEach(([t,h])=>{
+        const x=px+t/4*gw,y=py+gh-h/20*gh;
+        ctx.fillStyle='#58a6ff';ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();
+      });
+      ctx.fillStyle='#6e7681';ctx.font='11px Courier New,monospace';
+      ['0','1','2','3','4'].forEach((l,i)=>ctx.fillText(l,px+i*gw/4-3,py+gh+16));
+      ['0','5','10','15','20'].forEach((l,i)=>ctx.fillText(l,4,py+gh-i*gh/4+4));
+      ctx.fillStyle='#d29922';ctx.font='bold 12px Segoe UI';ctx.fillText('h(t) = 20t − 5t²',px+8,py+18);
+      ctx.fillStyle='#f85149';ctx.font='bold 11px Courier New';ctx.fillText('h_max = 20 m',mx+10,my+14);
+      ctx.fillStyle='#8b949e';ctx.font='11px Segoe UI';ctx.fillText('t (s)',px+gw-18,py+gh+16);ctx.fillText('h (m)',px-44,py+10);
+    });
+  }
+},
+
+// ─── Q5 ÁLGEBRA — Sistema 2×2 ────────────────────────────────────────────────
+{
+  id:5, area:'Matemáticas', tema:'Álgebra', subtema:'Sistema 2×2 — Sustitución', dificultad:'Fácil',
+  enunciado:'Resuelve el sistema: x + y = 5 y 2x − y = 1. ¿Cuál es el punto de intersección de las dos rectas?',
+  opciones:['(1, 4)','(2, 3)','(3, 2)','(0, 5)'],
+  correcta:1,
+  explicacion:'Sumando: 3x = 6 → x = 2. Sustituyendo: 2 + y = 5 → y = 3. Solución: (2, 3).',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📐 Sistema y gráfica</div>
+  <div class="split">
+    <div class="steps-box">
+      <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Sistema:</b><br><span class="step-math">x + y = 5</span><br><span class="step-math">2x − y = 1</span></div></div>
+      <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Suma ecuaciones:</b> <span class="step-math">3x = 6 → x = 2</span></div></div>
+      <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Sustitución:</b> <span class="step-math">2 + y = 5 → y = 3</span></div></div>
+      <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Solución:</b> <span class="step-math">(x, y) = (2, 3) ✓</span></div></div>
+    </div>
+    <div class="canvas-box"><canvas id="cg5" width="210" height="210"></canvas></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">✅ Verificación</div>
+  <table class="data-table">
+    <thead><tr><th>Ecuación</th><th>Sustitución</th><th>Resultado</th><th>¿Cumple?</th></tr></thead>
+    <tbody>
+      <tr><td>x + y = 5</td><td class="td-mono">2 + 3</td><td class="td-num">5</td><td class="td-ok">✓ Sí</td></tr>
+      <tr><td>2x − y = 1</td><td class="td-mono">2(2) − 3</td><td class="td-num">1</td><td class="td-ok">✓ Sí</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg5',210,210); if(!ctx) return;
+      const cx=105,cy=105,sc=22;
+      ctx.strokeStyle='#1e2530';ctx.lineWidth=0.5;
+      for(let i=-4;i<=4;i++){ctx.beginPath();ctx.moveTo(cx+i*sc,0);ctx.lineTo(cx+i*sc,210);ctx.stroke();ctx.beginPath();ctx.moveTo(0,cy+i*sc);ctx.lineTo(210,cy+i*sc);ctx.stroke();}
+      ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(0,cy);ctx.lineTo(210,cy);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,210);ctx.stroke();
+      // Line 1: y=5-x (blue)
+      ctx.strokeStyle='#58a6ff';ctx.lineWidth=2.5;ctx.beginPath();
+      ctx.moveTo(cx-4*sc,cy-(5+4)*sc);ctx.lineTo(cx+5*sc,cy-(5-5)*sc);ctx.stroke();
+      // Line 2: y=2x-1 (green)
+      ctx.strokeStyle='#3fb950';ctx.lineWidth=2.5;ctx.beginPath();
+      ctx.moveTo(cx-3*sc,cy-(-6-1)*sc);ctx.lineTo(cx+3*sc,cy-(6-1)*sc);ctx.stroke();
+      // Intersection
+      ctx.fillStyle='#f85149';ctx.beginPath();ctx.arc(cx+2*sc,cy-3*sc,7,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f85149';ctx.font='bold 12px Courier New';ctx.fillText('(2, 3)',cx+2*sc+9,cy-3*sc+5);
+      ctx.fillStyle='#58a6ff';ctx.font='10px Segoe UI';ctx.fillText('x+y=5',5,12);
+      ctx.fillStyle='#3fb950';ctx.fillText('2x−y=1',5,26);
+      ctx.fillStyle='#444c56';ctx.font='9px Courier New';
+      for(let i=-3;i<=3;i++){if(i!==0){ctx.fillText(i,cx+i*sc-3,cy+12);ctx.fillText(-i,cx-12,cy+i*sc+3);}}
+    });
+  }
+},
+
+// ─── Q6 ESTADÍSTICA ─────────────────────────────────────────────────────────
+{
+  id:6, area:'Matemáticas', tema:'Estadística', subtema:'Media, mediana y moda', dificultad:'Fácil',
+  enunciado:'Los puntajes de 8 estudiantes son: 65, 70, 72, 75, 80, 85, 90, 95. Calcula la media aritmética y la mediana.',
+  opciones:['Media = 78  y  Mediana = 77.5','Media = 79  y  Mediana = 77.5','Media = 79  y  Mediana = 80','Media = 80  y  Mediana = 77.5'],
+  correcta:1,
+  explicacion:'Media = 632/8 = 79. Mediana (n=8 par): promedio del 4° y 5° valor = (75+80)/2 = 77.5.',
+  render(cont){
+    const sc=[65,70,72,75,80,85,90,95];
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📊 Histograma de puntajes</div>
+  <div class="graph-container"><canvas id="cg6" width="820" height="190" style="max-width:100%;height:auto"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">🔢 Cálculos paso a paso</div>
+  <div class="steps-box">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Suma total:</b> <span class="step-math">65+70+72+75+80+85+90+95 = 632</span></div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Media:</b> <span class="step-math">x̄ = 632/8 = 79</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Mediana:</b> n=8 (par) → promedio de pos. 4 y 5</div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Resultado:</b> <span class="step-math">Me = (75 + 80)/2 = 77.5</span></div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📋 Tabla de datos</div>
+  <table class="data-table">
+    <thead><tr><th>Posición</th><th>Puntaje</th><th>Diferencia con x̄=79</th><th>Diferencia²</th></tr></thead>
+    <tbody>
+      ${sc.map((s,i)=>`<tr><td class="td-num">${i+1}${i===3||i===4?' ← mediana':''}</td><td class="td-num td-calc">${s}</td><td class="td-num" style="color:${s-79>=0?'var(--green)':'var(--red)'}">${s-79>=0?'+':''}${s-79}</td><td class="td-num">${Math.pow(s-79,2)}</td></tr>`).join('')}
+      <tr style="border-top:1px solid var(--border2)"><td><b>Suma</b></td><td class="td-num td-ok"><b>632</b></td><td>—</td><td class="td-num"><b>${sc.reduce((a,s)=>a+Math.pow(s-79,2),0)}</b></td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg6',820,190); if(!ctx) return;
+      const W=820,H=190,pad=50,top=15,bw=72,gap=10,gh=H-top-30;
+      ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
+      for(let i=0;i<=5;i++){const y=top+i*gh/5;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-10,y);ctx.stroke();}
+      sc.forEach((s,i)=>{
+        const x=pad+i*(bw+gap),bh=(s/100)*gh,y=top+gh-bh;
+        const g=ctx.createLinearGradient(x,y,x,y+bh);
+        g.addColorStop(0,'rgba(248,81,73,0.6)');g.addColorStop(1,'rgba(248,81,73,0.15)');
+        ctx.fillStyle=g;ctx.fillRect(x,y,bw,bh);
+        ctx.strokeStyle='#f85149';ctx.lineWidth=1.5;ctx.strokeRect(x,y,bw,bh);
+        ctx.fillStyle='#e6edf3';ctx.font='bold 12px Courier New';ctx.textAlign='center';ctx.fillText(s,x+bw/2,y-5);
+        ctx.fillStyle='#6e7681';ctx.font='11px Courier New';ctx.fillText(s,x+bw/2,H-8);
+        ctx.textAlign='left';
+      });
+      // Mean line
+      const my=top+gh-(79/100)*gh;
+      ctx.strokeStyle='#d29922';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(pad,my);ctx.lineTo(W-10,my);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#d29922';ctx.font='bold 12px Courier New';ctx.fillText('x̄ = 79',W-70,my-5);
+      // Median
+      const med1=pad+3*(bw+gap)+bw,med2=pad+4*(bw+gap);
+      const mx=(med1+med2)/2;
+      ctx.strokeStyle='#bc8cff';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(mx,top);ctx.lineTo(mx,top+gh);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#bc8cff';ctx.font='bold 11px Courier New';ctx.fillText('Me=77.5',mx+4,top+18);
+      ctx.fillStyle='#6e7681';ctx.font='10px Courier New';
+      ['100','80','60','40','20','0'].forEach((l,i)=>ctx.fillText(l,4,top+i*gh/5+4));
+    });
+  }
+},
+
+// ─── Q7 FÍSICA — Ley de Ohm ──────────────────────────────────────────────────
+{
+  id:7, area:'Ciencias Naturales', tema:'Física', subtema:'Ley de Ohm — Circuitos eléctricos', dificultad:'Fácil',
+  enunciado:'En un circuito, R = 10 Ω e I = 3 A. Según la Ley de Ohm, ¿cuál es el voltaje V? Además, calcula la potencia disipada.',
+  opciones:['V = 30 V  y  P = 30 W','V = 30 V  y  P = 90 W','V = 13 V  y  P = 90 W','V = 30 V  y  P = 900 W'],
+  correcta:1,
+  explicacion:'V = I × R = 3 × 10 = 30 V. Potencia: P = V × I = 30 × 3 = 90 W.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">⚡ Circuito eléctrico</div>
+  <div class="canvas-box"><canvas id="cg7" width="520" height="170" style="max-width:100%"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">🔢 Pasos de solución</div>
+  <div class="steps-box">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Datos:</b> <span class="step-math">R = 10 Ω, I = 3 A</span></div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Ley de Ohm:</b> <span class="step-math">V = I × R = 3 × 10 = 30 V</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Potencia:</b> <span class="step-math">P = V × I = 30 × 3 = 90 W</span></div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Verificación:</b> <span class="step-math">P = I²R = 9 × 10 = 90 W ✓</span></div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Magnitudes eléctricas</div>
+  <table class="data-table">
+    <thead><tr><th>Magnitud</th><th>Símbolo</th><th>Unidad</th><th>Valor</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td>Resistencia</td><td class="td-mono">R</td><td>Ohmios (Ω)</td><td class="td-num">10 Ω</td><td class="td-ok">✓ Dato</td></tr>
+      <tr><td>Corriente</td><td class="td-mono">I</td><td>Amperios (A)</td><td class="td-num">3 A</td><td class="td-ok">✓ Dato</td></tr>
+      <tr><td>Voltaje</td><td class="td-mono">V</td><td>Voltios (V)</td><td class="td-num td-calc">30 V</td><td class="td-calc">Calculado</td></tr>
+      <tr><td>Potencia</td><td class="td-mono">P</td><td>Vatios (W)</td><td class="td-num td-calc">90 W</td><td class="td-calc">Calculado</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg7',520,170); if(!ctx) return;
+      const l=70,t=45,w=380,h=80;
+      ctx.strokeStyle='#58a6ff';ctx.lineWidth=3;ctx.strokeRect(l,t,w,h);
+      // Resistor (top center)
+      const rx=l+w/2-40;
+      ctx.fillStyle='#21262d';ctx.fillRect(rx-2,t-14,84,28);
+      ctx.strokeStyle='#d29922';ctx.lineWidth=2;ctx.strokeRect(rx-2,t-14,84,28);
+      ctx.strokeStyle='#d29922';ctx.lineWidth=1.5;ctx.beginPath();
+      const zx=[rx,rx+12,rx+24,rx+36,rx+48,rx+60,rx+72,rx+80];
+      const zy=[t,t-10,t,t-10,t,t-10,t,t];
+      ctx.moveTo(zx[0],zy[0]);zx.slice(1).forEach((x,i)=>ctx.lineTo(x,zy[i+1]));ctx.stroke();
+      // Battery
+      ctx.strokeStyle='#3fb950';ctx.lineWidth=4;
+      ctx.beginPath();ctx.moveTo(l,t+20);ctx.lineTo(l,t+60);ctx.stroke();
+      ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(l-10,t+28);ctx.lineTo(l+10,t+28);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(l-6,t+52);ctx.lineTo(l+6,t+52);ctx.stroke();
+      // Ammeter
+      ctx.strokeStyle='#f85149';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(l+w,t+h/2,20,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#1a0707';ctx.beginPath();ctx.arc(l+w,t+h/2,19,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f85149';ctx.font='bold 14px Courier New';ctx.textAlign='center';ctx.fillText('A',l+w,t+h/2+5);ctx.textAlign='left';
+      // Labels
+      ctx.fillStyle='#3fb950';ctx.font='bold 12px Courier New';ctx.fillText('V=30V',l-64,t+h/2+5);
+      ctx.fillStyle='#d29922';ctx.fillText('R=10Ω',rx+2,t-18);
+      ctx.fillStyle='#f85149';ctx.fillText('I=3A',l+w+24,t+h/2+5);
+      ctx.fillStyle='#79c0ff';ctx.font='16px sans-serif';ctx.fillText('→',l+w/4,t-7);ctx.fillText('←',l+3*w/4,t+h+18);
+    });
+  }
+},
+
+// ─── Q8 QUÍMICA — Tabla periódica / Sodio ────────────────────────────────────
+{
+  id:8, area:'Ciencias Naturales', tema:'Química', subtema:'Tabla periódica — Grupos y periodos', dificultad:'Fácil',
+  enunciado:'El sodio (Na) tiene número atómico 11 y masa atómica 22.99 u. ¿A qué grupo y período pertenece? ¿Cuántos electrones tiene en su última capa?',
+  opciones:['Grupo 1, Período 2, 2 electrones','Grupo 1, Período 3, 1 electrón','Grupo 2, Período 3, 2 electrones','Grupo 17, Período 3, 7 electrones'],
+  correcta:1,
+  explicacion:'Na tiene configuración 2,8,1 (capas K,L,M). 1 electrón en la última capa → Grupo 1 (metales alcalinos), Período 3.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">🔬 Ficha del elemento y modelo atómico</div>
+  <div class="split">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:var(--bg3);border:2px solid #d29922;border-radius:10px;padding:20px;text-align:center;max-width:150px">
+        <div style="font-size:11px;color:var(--text3);text-align:left;font-family:monospace">11</div>
+        <div style="font-size:52px;font-weight:700;color:#d29922;line-height:1">Na</div>
+        <div style="font-size:14px;color:var(--text2);margin-top:4px">Sodio</div>
+        <div style="font-size:12px;color:var(--text3);font-family:monospace">22.990 u</div>
+        <div style="font-size:10px;color:var(--orange);margin-top:6px;background:rgba(210,153,34,0.1);border-radius:4px;padding:3px 6px">Metal alcalino</div>
+      </div>
+      <div class="steps-box">
+        <div class="step-row"><div class="step-num">G</div><div class="step-text"><b>Grupo 1</b> — Metales alcalinos</div></div>
+        <div class="step-row"><div class="step-num">P</div><div class="step-text"><b>Período 3</b> — 3 capas electrónicas</div></div>
+        <div class="step-row"><div class="step-num">e</div><div class="step-text">Última capa (M): <b style="color:var(--green)">1 electrón</b></div></div>
+      </div>
+    </div>
+    <div class="canvas-box"><canvas id="cg8" width="260" height="200"></canvas></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Distribución electrónica por capas</div>
+  <table class="data-table">
+    <thead><tr><th>Capa</th><th>Nombre</th><th>Electrones</th><th>Capacidad máx.</th><th>¿Última capa?</th></tr></thead>
+    <tbody>
+      <tr><td class="td-mono">K</td><td>1ª capa</td><td class="td-num td-calc">2</td><td class="td-num">2</td><td>—</td></tr>
+      <tr><td class="td-mono">L</td><td>2ª capa</td><td class="td-num td-calc">8</td><td class="td-num">8</td><td>—</td></tr>
+      <tr><td class="td-mono">M</td><td>3ª capa</td><td class="td-num" style="color:var(--green)">1</td><td class="td-num">18</td><td class="td-ok">✓ Sí</td></tr>
+      <tr style="border-top:1px solid var(--border2)"><td><b>Total</b></td><td>—</td><td class="td-num td-ok"><b>11</b></td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg8',260,200); if(!ctx) return;
+      const cx=130,cy=100;
+      // Nucleus
+      const ng=ctx.createRadialGradient(cx-4,cy-4,2,cx,cy,22);
+      ng.addColorStop(0,'#f5c842');ng.addColorStop(1,'#a07010');
+      ctx.fillStyle=ng;ctx.beginPath();ctx.arc(cx,cy,22,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#0d1117';ctx.font='bold 11px Courier New';ctx.textAlign='center';
+      ctx.fillText('Na',cx,cy-2);ctx.fillText('11p',cx,cy+11);ctx.textAlign='left';
+      // Orbit K
+      ctx.strokeStyle='rgba(88,166,255,0.35)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.arc(cx,cy,44,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      [[0,1],[Math.PI,1]].forEach(([a])=>{
+        const ex=cx+44*Math.cos(a),ey=cy+44*Math.sin(a);
+        ctx.fillStyle='#58a6ff';ctx.beginPath();ctx.arc(ex,ey,6,0,Math.PI*2);ctx.fill();
+      });
+      // Orbit L
+      ctx.strokeStyle='rgba(88,166,255,0.25)';ctx.lineWidth=1.5;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.arc(cx,cy,74,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      for(let i=0;i<8;i++){
+        const a=(i/8)*Math.PI*2,ex=cx+74*Math.cos(a),ey=cy+74*Math.sin(a);
+        ctx.fillStyle='#79c0ff';ctx.beginPath();ctx.arc(ex,ey,5,0,Math.PI*2);ctx.fill();
+      }
+      // Orbit M
+      ctx.strokeStyle='rgba(248,81,73,0.5)';ctx.lineWidth=2;ctx.setLineDash([5,3]);
+      ctx.beginPath();ctx.arc(cx,cy,98,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#f85149';ctx.beginPath();ctx.arc(cx+98,cy,8,0,Math.PI*2);ctx.fill();
+      // Labels
+      ctx.fillStyle='#58a6ff';ctx.font='10px Courier New';ctx.textAlign='center';
+      ctx.fillText('K: 2e⁻',cx-32,cy-48);
+      ctx.fillStyle='#79c0ff';ctx.fillText('L: 8e⁻',cx-74,cy-20);
+      ctx.fillStyle='#f85149';ctx.fillText('M: 1e⁻ ←',cx+80,cy-14);
+      ctx.textAlign='left';
+    });
+  }
+},
+
+// ─── Q9 BIOLOGÍA — Fotosíntesis ───────────────────────────────────────────────
+{
+  id:9, area:'Ciencias Naturales', tema:'Biología', subtema:'Fotosíntesis — Estequiometría', dificultad:'Media',
+  enunciado:'La ecuación de la fotosíntesis es: 6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂. Si una planta absorbe 12 moléculas de CO₂, ¿cuántas moléculas de glucosa y de O₂ produce?',
+  opciones:['2 glucosa y 6 O₂','2 glucosa y 12 O₂','6 glucosa y 12 O₂','12 glucosa y 12 O₂'],
+  correcta:1,
+  explicacion:'Relación: 6CO₂ → 1 glucosa y 6O₂. Con 12CO₂: 12/6 = 2 glucosas, y 2×6 = 12 moléculas de O₂.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">🌿 Diagrama de fotosíntesis</div>
+  <div class="canvas-box"><canvas id="cg9" width="680" height="200" style="max-width:100%;height:auto"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">⚗️ Ecuación y cálculo estequiométrico</div>
+  <div class="chem-eq" style="flex-wrap:wrap">
+    <div><div class="chem-coef">6 mol</div><div class="chem-molecule" style="color:#79c0ff;border-color:#1f4b6e">6CO<sub>2</sub></div><div class="chem-coef">Dióxido carbono</div></div>
+    <span class="chem-plus">+</span>
+    <div><div class="chem-coef">6 mol</div><div class="chem-molecule" style="color:#58a6ff;border-color:#1f3b6e">6H<sub>2</sub>O</div><div class="chem-coef">Agua</div></div>
+    <span class="chem-arrow" style="font-size:18px">☀️ →</span>
+    <div><div class="chem-coef">1 mol</div><div class="chem-molecule" style="color:#3fb950;border-color:#1d4a1d">C<sub>6</sub>H<sub>12</sub>O<sub>6</sub></div><div class="chem-coef">Glucosa</div></div>
+    <span class="chem-plus">+</span>
+    <div><div class="chem-coef">6 mol</div><div class="chem-molecule" style="color:#d29922;border-color:#5a3e10">6O<sub>2</sub></div><div class="chem-coef">Oxígeno</div></div>
+  </div>
+  <div class="steps-box" style="margin-top:12px">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Relación molar:</b> <span class="step-math">6 CO₂ : 1 glucosa : 6 O₂</span></div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Con 12 CO₂:</b> <span class="step-math">factor = 12/6 = 2</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Glucosa:</b> <span class="step-math">1 × 2 = 2 moléculas ✓</span></div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>O₂:</b> <span class="step-math">6 × 2 = 12 moléculas ✓</span></div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Tabla de reactivos y productos con 12 CO₂</div>
+  <table class="data-table">
+    <thead><tr><th>Sustancia</th><th>Rol</th><th>Coef. base</th><th>Factor (×2)</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>CO₂</td><td>Reactivo</td><td class="td-num">6</td><td class="td-num">×2</td><td class="td-num td-ok">12 moléculas</td></tr>
+      <tr><td>H₂O</td><td>Reactivo</td><td class="td-num">6</td><td class="td-num">×2</td><td class="td-num">12 moléculas</td></tr>
+      <tr><td>Glucosa (C₆H₁₂O₆)</td><td>Producto</td><td class="td-num">1</td><td class="td-num">×2</td><td class="td-num td-ok">2 moléculas ✓</td></tr>
+      <tr><td>O₂</td><td>Producto</td><td class="td-num">6</td><td class="td-num">×2</td><td class="td-num td-ok">12 moléculas ✓</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg9',680,200); if(!ctx) return;
+      // Cell background
+      const cg=ctx.createLinearGradient(0,0,680,200);
+      cg.addColorStop(0,'#0d1f0d');cg.addColorStop(1,'#0a1a0a');
+      ctx.fillStyle=cg;ctx.fillRect(0,0,680,200);
+      // Chloroplast body
+      ctx.fillStyle='rgba(63,185,80,0.15)';
+      ctx.beginPath();ctx.ellipse(340,100,200,80,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#3fb950';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.ellipse(340,100,200,80,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      // Thylakoid stacks (grana)
+      for(let i=0;i<3;i++){
+        const tx=240+i*60,ty=80;
+        ctx.fillStyle='rgba(63,185,80,0.3)';
+        for(let j=0;j<4;j++){ctx.beginPath();ctx.ellipse(tx,ty+j*10,22,6,0,0,Math.PI*2);ctx.fill();}
+        ctx.strokeStyle='#3fb950';ctx.lineWidth=1;
+        for(let j=0;j<4;j++){ctx.beginPath();ctx.ellipse(tx,ty+j*10,22,6,0,0,Math.PI*2);ctx.stroke();}
+      }
+      // Label chloroplast
+      ctx.fillStyle='#3fb950';ctx.font='bold 12px Segoe UI';ctx.textAlign='center';ctx.fillText('Cloroplasto',340,188);
+      // CO2 arrows (in)
+      ctx.fillStyle='#79c0ff';ctx.font='bold 13px Courier New';ctx.textAlign='center';
+      ctx.fillText('6CO₂',60,70);ctx.fillText('6H₂O',60,110);ctx.fillText('Luz ☀️',60,150);
+      arrow(ctx,105,70,135,95,'#79c0ff',2);
+      arrow(ctx,105,110,135,100,'#58a6ff',2);
+      arrow(ctx,105,150,135,115,'#d29922',2);
+      // O2 arrows (out)
+      ctx.fillStyle='#d29922';ctx.textAlign='center';
+      ctx.fillText('6O₂',620,70);ctx.fillText('Glucosa',620,110);
+      arrow(ctx,545,95,575,75,'#d29922',2);
+      arrow(ctx,545,105,575,110,'#3fb950',2);
+      ctx.textAlign='left';
+    });
+  }
+},
+
+// ─── Q10 LECTURA CRÍTICA ──────────────────────────────────────────────────────
+{
+  id:10, area:'Lectura Crítica', tema:'Comprensión lectora', subtema:'Inferencia y postura del autor', dificultad:'Media',
+  enunciado:'Lee el texto: "La tecnología ha transformado la comunicación humana. Sin embargo, investigadores advierten que el uso excesivo de dispositivos digitales puede afectar las habilidades de comunicación interpersonal, especialmente en los jóvenes." ¿Cuál es la postura del autor?',
+  opciones:['Rechaza completamente la tecnología','Reconoce beneficios pero advierte riesgos','Defiende el uso ilimitado de tecnología','Ignora el impacto tecnológico'],
+  correcta:1,
+  explicacion:'El autor reconoce la transformación positiva ("ha transformado") pero introduce una perspectiva crítica con "sin embargo" + "advierten". Postura equilibrada: valora la tecnología y señala sus riesgos.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📖 Texto con análisis de conectores</div>
+  <div class="legend-row">
+    <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>Idea principal / beneficio</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>Conector de contraste</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Advertencia / riesgo</div>
+  </div>
+  <div class="text-passage">
+    "<span class="hl-blue">La tecnología ha transformado la comunicación humana.</span>
+    <span class="hl-orange"> Sin embargo,</span>
+    <span class="hl-green"> investigadores advierten</span> que
+    <span class="hl-orange">el uso excesivo de dispositivos digitales puede afectar las habilidades de comunicación interpersonal,</span>
+    especialmente en los jóvenes."
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">🗺️ Mapa de la estructura argumentativa</div>
+  <div class="concept-map">
+    <div class="concept-node main">💡 IDEA PRINCIPAL: "La tecnología ha transformado la comunicación" → postura positiva inicial</div>
+    <div class="concept-node warn">⚠️ CONECTOR DE CONTRASTE: "Sin embargo" → señala que viene una perspectiva diferente</div>
+    <div class="concept-node support">📢 FUENTE: "investigadores advierten" → el autor usa evidencia científica, no opinión propia</div>
+    <div class="concept-node warn">🔴 RIESGO: "uso excesivo puede afectar habilidades interpersonales" → crítica condicionada</div>
+    <div class="concept-node main">✅ CONCLUSIÓN INFERIDA: postura equilibrada — no rechaza ni defiende ciegamente</div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Análisis de conectores y su función</div>
+  <table class="data-table">
+    <thead><tr><th>Conector / expresión</th><th>Función lingüística</th><th>Qué indica sobre la postura</th></tr></thead>
+    <tbody>
+      <tr><td class="hl-blue">"ha transformado"</td><td>Afirmación positiva</td><td class="td-calc">Reconoce impacto positivo</td></tr>
+      <tr><td style="color:var(--orange)">"Sin embargo"</td><td>Contraste / giro</td><td class="td-ok">Introduce perspectiva crítica</td></tr>
+      <tr><td>"investigadores advierten"</td><td>Citación de autoridad</td><td>Distancia del autor de la opinión</td></tr>
+      <tr><td style="color:var(--orange)">"puede afectar"</td><td>Condicional / posibilidad</td><td class="td-bad">Señala riesgo sin certeza absoluta</td></tr>
+      <tr><td>"especialmente en jóvenes"</td><td>Delimitación</td><td>Acota el riesgo a un grupo específico</td></tr>
+    </tbody>
+  </table>
+</div>`;
+  }
+},
+
+// ─── Q11 SOCIALES ─────────────────────────────────────────────────────────────
+{
+  id:11, area:'Sociales y Ciudadanas', tema:'Constitución Política', subtema:'Acción de tutela — Art. 86', dificultad:'Media',
+  enunciado:'La Constitución de 1991 establece en el artículo 86 la acción de tutela. ¿Cuál es la característica principal que la distingue de otros mecanismos judiciales?',
+  opciones:['Protege solo derechos económicos','Es preferente y sumaria para proteger derechos fundamentales de forma inmediata','Solo puede interponerla un abogado','Requiere un proceso de varios años'],
+  correcta:1,
+  explicacion:'La tutela es preferente (tiene prioridad) y sumaria (máximo 10 días). Cualquier persona puede interponerla sin abogado para proteger derechos fundamentales de forma inmediata.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">⚖️ Línea de tiempo: Constitución Política de Colombia</div>
+  <div class="canvas-box" style="padding:20px"><canvas id="cg11" width="780" height="120" style="max-width:100%;height:auto"></canvas></div>
+</div>
+<div class="section">
+  <div class="section-title">📜 Características de la Acción de Tutela (Art. 86)</div>
+  <div class="steps-box">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Preferente:</b> tiene prioridad sobre otros procesos judiciales en curso</div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Sumaria:</b> el juez debe resolver en máximo <span class="step-math">10 días hábiles</span></div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Sin abogado:</b> cualquier persona puede interponerla directamente</div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Objeto:</b> protege <span class="step-math">derechos fundamentales</span> (vida, salud, educación, dignidad...)</div></div>
+    <div class="step-row"><div class="step-num">5</div><div class="step-text"><b>Sede:</b> ante cualquier juez de la república</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Comparación: Tutela vs otros mecanismos</div>
+  <table class="data-table">
+    <thead><tr><th>Característica</th><th>Acción de Tutela</th><th>Proceso ordinario</th></tr></thead>
+    <tbody>
+      <tr><td>Tiempo de resolución</td><td class="td-ok">10 días hábiles</td><td class="td-bad">Meses o años</td></tr>
+      <tr><td>Requiere abogado</td><td class="td-ok">No — cualquier persona</td><td class="td-bad">Generalmente sí</td></tr>
+      <tr><td>Derechos protegidos</td><td class="td-calc">Fundamentales (vida, dignidad...)</td><td>Todos los derechos</td></tr>
+      <tr><td>Prioridad</td><td class="td-ok">Preferente sobre otros</td><td>Turno regular</td></tr>
+      <tr><td>Objeto inmediato</td><td class="td-ok">Protección urgente</td><td>Declaración de derechos</td></tr>
+    </tbody>
+  </table>
+</div>`;
+    requestAnimationFrame(()=>{
+      const ctx=C('cg11',780,120); if(!ctx) return;
+      const events=[
+        {x:80,y:60,label:'1886',sub:'Constitución\nanterior',c:'#6e7681'},
+        {x:240,y:60,label:'1991',sub:'Nueva Constitución\nPolítica',c:'#d29922'},
+        {x:420,y:60,label:'Art. 86',sub:'Acción de\nTutela',c:'#f85149'},
+        {x:590,y:60,label:'Art. 93',sub:'Bloque de\nconstit.',c:'#58a6ff'},
+        {x:720,y:60,label:'Hoy',sub:'Vigente y\naplicada',c:'#3fb950'},
+      ];
+      // Timeline line
+      ctx.strokeStyle='#30363d';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(60,60);ctx.lineTo(750,60);ctx.stroke();
+      events.forEach(e=>{
+        ctx.fillStyle=e.c;ctx.beginPath();ctx.arc(e.x,e.y,10,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#0d1117';ctx.font='bold 9px Courier New';ctx.textAlign='center';
+        ctx.fillText(e.label.charAt(0),e.x,e.y+4);
+        ctx.fillStyle=e.c;ctx.font='bold 12px Courier New';ctx.fillText(e.label,e.x,e.y-18);
+        ctx.fillStyle='#8b949e';ctx.font='10px Segoe UI';
+        e.sub.split('\n').forEach((l,i)=>ctx.fillText(l,e.x,e.y+26+i*13));
+        ctx.textAlign='left';
+      });
+    });
+  }
+},
+
+// ─── Q12 INGLÉS ──────────────────────────────────────────────────────────────
+{
+  id:12, area:'Inglés', tema:'Grammar', subtema:'Modal verbs — Obligation and possibility', dificultad:'Fácil',
+  enunciado:'Complete the sentence: "Students _____ submit their assignments by Friday, or they will lose points." Which modal verb expresses obligation?',
+  opciones:['could','might','must','would'],
+  correcta:2,
+  explicacion:'"Must" expresses strong obligation or necessity. "Could" and "might" express possibility; "would" expresses conditionality. Here, submission by Friday is mandatory → must.',
+  render(cont){
+    cont.innerHTML=`
+<div class="section">
+  <div class="section-title">📝 Sentence context analysis</div>
+  <div class="text-passage">
+    "Students <span style="background:rgba(248,81,73,0.2);border-radius:4px;padding:2px 6px;color:#f85149;font-weight:700">[ must ]</span>
+    submit their assignments by Friday,
+    <span class="hl-orange">or they will lose points</span>."
+    <br><br>
+    <span style="color:var(--green);font-size:13px">🔍 Key clue: "or they will lose points" = consequence of not doing → obligation, not possibility</span>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">📊 Modal verbs — Functions and examples</div>
+  <table class="data-table">
+    <thead><tr><th>Modal</th><th>Function</th><th>Example</th><th>This sentence?</th></tr></thead>
+    <tbody>
+      <tr><td class="td-mono" style="color:#bc8cff">could</td><td>Possibility / ability (past/polite)</td><td>"Could you help me?"</td><td class="td-bad">✗ No — no obligation</td></tr>
+      <tr><td class="td-mono" style="color:#bc8cff">might</td><td>Weak possibility</td><td>"It might rain today."</td><td class="td-bad">✗ No — no obligation</td></tr>
+      <tr><td class="td-mono" style="color:var(--green)">must</td><td><b>Strong obligation / necessity</b></td><td>"You must wear a seatbelt."</td><td class="td-ok">✓ Yes — obligation!</td></tr>
+      <tr><td class="td-mono" style="color:#bc8cff">would</td><td>Conditionality / polite request</td><td>"Would you like coffee?"</td><td class="td-bad">✗ No — no conditionality</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="section">
+  <div class="section-title">🧠 Steps to identify the correct modal</div>
+  <div class="steps-box">
+    <div class="step-row"><div class="step-num">1</div><div class="step-text"><b>Read the context:</b> "submit by Friday OR lose points" → consequence = obligation signal</div></div>
+    <div class="step-row"><div class="step-num">2</div><div class="step-text"><b>Identify the function needed:</b> obligation (not possibility, not conditionality)</div></div>
+    <div class="step-row"><div class="step-num">3</div><div class="step-text"><b>Match function → modal:</b> <span class="step-math">obligation → must / have to</span></div></div>
+    <div class="step-row"><div class="step-num">4</div><div class="step-text"><b>Verify:</b> "Students must submit..." — makes logical sense with the consequence ✓</div></div>
+  </div>
+</div>`;
+  }
+},
+
+]; // FIN DE PREGUNTAS
+
+// ── Estado y navegación ──────────────────────────────────────────────────────
+const N = PREGUNTAS.length;
+const state = { current:0, selected:Array(N).fill(null), answered:Array(N).fill(false) };
+
+function buildDots(){
+  const c=document.getElementById('nav-dots'); c.innerHTML='';
+  PREGUNTAS.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='nav-dot'; d.id='dot-'+i; d.textContent=i+1;
+    d.onclick=()=>goTo(i); c.appendChild(d);
+  });
+}
+function updateDots(){
+  PREGUNTAS.forEach((_,i)=>{
+    const d=document.getElementById('dot-'+i); if(!d)return;
+    d.className='nav-dot';
+    if(i===state.current) d.className+=' current';
+    else if(state.answered[i]) d.className+=state.selected[i]===PREGUNTAS[i].correcta?' answered-ok':' answered-bad';
+  });
+}
+function renderQuestion(idx){
+  const q=PREGUNTAS[idx];
+  document.getElementById('topbar-info').textContent=`${q.area} › ${q.tema} › ${q.subtema}`;
+  document.getElementById('badge-area').textContent=q.area;
+  document.getElementById('badge-diff').textContent=q.dificultad;
+  const done=state.answered.filter(Boolean).length;
+  const ok=state.selected.filter((s,i)=>state.answered[i]&&s===PREGUNTAS[i].correcta).length;
+  document.getElementById('badge-prog').textContent=`${ok} ✓ / ${done} respondidas`;
+  document.getElementById('progress-fill').style.width=((idx/(N-1))*100)+'%';
+  document.getElementById('nav-counter').textContent=`${idx+1} / ${N}`;
+  document.getElementById('btn-prev').disabled=idx===0;
+  document.getElementById('btn-next').textContent=idx===N-1?'Finalizar':'Siguiente →';
+  const container=document.getElementById('question-container');
+  container.innerHTML=''; window.scrollTo(0,0);
+  const card=document.createElement('div'); card.className='q-card';
+  const answered=state.answered[idx];
+  card.innerHTML=`
+<div class="q-card-header">
+  <div class="q-number-block">Pregunta ${idx+1} / ${N}</div>
+  <div class="q-meta">
+    <div class="q-subject-label">${q.area} · ${q.tema} · ${q.subtema} · <span style="color:var(--text2)">${q.dificultad}</span></div>
+    <div class="q-text">${q.enunciado}</div>
+  </div>
+</div>
+<div class="q-body">
+  <div id="q-render"></div>
+  <div class="divider"></div>
+  <div class="section">
+    <div class="section-title">◉ Selecciona tu respuesta</div>
+    <div class="options-list" id="opts"></div>
+    <button class="btn btn-primary" id="btn-check" style="margin-top:14px;width:100%">${answered?'Siguiente pregunta →':'Verificar respuesta'}</button>
+    <div class="explanation" id="expl"><div class="expl-title">💡 Explicación</div><div class="expl-text">${q.explicacion}</div></div>
+  </div>
+</div>`;
+  container.appendChild(card);
+  q.render(document.getElementById('q-render'));
+  const optList=document.getElementById('opts');
+  ['A','B','C','D'].forEach((letter,i)=>{
+    const div=document.createElement('div'); div.className='option';
+    if(answered){if(i===q.correcta)div.className+=' correct'; else if(i===state.selected[idx]&&i!==q.correcta)div.className+=' wrong';}
+    else if(state.selected[idx]===i)div.className+=' selected';
+    div.innerHTML=`<div class="opt-letter">${answered&&i===q.correcta?'✓':letter}</div><div class="opt-text">${q.opciones[i]}</div>`;
+    if(!answered)div.onclick=()=>selectOption(idx,i);
+    optList.appendChild(div);
+  });
+  if(answered)document.getElementById('expl').classList.add('show');
+  const btn=document.getElementById('btn-check');
+  if(!answered){
+    btn.disabled=state.selected[idx]===null;
+    btn.onclick=()=>checkAnswer(idx);
+  } else {
+    btn.disabled=false; btn.textContent=idx===N-1?'🏁 Ver resultados':'Siguiente pregunta →';
+    btn.className='btn btn-success'; btn.style.width='100%';
+    btn.onclick=()=>navigate(1);
+  }
+}
+function selectOption(idx,i){
+  if(state.answered[idx])return;
+  state.selected[idx]=i;
+  document.querySelectorAll('.option').forEach((o,j)=>o.classList.toggle('selected',j===i));
+  document.getElementById('btn-check').disabled=false;
+}
+function checkAnswer(idx){
+  state.answered[idx]=true;
+  const q=PREGUNTAS[idx], sel=state.selected[idx];
+  document.querySelectorAll('.option').forEach((o,i)=>{
+    o.classList.remove('selected');
+    if(i===q.correcta){o.classList.add('correct');o.querySelector('.opt-letter').textContent='✓';}
+    else if(i===sel&&i!==q.correcta)o.classList.add('wrong');
+  });
+  document.getElementById('expl').classList.add('show');
+  const btn=document.getElementById('btn-check');
+  btn.textContent=idx===N-1?'🏁 Ver resultados':'Siguiente pregunta →';
+  btn.className='btn btn-success'; btn.style.width='100%'; btn.onclick=()=>navigate(1);
+  updateDots();
+  const done=state.answered.filter(Boolean).length;
+  const ok=state.selected.filter((s,i)=>state.answered[i]&&s===PREGUNTAS[i].correcta).length;
+  document.getElementById('badge-prog').textContent=`${ok} ✓ / ${done} respondidas`;
+}
+function goTo(idx){ state.current=idx; updateDots(); renderQuestion(idx); }
+function navigate(dir){ const n=state.current+dir; if(n>=0&&n<N)goTo(n); }
+buildDots(); updateDots(); renderQuestion(0);
+</script>
+</body>
+</html>
