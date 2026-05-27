@@ -23,9 +23,9 @@ TOTAL_PREGUNTAS = sum(DISTRIBUCION_ICFES.values())
 DURACION_SECS   = 3 * 3600
 
 PLAN_CONFIG = {
-    'basic':   {'max_ai_helps': 1, 'difficulty': ['MEDIA']},
-    'plus':    {'max_ai_helps': 3, 'difficulty': ['MEDIA', 'ALTA']},
-    'premium': {'max_ai_helps': 5, 'difficulty': ['MEDIA', 'ALTA', 'RETO']},
+    'basic':   {'max_ai_helps': 1, 'difficulty': ['ALTA', 'RETO', 'MEDIA']},
+    'plus':    {'max_ai_helps': 3, 'difficulty': ['ALTA', 'RETO', 'MEDIA']},
+    'premium': {'max_ai_helps': 5, 'difficulty': ['RETO', 'ALTA', 'MEDIA']},
 }
 
 class StartExamRequest(BaseModel):
