@@ -4,6 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect } from 'react';
 import AIHelpModal from '../ai-help/AIHelpModal';
+import QuestionVisualPanel from './QuestionVisualPanel';
 
 interface Option   { label: string; text: string }
 interface Question { id: string; stem: string; options: Option[]; area: string; points: number }
@@ -36,6 +37,7 @@ export default function ExamEngine({
   const [lockedQuestions, setLocked]         = useState<Set<string>>(new Set());
   const [remainingHelps,  setRemainingHelps] = useState(5);
   const [showHelp,        setShowHelp]       = useState(false);
+  const [showVisual,      setShowVisual]     = useState(false);
   const [timeLeft,        setTimeLeft]       = useState(durationSecs);
   const [scores,          setScores]         = useState<Record<string, number>>({});
 
@@ -158,6 +160,23 @@ export default function ExamEngine({
             })}
           </div>
 
+          {/* Botón vista visual */}
+          <button
+            style={styles.visualBtn}
+            onClick={() => setShowVisual(true)}
+          >
+            <span style={styles.aiBtnLeft}>
+              <span style={{ fontSize: 18 }}>👁</span>
+              <span>
+                <span style={{ ...styles.aiBtnTitle, color: '#58a6ff' }}>Ver diagrama visual</span>
+                <span style={styles.aiBtnSub}>Ruta de razonamiento · Análisis de opciones</span>
+              </span>
+            </span>
+            <span style={{ ...styles.aiBtnRight, color: '#58a6ff', background: 'rgba(31,111,235,0.15)', border: '1px solid rgba(31,111,235,0.4)' }}>
+              Gratis
+            </span>
+          </button>
+
           {/* Botón ayuda IA */}
           {!isLocked && (
             <button
@@ -240,6 +259,13 @@ export default function ExamEngine({
           onClose={() => setShowHelp(false)}
           onHelpUsed={handleHelpUsed}
           onAnswered={handleAnswered}
+        />
+      )}
+
+      {showVisual && (
+        <QuestionVisualPanel
+          question={q}
+          onClose={() => setShowVisual(false)}
         />
       )}
     </div>
@@ -366,6 +392,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: '#c9d1d9',
     lineHeight: 1.6,
+  },
+  visualBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 18px',
+    background: 'rgba(31,111,235,0.08)',
+    border: '1px solid rgba(31,111,235,0.25)',
+    borderRadius: 10,
+    transition: 'all .2s',
+    gap: 12,
+    cursor: 'pointer',
+    width: '100%',
   },
   aiBtn: {
     display: 'flex',
