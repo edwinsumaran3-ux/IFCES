@@ -14,7 +14,7 @@ from src.ai.schemas import (
 logger = logging.getLogger(__name__)
 MODEL_RICH  = "claude-sonnet-4-6"          # Pizarra — calidad máxima para el estudiante
 MODEL_FAST  = "claude-haiku-4-5-20251001"  # Clasificar, planear, audio, espejo, evaluación
-MAX_TOKENS  = 4096
+MAX_TOKENS  = 2048
 MAX_REPAIRS = 1  # Máx 1 reparación (antes 2) para ahorrar créditos
 
 VOICE_PROFILES = {
@@ -25,7 +25,7 @@ VOICE_PROFILES = {
 
 class AIOrchestrator:
     def __init__(self, anthropic_key: str):
-        self.claude   = anthropic.AsyncAnthropic(api_key=anthropic_key)
+        self.claude   = anthropic.AsyncAnthropic(api_key=anthropic_key, timeout=45.0)
         self.registry = PromptRegistry()
         self._tts_available = False  # Google TTS desactivado; frontend usa Web Speech API
 
