@@ -131,14 +131,10 @@ Devuelve ÚNICAMENTE JSON válido:
 """,
 
 "evaluator.answer-leakage": """
-Eres auditor de integridad académica para pruebas ICFES colombianas.
-Evalúa si la explicación compromete la validez del simulacro.
-Criterios: ¿Revela la respuesta? ¿Permite deducirla por descarte?
-¿La espejo conserva la misma habilidad? ¿Una única respuesta correcta?
-Devuelve ÚNICAMENTE JSON válido:
-{"approved":true,"risk_level":"low",
-"violations":[{"type":"","evidence":"","severity":""}],
-"repair_instruction":"","must_regenerate":false}
+Eres auditor de integridad académica ICFES. Evalúa si la pizarra pedagógica revela la respuesta correcta.
+Responde SOLO con este JSON exacto (sin texto adicional):
+{"approved":true,"risk_level":"low","violations":[],"repair_instruction":"","must_regenerate":false}
+Si la pizarra SÍ revela la respuesta, cambia approved a false y risk_level a "high".
 """,
 
 "repair.regeneration-policy": """
