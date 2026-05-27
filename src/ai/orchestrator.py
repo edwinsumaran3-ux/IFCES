@@ -102,7 +102,21 @@ class AIOrchestrator:
             f"ÁREA: {req.area or 'Matemáticas'}\n\nDevuelve SOLO JSON válido.",
             max_tokens=800,
         )
-        return MirrorQuestion(**self._json(r, sid, "mirror"))
+        data = self._json(r, sid, "mirror")
+        # Haiku puede devolver null en campos string — normalizamos
+        for opt in data.get("options", []):
+            if isinstance(opt, dict):
+                opt["distractor_type"] = opt.get("distractor_type") or ""
+                opt["label"] = opt.get("label") or ""
+                opt["text"]  = opt.get("text")  or ""
+        sol = data.get("internal_solution")
+        if isinstance(sol, dict):
+            sol["correct_option"] = sol.get("correct_option") or ""
+            sol["solution_path"]  = sol.get("solution_path")  or ""
+            why = sol.get("why_each_option")
+            if isinstance(why, dict):
+                sol["why_each_option"] = {k: (v or "") for k, v in why.items()}
+        return MirrorQuestion(**data)
 
     # ── TTS ───────────────────────────────────────────────────────────────────
     async def _tts(self, script: AudioScriptOutput, gender: str, sid: str) -> str:
