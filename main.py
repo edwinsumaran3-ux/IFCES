@@ -54,16 +54,33 @@ async def run_migrations():
                 created_at      TIMESTAMPTZ DEFAULT NOW()
             )
         """))
-        # Add missing columns if table already existed with old schema
+        # Add missing columns — each wrapped individually so one failure doesn't crash startup
         for col_sql in [
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name  VARCHAR(120)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS status     VARCHAR(20) DEFAULT 'active'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone      VARCHAR(20)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_code  VARCHAR(20) DEFAULT 'basic'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active  BOOLEAN DEFAULT true",
-            "ALTER TABLE users ALTER COLUMN tenant_id DROP NOT NULL",
         ]:
-            await conn.execute(text(col_sql))
+            try:
+                await conn.execute(text(col_sql))
+            except Exception:
+                pass
+        # Drop NOT NULL on tenant_id only if the column actually exists
+        try:
+            await conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='users' AND column_name='tenant_id'
+                    ) THEN
+                        ALTER TABLE users ALTER COLUMN tenant_id DROP NOT NULL;
+                    END IF;
+                END$$;
+            """))
+        except Exception:
+            pass
         # Seed admin user (password: Admin1234)
         await conn.execute(text("""
             INSERT INTO users (email, password_hash, full_name, role, status)
@@ -107,7 +124,10 @@ async def run_migrations():
             "ALTER TABLE subscription_plans ALTER COLUMN difficulty_levels         SET DEFAULT ARRAY['MEDIA']",
             "ALTER TABLE subscription_plans ALTER COLUMN max_ai_helps              SET DEFAULT 1",
         ]:
-            await conn.execute(text(col_sql))
+            try:
+                await conn.execute(text(col_sql))
+            except Exception:
+                pass
         await conn.execute(text("""
             INSERT INTO subscription_plans
                 (name, code, price_institution_cop, price_student_cop, max_ai_helps, difficulty_levels, includes_whatsapp, includes_advanced_reports)
