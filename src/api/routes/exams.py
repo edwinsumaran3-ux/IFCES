@@ -23,9 +23,9 @@ TOTAL_PREGUNTAS = sum(DISTRIBUCION_ICFES.values())
 DURACION_SECS   = 3 * 3600
 
 PLAN_CONFIG = {
-    'basic':   {'max_ai_helps': 1, 'difficulty': ['ALTA', 'RETO', 'MEDIA']},
-    'plus':    {'max_ai_helps': 3, 'difficulty': ['ALTA', 'RETO', 'MEDIA']},
-    'premium': {'max_ai_helps': 5, 'difficulty': ['RETO', 'ALTA', 'MEDIA']},
+    'basic':   {'max_ai_helps': 1, 'difficulty': ['ALTA', 'RETO']},
+    'plus':    {'max_ai_helps': 3, 'difficulty': ['ALTA', 'RETO']},
+    'premium': {'max_ai_helps': 5, 'difficulty': ['RETO', 'ALTA']},
 }
 
 class StartExamRequest(BaseModel):
@@ -290,10 +290,11 @@ async def finish_exam(attempt_id: str, db=Depends(get_db)):
 
 def _build_questions(rows) -> list[dict]:
     return [{
-        "id":     str(row.id),
-        "stem":   row.stem,
-        "area":   row.area,
-        "points": 1.0,
+        "id":         str(row.id),
+        "stem":       row.stem,
+        "area":       row.area,
+        "points":     1.0,
+        "difficulty": getattr(row, 'dificultad', 'ALTA'),
         "options": [
             {"label": "A", "text": row.opcion_a},
             {"label": "B", "text": row.opcion_b},

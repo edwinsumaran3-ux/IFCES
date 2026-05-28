@@ -4,10 +4,10 @@
 // =============================================================================
 import React, { useState, useEffect } from 'react';
 import AIHelpModal from '../ai-help/AIHelpModal';
-import QuestionVisualPanel from './QuestionVisualPanel';
+import QuestionInlineVisual from './QuestionInlineVisual';
 
 interface Option   { label: string; text: string }
-interface Question { id: string; stem: string; options: Option[]; area: string; points: number }
+interface Question { id: string; stem: string; options: Option[]; area: string; points: number; difficulty?: string }
 
 interface Props {
   attemptId:     string;
@@ -37,7 +37,6 @@ export default function ExamEngine({
   const [lockedQuestions, setLocked]         = useState<Set<string>>(new Set());
   const [remainingHelps,  setRemainingHelps] = useState(5);
   const [showHelp,        setShowHelp]       = useState(false);
-  const [showVisual,      setShowVisual]     = useState(false);
   const [timeLeft,        setTimeLeft]       = useState(durationSecs);
   const [scores,          setScores]         = useState<Record<string, number>>({});
 
@@ -114,12 +113,26 @@ export default function ExamEngine({
         {/* ── QUESTION CARD ───────────────────────────────────────────────── */}
         <div style={{ ...styles.qCard, borderColor: areaTheme.border }}>
 
-          {/* Área + número */}
+          {/* Área + número + dificultad */}
           <div style={styles.qHeader}>
             <span style={{ ...styles.areaTag, color: areaTheme.color, background: areaTheme.bg, border: `1px solid ${areaTheme.border}` }}>
               {q.area}
             </span>
-            <span style={styles.qNum}>Pregunta {currentIdx + 1} / {questions.length}</span>
+            {q.difficulty === 'RETO' && (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20,
+                  background: 'rgba(248,81,73,0.15)', color: '#f85149', border: '1px solid rgba(248,81,73,0.4)',
+                  letterSpacing: '.04em', textTransform: 'uppercase' as const }}>
+                🔥 Extremadamente Alta
+              </span>
+            )}
+            {q.difficulty === 'ALTA' && (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20,
+                  background: 'rgba(251,146,60,0.15)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.4)',
+                  letterSpacing: '.04em', textTransform: 'uppercase' as const }}>
+                ⚡ Dificultad Alta
+              </span>
+            )}
+            <span style={{ ...styles.qNum, marginLeft: 'auto' }}>Pregunta {currentIdx + 1} / {questions.length}</span>
             {isLocked && (
               <span style={styles.lockedTag}>🔒 Bloqueada — responde la pregunta espejo</span>
             )}
@@ -127,6 +140,9 @@ export default function ExamEngine({
 
           {/* Enunciado */}
           <p style={styles.qText}>{q.stem}</p>
+
+          {/* Visual inline de la pregunta */}
+          <QuestionInlineVisual question={q} color={areaTheme.color} />
 
           {/* Opciones */}
           <div style={styles.optList}>
@@ -159,23 +175,6 @@ export default function ExamEngine({
               );
             })}
           </div>
-
-          {/* Botón vista visual */}
-          <button
-            style={styles.visualBtn}
-            onClick={() => setShowVisual(true)}
-          >
-            <span style={styles.aiBtnLeft}>
-              <span style={{ fontSize: 18 }}>👁</span>
-              <span>
-                <span style={{ ...styles.aiBtnTitle, color: '#58a6ff' }}>Ver diagrama visual</span>
-                <span style={styles.aiBtnSub}>Ruta de razonamiento · Análisis de opciones</span>
-              </span>
-            </span>
-            <span style={{ ...styles.aiBtnRight, color: '#58a6ff', background: 'rgba(31,111,235,0.15)', border: '1px solid rgba(31,111,235,0.4)' }}>
-              Gratis
-            </span>
-          </button>
 
           {/* Botón ayuda IA */}
           {!isLocked && (
@@ -262,12 +261,6 @@ export default function ExamEngine({
         />
       )}
 
-      {showVisual && (
-        <QuestionVisualPanel
-          question={q}
-          onClose={() => setShowVisual(false)}
-        />
-      )}
     </div>
   );
 }
