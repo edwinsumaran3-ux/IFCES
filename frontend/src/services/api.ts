@@ -2,7 +2,7 @@
 //  src/services/api.ts  — Cliente HTTP para el backend
 // =============================================================================
 
-const BASE = '/api/v1';
+const BASE = 'https://ifces-production.up.railway.app/api/v1';
 
 const headers = () => ({
   'Content-Type': 'application/json',
