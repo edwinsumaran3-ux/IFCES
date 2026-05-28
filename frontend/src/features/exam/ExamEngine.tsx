@@ -2,9 +2,11 @@
 //  src/features/exam/ExamEngine.tsx
 //  Motor de simulacro — integra pregunta + contador + botón de ayuda IA
 // =============================================================================
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AIHelpModal from '../ai-help/AIHelpModal';
-import QuestionInlineVisual from './QuestionInlineVisual';
+import QuestionInlineVisual, { getPureFormula } from './QuestionInlineVisual';
+
+declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> };
 
 interface Option   { label: string; text: string }
 interface Question { id: string; stem: string; options: Option[]; area: string; points: number; difficulty?: string }
@@ -18,15 +20,36 @@ interface Props {
 }
 
 const AREA_COLORS: Record<string, { color: string; bg: string; border: string }> = {
-  'Matemáticas':         { color: '#3fb950', bg: 'rgba(63,185,80,0.12)',  border: 'rgba(63,185,80,0.35)' },
-  'Ciencias naturales':  { color: '#79c0ff', bg: 'rgba(121,192,255,0.1)', border: 'rgba(121,192,255,0.3)' },
-  'Lectura critica':     { color: '#d29922', bg: 'rgba(210,153,34,0.12)', border: 'rgba(210,153,34,0.35)' },
-  'Sociales y ciudadanas':{ color: '#f85149', bg: 'rgba(248,81,73,0.1)',  border: 'rgba(248,81,73,0.3)' },
-  'Ingles':              { color: '#56d364', bg: 'rgba(86,211,100,0.1)',  border: 'rgba(86,211,100,0.3)' },
+  'Matemáticas':          { color: '#3fb950', bg: 'rgba(63,185,80,0.12)',  border: 'rgba(63,185,80,0.35)' },
+  'Ciencias naturales':   { color: '#79c0ff', bg: 'rgba(121,192,255,0.1)', border: 'rgba(121,192,255,0.3)' },
+  'Lectura critica':      { color: '#d29922', bg: 'rgba(210,153,34,0.12)', border: 'rgba(210,153,34,0.35)' },
+  'Sociales y ciudadanas':{ color: '#f85149', bg: 'rgba(248,81,73,0.1)',   border: 'rgba(248,81,73,0.3)' },
+  'Ingles':               { color: '#56d364', bg: 'rgba(86,211,100,0.1)',  border: 'rgba(86,211,100,0.3)' },
 };
 
 function getArea(area: string) {
   return AREA_COLORS[area] ?? { color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.3)' };
+}
+
+// ── Mini componente MathJax para fórmula pura ─────────────────────────────────
+function PureFormulaBox({ tex, color }: { tex: string; color: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.innerHTML = `\\[${tex}\\]`;
+    try { MathJax.typesetPromise([ref.current]).catch(() => {}); } catch {}
+  }, [tex]);
+  return (
+    <div
+      ref={ref}
+      style={{
+        textAlign: 'center',
+        fontSize: 16,
+        color,
+        padding: '8px 0',
+      }}
+    />
+  );
 }
 
 export default function ExamEngine({
@@ -40,6 +63,14 @@ export default function ExamEngine({
   const [timeLeft,        setTimeLeft]       = useState(durationSecs);
   const [scores,          setScores]         = useState<Record<string, number>>({});
 
+  // ── Estado: botón "Ver fórmula" ──────────────────────────────────────────────
+  const [formulaRevealed,    setFormulaRevealed]    = useState<Set<string>>(new Set());
+  const [formulaPenalties,   setFormulaPenalties]   = useState<Record<string, number>>({});
+  const [showFormulaConfirm, setShowFormulaConfirm] = useState(false);
+
+  // Resetear confirmación al navegar
+  useEffect(() => { setShowFormulaConfirm(false); }, [currentIdx]);
+
   useEffect(() => {
     const t = setInterval(() => setTimeLeft(s => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
@@ -48,10 +79,15 @@ export default function ExamEngine({
   const q = questions[currentIdx];
   if (!q) return null;
 
-  const isLocked   = lockedQuestions.has(q.id);
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const areaTheme  = getArea(q.area);
-  const urgent     = timeLeft < 300;
+  const isLocked      = lockedQuestions.has(q.id);
+  const isFormRevealed = formulaRevealed.has(q.id);
+  const pureFormula   = getPureFormula(q.area, q.stem);
+
+  const totalFormulaPenalty = Object.values(formulaPenalties).reduce((a, b) => a + b, 0);
+  const totalScore = Math.max(0, Object.values(scores).reduce((a, b) => a + b, 0) - totalFormulaPenalty);
+
+  const areaTheme = getArea(q.area);
+  const urgent    = timeLeft < 300;
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -71,7 +107,13 @@ export default function ExamEngine({
     setShowHelp(false);
   };
 
-  const progress = ((currentIdx + 1) / questions.length) * 100;
+  const confirmRevealFormula = () => {
+    setFormulaRevealed(prev => new Set([...prev, q.id]));
+    setFormulaPenalties(prev => ({ ...prev, [q.id]: 0.20 }));
+    setShowFormulaConfirm(false);
+  };
+
+  const progress  = ((currentIdx + 1) / questions.length) * 100;
   const answered  = Object.keys(answers).length;
 
   return (
@@ -141,7 +183,7 @@ export default function ExamEngine({
           {/* Enunciado */}
           <p style={styles.qText}>{q.stem}</p>
 
-          {/* Visual inline de la pregunta */}
+          {/* Visual inline */}
           <QuestionInlineVisual question={q} color={areaTheme.color} />
 
           {/* Opciones */}
@@ -175,6 +217,65 @@ export default function ExamEngine({
               );
             })}
           </div>
+
+          {/* ── BOTÓN "¿VER FÓRMULA?" ──────────────────────────────────────── */}
+          {pureFormula && !isFormRevealed && !showFormulaConfirm && (
+            <button
+              style={styles.formulaBtn}
+              onClick={() => setShowFormulaConfirm(true)}
+            >
+              <span style={styles.formulaBtnLeft}>
+                <span style={{ fontSize: 17 }}>📐</span>
+                <span>
+                  <span style={styles.formulaBtnTitle}>¿Deseas ver la fórmula?</span>
+                  <span style={styles.formulaBtnSub}>Fórmula sin datos · Solo estructura matemática</span>
+                </span>
+              </span>
+              <span style={styles.formulaBtnCost}>−0.20 pts</span>
+            </button>
+          )}
+
+          {/* ── DIÁLOGO DE CONFIRMACIÓN ─────────────────────────────────────── */}
+          {showFormulaConfirm && (
+            <div style={styles.confirmBox}>
+              <p style={styles.confirmText}>
+                ⚠️ Ver la fórmula descontará <strong style={{ color: '#f87171' }}>−0.20 puntos</strong> del puntaje de esta pregunta. ¿Confirmas?
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  style={styles.confirmNo}
+                  onClick={() => setShowFormulaConfirm(false)}
+                >
+                  No, cancelar
+                </button>
+                <button
+                  style={styles.confirmYes}
+                  onClick={confirmRevealFormula}
+                >
+                  Sí, ver fórmula
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── FÓRMULA REVELADA ────────────────────────────────────────────── */}
+          {isFormRevealed && pureFormula && (
+            <div style={styles.formulaRevealBox}>
+              <div style={styles.formulaRevealHeader}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#fbbf24', letterSpacing: '.1em', textTransform: 'uppercase' as const }}>
+                  📐 {pureFormula.label}
+                </span>
+                <span style={styles.penaltyBadge}>−0.20 pts aplicados</span>
+              </div>
+              {pureFormula.isLatex
+                ? <PureFormulaBox tex={pureFormula.tex} color="#fbbf24" />
+                : <p style={styles.formulaTextHint}>{pureFormula.tex}</p>
+              }
+              {pureFormula.vars && (
+                <p style={styles.formulaVars}>{pureFormula.vars}</p>
+              )}
+            </div>
+          )}
 
           {/* Botón ayuda IA */}
           {!isLocked && (
@@ -212,9 +313,9 @@ export default function ExamEngine({
 
           <div style={styles.dotsWrap}>
             {questions.map((qq, i) => {
-              const isDone   = !!answers[qq.id];
-              const isCurr   = i === currentIdx;
-              const isLock   = lockedQuestions.has(qq.id);
+              const isDone  = !!answers[qq.id];
+              const isCurr  = i === currentIdx;
+              const isLock  = lockedQuestions.has(qq.id);
               return (
                 <button
                   key={i}
@@ -350,12 +451,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 12px',
     borderRadius: 20,
   },
-  qText: {
-    fontSize: 16,
-    color: '#e6edf3',
-    lineHeight: 1.8,
-    margin: 0,
-  },
+  qText: { fontSize: 16, color: '#e6edf3', lineHeight: 1.8, margin: 0 },
   optList: { display: 'flex', flexDirection: 'column', gap: 10 },
   optBtn: {
     display: 'flex',
@@ -381,24 +477,126 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     transition: 'all .15s',
   },
-  optText: {
-    fontSize: 14,
-    color: '#c9d1d9',
-    lineHeight: 1.6,
-  },
-  visualBtn: {
+  optText: { fontSize: 14, color: '#c9d1d9', lineHeight: 1.6 },
+
+  // ── Botón "Ver fórmula" ──────────────────────────────────────────────────────
+  formulaBtn: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 18px',
-    background: 'rgba(31,111,235,0.08)',
-    border: '1px solid rgba(31,111,235,0.25)',
+    padding: '13px 18px',
+    background: 'rgba(251,191,36,0.06)',
+    border: '1px solid rgba(251,191,36,0.28)',
     borderRadius: 10,
+    cursor: 'pointer',
     transition: 'all .2s',
     gap: 12,
-    cursor: 'pointer',
     width: '100%',
+    fontFamily: 'inherit',
   },
+  formulaBtnLeft: { display: 'flex', alignItems: 'center', gap: 12 },
+  formulaBtnTitle: {
+    display: 'block',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#fbbf24',
+  },
+  formulaBtnSub: {
+    display: 'block',
+    fontSize: 10,
+    color: '#6e7681',
+    marginTop: 2,
+  },
+  formulaBtnCost: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#f87171',
+    background: 'rgba(248,113,113,0.1)',
+    border: '1px solid rgba(248,113,113,0.3)',
+    padding: '3px 10px',
+    borderRadius: 20,
+    whiteSpace: 'nowrap',
+  },
+
+  // ── Confirmación ─────────────────────────────────────────────────────────────
+  confirmBox: {
+    background: 'rgba(210,153,34,0.07)',
+    border: '1px solid rgba(210,153,34,0.3)',
+    borderRadius: 10,
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  confirmText: {
+    fontSize: 13,
+    color: '#fcd34d',
+    margin: 0,
+    lineHeight: 1.6,
+    fontFamily: 'inherit',
+  },
+  confirmNo: {
+    padding: '8px 20px',
+    borderRadius: 8,
+    border: '1px solid #30363d',
+    background: 'transparent',
+    color: '#8b949e',
+    fontSize: 13,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  confirmYes: {
+    padding: '8px 20px',
+    borderRadius: 8,
+    border: '1px solid rgba(251,191,36,0.4)',
+    background: 'rgba(251,191,36,0.12)',
+    color: '#fbbf24',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+
+  // ── Fórmula revelada ──────────────────────────────────────────────────────────
+  formulaRevealBox: {
+    background: 'rgba(251,191,36,0.05)',
+    border: '1px solid rgba(251,191,36,0.28)',
+    borderRadius: 10,
+    padding: '14px 18px',
+  },
+  formulaRevealHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  penaltyBadge: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: '#f87171',
+    background: 'rgba(248,113,113,0.1)',
+    border: '1px solid rgba(248,113,113,0.3)',
+    padding: '2px 8px',
+    borderRadius: 20,
+  },
+  formulaTextHint: {
+    fontSize: 13,
+    color: '#fcd34d',
+    margin: 0,
+    lineHeight: 1.7,
+    fontStyle: 'italic',
+  },
+  formulaVars: {
+    fontSize: 11,
+    color: '#8b949e',
+    margin: '8px 0 0',
+    lineHeight: 1.8,
+    borderTop: '1px solid rgba(251,191,36,0.15)',
+    paddingTop: 8,
+    fontFamily: 'inherit',
+  },
+
+  // ── IA ────────────────────────────────────────────────────────────────────────
   aiBtn: {
     display: 'flex',
     alignItems: 'center',
@@ -409,20 +607,12 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     transition: 'all .2s',
     gap: 12,
+    width: '100%',
+    fontFamily: 'inherit',
   },
   aiBtnLeft: { display: 'flex', alignItems: 'center', gap: 12 },
-  aiBtnTitle: {
-    display: 'block',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#c4b5fd',
-  },
-  aiBtnSub: {
-    display: 'block',
-    fontSize: 11,
-    color: '#6e7681',
-    marginTop: 2,
-  },
+  aiBtnTitle: { display: 'block', fontSize: 14, fontWeight: 600, color: '#c4b5fd' },
+  aiBtnSub:   { display: 'block', fontSize: 11, color: '#6e7681', marginTop: 2 },
   aiBtnRight: {
     fontSize: 12,
     color: '#a78bfa',
@@ -433,12 +623,9 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
     fontWeight: 600,
   },
-  nav: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
+
+  // ── Navegación ────────────────────────────────────────────────────────────────
+  nav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   navBtnGhost: {
     padding: '10px 18px',
     borderRadius: 8,

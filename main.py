@@ -61,6 +61,7 @@ async def run_migrations():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone      VARCHAR(20)",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_code  VARCHAR(20) DEFAULT 'basic'",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active  BOOLEAN DEFAULT true",
+            "ALTER TABLE users ALTER COLUMN tenant_id DROP NOT NULL",
         ]:
             await conn.execute(text(col_sql))
         # Seed admin user (password: Admin1234)
@@ -80,21 +81,40 @@ async def run_migrations():
         """))
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS subscription_plans (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                name VARCHAR(50) NOT NULL,
-                code VARCHAR(30) UNIQUE NOT NULL,
-                price_cop INTEGER NOT NULL DEFAULT 0,
-                max_ai_helps INTEGER NOT NULL DEFAULT 1,
-                status VARCHAR(20) DEFAULT 'active',
-                created_at TIMESTAMPTZ DEFAULT NOW()
+                id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name                      VARCHAR(50) NOT NULL,
+                code                      VARCHAR(30) UNIQUE NOT NULL,
+                price_institution_cop     INTEGER NOT NULL DEFAULT 0,
+                price_student_cop         INTEGER NOT NULL DEFAULT 0,
+                max_ai_helps              INTEGER NOT NULL DEFAULT 1,
+                difficulty_levels         TEXT[] NOT NULL DEFAULT ARRAY['MEDIA'],
+                includes_whatsapp         BOOLEAN DEFAULT FALSE,
+                includes_advanced_reports BOOLEAN DEFAULT FALSE,
+                status                    VARCHAR(20) DEFAULT 'active',
+                created_at                TIMESTAMPTZ DEFAULT NOW()
             )
         """))
+        for col_sql in [
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS price_institution_cop     INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS price_student_cop         INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS difficulty_levels         TEXT[] NOT NULL DEFAULT ARRAY['MEDIA']",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS includes_whatsapp         BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS includes_advanced_reports BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS max_ai_helps              INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS status                    VARCHAR(20) DEFAULT 'active'",
+            "ALTER TABLE subscription_plans ALTER COLUMN price_institution_cop     SET DEFAULT 0",
+            "ALTER TABLE subscription_plans ALTER COLUMN price_student_cop         SET DEFAULT 0",
+            "ALTER TABLE subscription_plans ALTER COLUMN difficulty_levels         SET DEFAULT ARRAY['MEDIA']",
+            "ALTER TABLE subscription_plans ALTER COLUMN max_ai_helps              SET DEFAULT 1",
+        ]:
+            await conn.execute(text(col_sql))
         await conn.execute(text("""
-            INSERT INTO subscription_plans (name, code, price_cop, max_ai_helps)
+            INSERT INTO subscription_plans
+                (name, code, price_institution_cop, price_student_cop, max_ai_helps, difficulty_levels, includes_whatsapp, includes_advanced_reports)
             VALUES
-                ('Basico',  'basic',   6000, 1),
-                ('Plus',    'plus',    8000, 3),
-                ('Premium', 'premium', 12000, 5)
+                ('Basico',  'basic',    6000,  8000, 1, ARRAY['MEDIA'],                 false, false),
+                ('Plus',    'plus',     8000, 12000, 3, ARRAY['MEDIA','ALTA'],           false, true),
+                ('Premium', 'premium', 12000, 15000, 5, ARRAY['MEDIA','ALTA','RETO'],   true,  true)
             ON CONFLICT (code) DO NOTHING
         """))
         await conn.execute(text("""
