@@ -56,6 +56,21 @@ function getNums(text: string): number[] {
     .filter(n => !isNaN(n) && n > 0);
 }
 
+// ── Extracción inteligente Ley de Ohm ────────────────────────────────────────
+function parseOhm(stem: string) {
+  const rM = stem.match(/(\d+(?:[.,]\d+)?)\s*(?:ohm(?:io)?s?|Ω)/i);
+  const vM = stem.match(/(\d+(?:[.,]\d+)?)\s*(?:voltio|volt(?:s|ios)?|V(?=\s|[.,)]|$))/i);
+  const iM = stem.match(/(\d+(?:[.,]\d+)?)\s*(?:amp(?:erio)?s?|A(?=\s|[.,)]|$))/i);
+  const s = stem.toLowerCase();
+  const asking = /corriente/.test(s) ? 'I' : /voltaje|tensi[oó]n/.test(s) ? 'V' : 'R';
+  return {
+    R: rM ? parseFloat(rM[1].replace(',', '.')) : null,
+    V: vM ? parseFloat(vM[1].replace(',', '.')) : null,
+    I: iM ? parseFloat(iM[1].replace(',', '.')) : null,
+    asking,
+  };
+}
+
 // ── Canvas: triángulo rectángulo ──────────────────────────────────────────────
 function drawTriangle(cv: HTMLCanvasElement, a: number, b: number, color: string) {
   const ctx = cv.getContext('2d'); if (!ctx) return;
@@ -63,20 +78,15 @@ function drawTriangle(cv: HTMLCanvasElement, a: number, b: number, color: string
   const sc = Math.min((W - 70) / b, (H - 50) / a) * 0.85;
   const ox = 35, oy = H - 28;
   ctx.clearRect(0, 0, W, H);
-  // Grid light
   ctx.strokeStyle = '#21262d'; ctx.lineWidth = 0.4;
   for (let i = 0; i <= Math.ceil(b) + 1; i++) { ctx.beginPath(); ctx.moveTo(ox + i * sc, 18); ctx.lineTo(ox + i * sc, oy); ctx.stroke(); }
   for (let i = 0; i <= Math.ceil(a) + 1; i++) { ctx.beginPath(); ctx.moveTo(ox, oy - i * sc); ctx.lineTo(ox + (b + 1) * sc, oy - i * sc); ctx.stroke(); }
-  // Fill
   ctx.fillStyle = color + '14';
   ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + b * sc, oy); ctx.lineTo(ox + b * sc, oy - a * sc); ctx.closePath(); ctx.fill();
-  // Triangle
   ctx.strokeStyle = color; ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + b * sc, oy); ctx.lineTo(ox + b * sc, oy - a * sc); ctx.closePath(); ctx.stroke();
-  // Right angle
   const rs = 10; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(ox + b * sc - rs, oy); ctx.lineTo(ox + b * sc - rs, oy - rs); ctx.lineTo(ox + b * sc, oy - rs); ctx.stroke();
-  // Labels
   ctx.fillStyle = '#e6edf3'; ctx.font = 'bold 12px Segoe UI';
   ctx.fillText('A', ox - 16, oy + 4); ctx.fillText('B', ox + b * sc + 5, oy + 4); ctx.fillText('C', ox + b * sc + 5, oy - a * sc - 4);
   ctx.fillStyle = color; ctx.font = 'bold 11px Courier New,monospace';
@@ -154,11 +164,9 @@ function drawKinematics(cv: HTMLCanvasElement, v0: number, g: number, color: str
   ctx.fillStyle = color + '12'; ctx.beginPath();
   for (let i = 0; i <= 60; i++) { const t = (i / 60) * ttot, h = v0 * t - 0.5 * g * t * t; ctx.lineTo(px + (t / ttot) * gw, py + gh - (h / hmax) * gh); }
   ctx.lineTo(px + gw, py + gh); ctx.lineTo(px, py + gh); ctx.closePath(); ctx.fill();
-  // Peak point
   ctx.fillStyle = '#f85149'; ctx.beginPath(); ctx.arc(px + gw / 2, py, 5, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
   ctx.beginPath(); ctx.moveTo(px + gw / 2, py); ctx.lineTo(px + gw / 2, py + gh); ctx.stroke(); ctx.setLineDash([]);
-  // Labels
   ctx.fillStyle = color; ctx.font = 'bold 10px Segoe UI'; ctx.fillText(`h(t) = ${v0}t − ${g / 2}t²`, px + 4, py + 14);
   ctx.fillStyle = '#f85149'; ctx.font = '9px Courier New,monospace'; ctx.fillText('h_max', px + gw / 2 + 4, py + 10);
   ctx.fillStyle = '#6e7681'; ctx.font = '9px Courier New'; ctx.fillText('0', px - 10, py + gh + 14); ctx.fillText(ttot + 's', px + gw - 14, py + gh + 14);
@@ -166,7 +174,14 @@ function drawKinematics(cv: HTMLCanvasElement, v0: number, g: number, color: str
 }
 
 // ── Canvas: circuito Ohm ──────────────────────────────────────────────────────
-function drawCircuit(cv: HTMLCanvasElement, R: number, I: number, color: string) {
+function drawCircuit(
+  cv: HTMLCanvasElement,
+  ohmR: number | null,
+  ohmV: number | null,
+  ohmI: number | null,
+  asking: string,
+  color: string
+) {
   const ctx = cv.getContext('2d'); if (!ctx) return;
   const W = cv.width, H = cv.height;
   ctx.clearRect(0, 0, W, H);
@@ -192,10 +207,13 @@ function drawCircuit(cv: HTMLCanvasElement, R: number, I: number, color: string)
   ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ax, ay, 14, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = '#1a0707'; ctx.beginPath(); ctx.arc(ax, ay, 13, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#f85149'; ctx.font = 'bold 12px Courier New'; ctx.textAlign = 'center'; ctx.fillText('A', ax, ay + 4); ctx.textAlign = 'left';
-  // Labels
-  ctx.fillStyle = '#3fb950'; ctx.font = 'bold 10px Courier New'; ctx.fillText(`I=${I}A`, l - 40, t + h / 2 + 4);
-  ctx.fillStyle = '#d29922'; ctx.font = 'bold 10px Courier New'; ctx.fillText(`R=${R}Ω`, rx + 4, t - 12);
-  ctx.fillStyle = '#f85149'; ctx.font = '10px Courier New'; ctx.fillText('V = ?', ax + 16, ay + 4);
+  // Labels — show known values, mark unknown with ?
+  const vLabel = ohmV !== null ? `V=${ohmV}V` : (asking === 'V' ? 'V=?' : 'V');
+  const iLabel = ohmI !== null ? `I=${ohmI}A` : (asking === 'I' ? 'I=?' : 'I');
+  const rLabel = ohmR !== null ? `R=${ohmR}Ω` : (asking === 'R' ? 'R=?' : 'R');
+  ctx.fillStyle = '#3fb950'; ctx.font = 'bold 10px Courier New'; ctx.fillText(vLabel, l - 40, t + h / 2 - 4);
+  ctx.fillStyle = '#f85149'; ctx.font = 'bold 10px Courier New'; ctx.fillText(iLabel, ax + 16, ay + 4);
+  ctx.fillStyle = '#d29922'; ctx.font = 'bold 10px Courier New'; ctx.fillText(rLabel, rx + 4, t - 12);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -215,7 +233,7 @@ export default function QuestionInlineVisual({ question, color }: Props) {
   const r       = n[0] || 7;
   const v0      = n.find(x => x >= 5 && x <= 100) || 20;
   const g       = n.find(x => x === 10) || 10;
-  const R       = n[0] || 10, I = n[1] || 3;
+  const ohm     = parseOhm(question.stem);
   const statsData = [...n.filter(x => x < 10000 && x > 0)].sort((a, b) => a - b);
 
   const hasCanvas = ['pythagoras','circle','statistics','kinematics','ohm'].includes(k);
@@ -227,23 +245,30 @@ export default function QuestionInlineVisual({ question, color }: Props) {
     if (k === 'circle')     drawCircle(cv, r, color);
     if (k === 'statistics') drawHistogram(cv, statsData.slice(0, 10), color);
     if (k === 'kinematics') drawKinematics(cv, v0, g, color);
-    if (k === 'ohm')        drawCircuit(cv, R, I, color);
+    if (k === 'ohm')        drawCircuit(cv, ohm.R, ohm.V, ohm.I, ohm.asking, color);
   }, [k, question.id, color]);
 
   if (k === 'none') return null;
 
   // ── Fórmula y tabla de datos por tipo ──────────────────────────────────────
   const formulaTex: string | null = (() => {
-    const fmt = (v: number) => v.toLocaleString('es-CO');
     if (k === 'commercial') {
-      const base = (qtys[0] || 1) * (prices[0] || 0);
-      return `P_{base} = ${qtys[0] || 1} \\times \\$${fmt(prices[0] || 0)} = \\$${fmt(base)} \\quad D=${pct}\\%`;
+      return `P_{base} = \\text{cantidad} \\times \\text{precio unitario} \\quad D = ${pct}\\%`;
     }
-    if (k === 'pythagoras') return `c = \\sqrt{a^2 + b^2} = \\sqrt{${a}^2 + ${b}^2} = \\sqrt{${a*a+b*b}}`;
-    if (k === 'circle')     return `A = \\pi r^2 = \\pi \\times ${r}^2 \\qquad C = 2\\pi r = 2\\pi \\times ${r}`;
-    if (k === 'statistics') { const s = statsData.reduce((a,b)=>a+b,0); return `\\bar{x} = \\frac{${s}}{${statsData.length}} = ?`; }
-    if (k === 'kinematics') return `h_{max} = \\frac{v_0^2}{2g} = \\frac{${v0}^2}{2 \\times ${g}} \\qquad t_{total} = \\frac{2v_0}{g}`;
-    if (k === 'ohm')        return `V = I \\times R = ${I} \\times ${R} \\qquad P = I^2 R`;
+    if (k === 'pythagoras') return `c = \\sqrt{a^2 + b^2} = \\sqrt{${a}^2 + ${b}^2} = ?`;
+    if (k === 'circle')     return `A = \\pi r^2 = \\pi \\times ${r}^2 = ? \\qquad C = 2\\pi r = 2\\pi \\times ${r} = ?`;
+    if (k === 'statistics') {
+      const s = statsData.reduce((a, b) => a + b, 0);
+      return `\\bar{x} = \\frac{\\sum x_i}{n} = \\frac{${s}}{${statsData.length}} = ?`;
+    }
+    if (k === 'kinematics') return `h_{max} = \\frac{v_0^2}{2g} = \\frac{${v0}^2}{2 \\times ${g}} = ? \\qquad t_{total} = \\frac{2v_0}{g} = ?`;
+    if (k === 'ohm') {
+      const { R, V, I, asking } = ohm;
+      if (asking === 'I' && R !== null && V !== null) return `I = \\frac{V}{R} = \\frac{${V}}{${R}} = ?`;
+      if (asking === 'V' && R !== null && I !== null) return `V = I \\times R = ${I} \\times ${R} = ?`;
+      if (asking === 'R' && V !== null && I !== null) return `R = \\frac{V}{I} = \\frac{${V}}{${I}} = ?`;
+      return `V = I \\times R \\qquad I = \\frac{V}{R} \\qquad R = \\frac{V}{I}`;
+    }
     if (k === 'force')      return `F = m \\times a`;
     if (k === 'chem')       return `\\text{Reactivos} \\xrightarrow{} \\text{Productos}`;
     if (k === 'periodic')   return `Z = p^+ = e^- \\quad \\text{Período} = \\text{capas}`;
@@ -252,24 +277,22 @@ export default function QuestionInlineVisual({ question, color }: Props) {
   })();
 
   const chips: { label: string; val: string }[] = (() => {
-    const fmt = (v: number) => v.toLocaleString('es-CO');
     if (k === 'commercial') return [
       { label: 'Cantidad', val: `${qtys[0] || 1}` },
-      { label: 'Precio unit.', val: `$${fmt(prices[0] || 0)}` },
+      { label: 'Precio unit.', val: prices[0] ? `$${prices[0].toLocaleString('es-CO')}` : '?' },
       { label: 'Descuento', val: `${pct}%` },
-      { label: 'Base total', val: `$${fmt((qtys[0]||1)*(prices[0]||0))}` },
+      { label: 'Total final', val: '?' },
     ];
     if (k === 'pythagoras') return [
       { label: 'Cateto a', val: `${a} cm` },
       { label: 'Cateto b', val: `${b} cm` },
-      { label: 'a² + b²', val: `${a*a+b*b}` },
-      { label: 'c = √?', val: '?' },
+      { label: 'Hipotenusa c', val: '?' },
     ];
     if (k === 'circle') return [
       { label: 'Radio r', val: `${r} cm` },
-      { label: 'Diámetro', val: `${2*r} cm` },
-      { label: 'A = πr²', val: '?' },
-      { label: 'C = 2πr', val: '?' },
+      { label: 'Diámetro', val: `${2 * r} cm` },
+      { label: 'Área A', val: '?' },
+      { label: 'Perímetro C', val: '?' },
     ];
     if (k === 'kinematics') return [
       { label: 'v₀', val: `${v0} m/s` },
@@ -277,18 +300,24 @@ export default function QuestionInlineVisual({ question, color }: Props) {
       { label: 'h_max', val: '?' },
       { label: 't total', val: '?' },
     ];
-    if (k === 'ohm') return [
-      { label: 'R', val: `${R} Ω` },
-      { label: 'I', val: `${I} A` },
-      { label: 'V = IR', val: '?' },
-      { label: 'P = I²R', val: '?' },
-    ];
+    if (k === 'ohm') {
+      const { R, V, I, asking } = ohm;
+      const items = [];
+      items.push({ label: 'R', val: R !== null ? `${R} Ω` : '?' });
+      items.push({ label: 'V', val: V !== null ? `${V} V` : '?' });
+      items.push({ label: 'I', val: I !== null ? `${I} A` : '?' });
+      // mark the asked variable as unknown
+      return items.map(item => ({
+        ...item,
+        val: item.label === asking ? '?' : item.val,
+      }));
+    }
     if (k === 'statistics' && statsData.length > 0) {
-      const s = statsData.reduce((a,b)=>a+b,0);
+      const s = statsData.reduce((a, b) => a + b, 0);
       return [
         { label: 'n datos', val: `${statsData.length}` },
-        { label: 'Suma', val: `${s}` },
-        { label: 'Media', val: '?' },
+        { label: 'Suma Σ', val: `${s}` },
+        { label: 'Media x̄', val: '?' },
         { label: 'Mediana', val: '?' },
       ];
     }
