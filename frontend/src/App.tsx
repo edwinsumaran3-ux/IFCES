@@ -7,7 +7,7 @@ import AdminDashboard from './features/admin/AdminDashboard'
 import PaymentPage from './features/payment/PaymentPage'
 import BancoPreguntasPage from './features/banco/BancoPreguntasPage'
 
-interface User { id: string; email: string; full_name: string; role: string }
+interface User { id: string; email: string; full_name: string; role: string; plan_code?: string }
 interface Question { id: string; stem: string; area: string; points: number; options: { label: string; text: string }[] }
 interface ExamState { attemptId: string; questions: Question[]; durationSecs: number }
 
@@ -96,7 +96,14 @@ export default function App() {
             <button
               key={v}
               className="nav-btn"
-              onClick={() => v === 'exam' ? startExam() : setView(v)}
+              onClick={() => {
+                if (v === 'exam') { startExam(); return }
+                if (v === 'banco') {
+                  const plan = user?.plan_code
+                  if (!plan || !['basic','plus','premium'].includes(plan)) { setShowPayment(true); return }
+                }
+                setView(v)
+              }}
               style={{
                 border: `1px solid ${view === v ? 'rgba(37,99,235,0.4)' : 'rgba(255,255,255,0.07)'}`,
                 background: view === v ? 'rgba(37,99,235,0.12)' : 'transparent',
@@ -188,7 +195,7 @@ export default function App() {
       )}
 
       {view==='teacher' && <TeacherDashboard />}
-      {view==='banco' && user && <BancoPreguntasPage user={user} />}
+      {view==='banco' && user && <BancoPreguntasPage user={user} onBuyPlan={() => setShowPayment(true)} />}
       {showPayment && user && <PaymentPage user={user} onPaid={()=>setShowPayment(false)} onClose={()=>setShowPayment(false)} />}
       {user?.role === 'admin' && view==='home' && <AdminDashboard />}
     </div>

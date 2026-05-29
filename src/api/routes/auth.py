@@ -51,8 +51,9 @@ async def login(body: LoginRequest, db=Depends(get_db)):
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
     full_name = getattr(user, 'full_name', None) or user.email
-    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": full_name})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": full_name, "role": user.role}}
+    plan_code = getattr(user, 'plan_code', None) or 'pending'
+    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": full_name, "plan_code": plan_code})
+    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": full_name, "role": user.role, "plan_code": plan_code}}
 
 @router.post("/register-student")
 async def register_student(body: RegisterRequest, db=Depends(get_db)):
@@ -76,5 +77,5 @@ async def register_student(body: RegisterRequest, db=Depends(get_db)):
         user = result.fetchone()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al crear cuenta: {str(e)}")
-    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": user.full_name})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role}}
+    token = create_token({"sub": str(user.id), "email": user.email, "role": user.role, "name": user.full_name, "plan_code": "pending"})
+    return {"access_token": token, "token_type": "bearer", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role, "plan_code": "pending"}}

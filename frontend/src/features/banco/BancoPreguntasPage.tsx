@@ -60,11 +60,14 @@ function diffStyle(d: string) {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
-  user: { id: string; full_name: string };
+  user: { id: string; full_name: string; plan_code?: string };
+  onBuyPlan?: () => void;
 }
 
+const ACTIVE_PLANS = ['basic', 'plus', 'premium'];
+
 // =============================================================================
-export default function BancoPreguntasPage({ user }: Props) {
+export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   const [view,           setView]           = useState<View>('materias');
   const [materias,       setMaterias]       = useState<Materia[]>([]);
   const [materia,        setMateria]        = useState<Materia | null>(null);
@@ -548,6 +551,56 @@ export default function BancoPreguntasPage({ user }: Props) {
   // ── Contadores de progreso ──────────────────────────────────────────────────
   const viewedCount  = viewed.size;
   const progressPct  = total > 0 ? Math.round((viewedCount / total) * 100) : 0;
+
+  // ===========================================================================
+  //  PAYWALL — sin plan activo
+  // ===========================================================================
+  if (!ACTIVE_PLANS.includes(user.plan_code || '')) {
+    return (
+      <div style={{ maxWidth: 540, margin: '80px auto', padding: '0 20px', textAlign: 'center' }}>
+        <div style={{ fontSize: 52, marginBottom: 16 }}>🔒</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', marginBottom: 10 }}>
+          Acceso exclusivo para suscriptores
+        </h2>
+        <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.75, marginBottom: 28 }}>
+          El Banco de Preguntas con tutor IA requiere un plan activo.<br />
+          Elige el plan que mejor se ajuste a ti y empieza a practicar hoy.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 28 }}>
+          {[
+            { name: 'Básico',   price: '$8.000',  color: '#60a5fa', helps: '1 ayuda IA' },
+            { name: 'Plus',     price: '$12.000', color: '#a78bfa', helps: '3 ayudas IA' },
+            { name: 'Premium',  price: '$15.000', color: '#34d399', helps: '5 ayudas IA' },
+          ].map(p => (
+            <div key={p.name} style={{
+              background: 'rgba(12,18,38,0.9)',
+              border: `1px solid ${p.color}30`,
+              borderRadius: 12, padding: '14px 10px',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: p.color, marginBottom: 4 }}>{p.name}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{p.price}</div>
+              <div style={{ fontSize: 10, color: '#475569' }}>COP · {p.helps}</div>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onBuyPlan}
+          style={{
+            padding: '12px 36px',
+            background: '#2563eb',
+            border: 'none', borderRadius: 10,
+            color: '#fff', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', letterSpacing: -0.2,
+          }}
+        >
+          💳 Activar mi plan ahora
+        </button>
+        <p style={{ fontSize: 11, color: '#334155', marginTop: 12 }}>
+          El administrador activa el plan en máximo 24 h tras confirmar el pago.
+        </p>
+      </div>
+    );
+  }
 
   // ===========================================================================
   //  VISTA: MATERIAS
