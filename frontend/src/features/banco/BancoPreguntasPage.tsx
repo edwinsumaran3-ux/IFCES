@@ -493,14 +493,14 @@ export default function BancoPreguntasPage({ user }: Props) {
       : `Acá lo más importante es leer bien el texto, identificar la idea central, ` +
         `y descartar las opciones que contradicen o exageran lo que dice el enunciado.`;
 
-    // ── 4. Explicación limpia ─────────────────────────────────────────────────
-    const explicacion_limpia = cleanForSpeech(p.explicacion || '');
-    const explicacion_parte = explicacion_limpia
-      ? `Aquí está la clave: ${explicacion_limpia}. ${EXPLICA_CO[iE]}`
-      : `El proceso paso a paso: primero, anote todos los datos del enunciado. ` +
-        `Segundo, identifique qué fórmula o concepto aplica. ` +
-        `Tercero, aplique el procedimiento sin saltarse pasos. ` +
-        `Y cuarto, verifique que el resultado tenga sentido. ${EXPLICA_CO[iE]}`;
+    // ── 4. Proceso paso a paso (SIN usar p.explicacion — puede revelar la respuesta) ──
+    const explicacion_parte =
+      `El proceso que debe seguir es este. ` +
+      `Primero, identifique todos los datos que le da el enunciado. ` +
+      `Segundo, decida qué fórmula o concepto aplica al tipo de problema. ` +
+      `Tercero, aplique el procedimiento paso a paso sin saltarse ninguno. ` +
+      `Y cuarto, antes de seleccionar, verifique que su resultado tenga sentido. ` +
+      EXPLICA_CO[iE];
 
     // ── 5. Cierre colombiano (sin revelar la respuesta) ───────────────────────
     const cierre = CIERRES_CO[iC](formulaLabel);
@@ -882,7 +882,8 @@ function QuestionCard({
   const isRight  = selected === p.respuesta;
 
   // Fórmula automática al terminar el audio O al responder
-  useEffect(() => { if ((showExplanation || answered) && pf) setShowFormula(true); }, [showExplanation, answered]);
+  // Fórmula y explicación SOLO cuando el alumno selecciona una opción
+  useEffect(() => { if (answered && pf) setShowFormula(true); }, [answered]);
 
   const qvp = {
     id: p.id, stem: p.enunciado, area: p.area,
@@ -1038,7 +1039,7 @@ function QuestionCard({
       )}
 
       {/* ── Explicación completa — aparece al terminar el audio ── */}
-      {(showExplanation || answered) && (
+      {answered && (
         <div style={{
           marginTop: 14,
           background: 'rgba(12,18,38,0.95)',
