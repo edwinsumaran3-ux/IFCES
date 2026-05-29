@@ -113,8 +113,7 @@ export default function BancoPreguntasPage({ user }: Props) {
     setDifFiltro('Todas');
     setSkipOffset(0);
     setPreguntas([]);
-    setAiData(null);
-    setActivePregunta(null);
+    setVisualPanel(null);
     setView('preguntas');
     fetchPreguntas(m, 'Todas', 'Todas', 0);
   }
