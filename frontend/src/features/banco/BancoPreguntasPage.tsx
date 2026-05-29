@@ -288,17 +288,19 @@ export default function BancoPreguntasPage({ user }: Props) {
     (n:string) => `¡Epa ${n}! No se me ponga nervioso/a. Respire profundo, que esto no es ninguna berraquera. Con calma y método, todo se puede. ¡Yo lo/la acompaño en esto!`,
   ];
 
+  const CIERRE_RETO = `Ya tiene toda la explicación. Ahora inténtelo. Ya tiene la respuesta dentro de usted. Y si en este momento no la ve, no se preocupe: le voy a mostrar la fórmula resuelta y la respuesta para que la entienda bien.`;
+
   const CIERRES_CO = [
-    (f:string) => `¡Eso ${APE.parce}! ¿Vio que sí podía? Eso es lo que yo le decía. Siga practicando ${f} y le juro que el día del ICFES va a estar más tranquilo/a. ¡Usted es ${APE.teso}!`,
-    (f:string) => `¡Bien ahí ${APE.mije}! Ya entendió esta. Ahora practique otras iguales y verá que se le graba. ${f} es su aliada. ¡Dele duro que el ICFES no le va a quedar grande!`,
-    (f:string) => `¡Qué berraquera la de usted, ${APE.campeon}! Así se estudia. ${f} Recuérdela, que vale oro en el examen. ¡Con todo, que usted puede!`,
-    (f:string) => `¡Severo! Eso es exactamente lo que necesitaba entender. ${f} Sígala repasando y va a ver que en el examen le sale sola. ¡No hay quién lo/la pare!`,
-    (f:string) => `¡Chimba que entendió! Así se hace ${APE.parce}. ${f} Guárdela en la memoria porque la van a necesitar. ¡Teso/tesa el/la combo!`,
-    (f:string) => `Mire pues cómo sí se puede. ${f} es clave. Practique un poco más y el ICFES va a ser pan comido. ¡Orgullo de Colombia, así se estudia!`,
-    (f:string) => `¡Ni que nada, ${APE.duro}! Eso estuvo bacano. ${f} Repásela esta noche y mañana ya la tiene dominada. ¡El ICFES lo/la espera y usted llega preparado/a!`,
-    (f:string) => `¡Eso es lo que hay, ${APE.mije}! Ya tiene una más en el bolsillo. ${f} Venga practique otras y verá que cada día siente más seguridad. ¡Échele ganas!`,
-    (f:string) => `¡Qué nota ${APE.parce}! Ya entendió el rollo. ${f} No la suelte. En el examen, cuando vea esta pregunta, va a sonreír por dentro. ¡Eso es estudiar con propósito!`,
-    (f:string) => `¡Le juro que usted puede, ${APE.campeon}! Hoy entendió una más. ${f} Siga así, paso a paso, y el ICFES va a ser el mejor día de su vida. ¡Con todo Colombia!`,
+    (f:string) => `¡Eso ${APE.parce}! Siga practicando ${f}. ¡Usted es ${APE.teso}! ${CIERRE_RETO}`,
+    (f:string) => `¡Bien ahí ${APE.mije}! ${f} es su aliada. ¡Dele duro que el ICFES no le va a quedar grande! ${CIERRE_RETO}`,
+    (f:string) => `¡Qué berraquera la de usted, ${APE.campeon}! ${f} Recuérdela, que vale oro en el examen. ${CIERRE_RETO}`,
+    (f:string) => `¡Severo! Eso es exactamente lo que necesitaba entender. ${f} Sígala repasando. ${CIERRE_RETO}`,
+    (f:string) => `¡Chimba! Así se hace ${APE.parce}. ${f} Guárdela en la memoria. ${CIERRE_RETO}`,
+    (f:string) => `Mire pues ${APE.parce}. ${f} Practique un poco más y el ICFES va a ser pan comido. ${CIERRE_RETO}`,
+    (f:string) => `¡Ni que nada, ${APE.duro}! Eso estuvo bacano. ${f} Repásela esta noche. ${CIERRE_RETO}`,
+    (f:string) => `¡Eso es lo que hay, ${APE.mije}! ${f} ¡Échele ganas! ${CIERRE_RETO}`,
+    (f:string) => `¡Qué nota ${APE.parce}! ${f} En el examen va a sonreír por dentro. ${CIERRE_RETO}`,
+    (f:string) => `¡Le juro que usted puede, ${APE.campeon}! ${f} ¡Con todo Colombia! ${CIERRE_RETO}`,
   ];
 
   // ── 10 transiciones al tema (jerga paisa) ─────────────────────────────────
@@ -500,18 +502,10 @@ export default function BancoPreguntasPage({ user }: Props) {
         `Tercero, aplique el procedimiento sin saltarse pasos. ` +
         `Y cuarto, verifique que el resultado tenga sentido. ${EXPLICA_CO[iE]}`;
 
-    // ── 5. Respuesta en lenguaje natural ──────────────────────────────────────
-    const textoRespuesta = cleanForSpeech(opCorrecta?.text || '');
-    const respuesta_parte =
-      `La respuesta correcta es la opción ${p.respuesta}` +
-      (textoRespuesta ? `, la que dice ${textoRespuesta}` : '') +
-      `. Las otras opciones tienen un error específico que se nota cuando se aplica bien el método. ` +
-      `Si entiende el proceso, las puede descartar con seguridad.`;
-
-    // ── 6. Cierre colombiano ──────────────────────────────────────────────────
+    // ── 5. Cierre colombiano (sin revelar la respuesta) ───────────────────────
     const cierre = CIERRES_CO[iC](formulaLabel);
 
-    return [saludo, intro_tema, concepto, explicacion_parte, respuesta_parte, cierre];
+    return [saludo, intro_tema, concepto, explicacion_parte, cierre];
   }
 
   // ── Reproducir audio ─────────────────────────────────────────────────────
@@ -713,13 +707,11 @@ export default function BancoPreguntasPage({ user }: Props) {
               p={p}
               idx={skipOffset + idx}
               materia={m}
-              revealed={revealed.has(p.id)}
               viewed={viewed.has(p.id)}
               speaking={speaking === p.id}
               audioLoading={audioLoading === p.id}
               played={played.has(p.id)}
               showExplanation={explanationShown.has(p.id)}
-              onReveal={toggleReveal}
               onVisual={openVisualPanel}
               onSpeak={handleSpeak}
             />
@@ -870,25 +862,28 @@ function FormulaBox({ tex, isLatex, label, vars, color }: {
 
 // ── Tarjeta de pregunta ───────────────────────────────────────────────────────
 function QuestionCard({
-  p, idx, materia, revealed, viewed: isViewed,
+  p, idx, materia, viewed: isViewed,
   speaking, audioLoading, played, showExplanation,
-  onReveal, onVisual, onSpeak,
+  onVisual, onSpeak,
 }: {
   p: Pregunta; idx: number; materia: Materia;
-  revealed: boolean; viewed: boolean;
+  viewed: boolean;
   speaking: boolean; audioLoading: boolean; played: boolean; showExplanation: boolean;
-  onReveal: (id: string) => void;
   onVisual: (p: Pregunta) => void;
   onSpeak:  (p: Pregunta) => void;
 }) {
+  const [selected,    setSelected]    = useState<string | null>(null); // opción elegida
   const [showFormula, setShowFormula] = useState(false);
   const dc  = diffStyle(p.dificultad);
   const pf  = getPureFormula(p.area, p.enunciado);
 
-  // Mostrar fórmula automáticamente cuando termina el audio
-  useEffect(() => { if (showExplanation && pf) setShowFormula(true); }, [showExplanation]);
+  // Cuando el alumno elige una opción → revelar resultado + fórmula
+  const answered = selected !== null;
+  const isRight  = selected === p.respuesta;
 
-  // Adaptar para QuestionInlineVisual
+  // Fórmula automática al terminar el audio O al responder
+  useEffect(() => { if ((showExplanation || answered) && pf) setShowFormula(true); }, [showExplanation, answered]);
+
   const qvp = {
     id: p.id, stem: p.enunciado, area: p.area,
     points: 1, difficulty: p.dificultad, options: p.opciones,
@@ -921,61 +916,73 @@ function QuestionCard({
       {/* Enunciado */}
       <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{p.enunciado}</p>
 
-      {/* ── Visual inline: diagrama + fórmula ── */}
+      {/* Visual inline */}
       <QuestionInlineVisual question={qvp} color={materia.color} />
 
-      {/* Opciones */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 12 }}>
+      {/* Instrucción cuando el audio ya se escuchó */}
+      {played && !answered && (
+        <div style={{ fontSize: 11, color: '#475569', fontStyle: 'italic', margin: '10px 0 6px', textAlign: 'center' }}>
+          ← Selecciona tu respuesta →
+        </div>
+      )}
+
+      {/* Opciones — clickeables si ya escuchó el audio */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 10 }}>
         {p.opciones.map(o => {
-          const isCorrect = o.label === p.respuesta;
+          const isCorrect  = o.label === p.respuesta;
+          const isSelected = o.label === selected;
+
+          // Colores según estado
+          let bg = 'rgba(255,255,255,0.02)';
+          let border = 'rgba(255,255,255,0.06)';
+          let textColor = '#94a3b8';
+
+          if (answered) {
+            if (isCorrect) { bg = 'rgba(63,185,80,0.12)'; border = 'rgba(63,185,80,0.4)'; textColor = '#3fb950'; }
+            else if (isSelected) { bg = 'rgba(248,81,73,0.10)'; border = 'rgba(248,81,73,0.4)'; textColor = '#f87171'; }
+          } else if (isSelected) {
+            bg = `${materia.color}12`; border = `${materia.color}60`; textColor = materia.color;
+          }
+
           return (
-            <div
+            <button
               key={o.label}
+              onClick={() => { if (!answered) setSelected(o.label); }}
               style={{
                 display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '7px 12px', borderRadius: 6,
-                background: revealed && isCorrect ? 'rgba(63,185,80,0.10)' : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${revealed && isCorrect ? 'rgba(63,185,80,0.35)' : 'rgba(255,255,255,0.06)'}`,
+                padding: '8px 12px', borderRadius: 6, width: '100%', textAlign: 'left',
+                background: bg, border: `1px solid ${border}`,
+                cursor: answered ? 'default' : 'pointer',
+                transition: 'all 0.18s',
               }}
             >
-              <span style={{
-                fontSize: 11, fontWeight: 700, width: 16, flexShrink: 0, marginTop: 1,
-                color: revealed && isCorrect ? '#3fb950' : '#475569',
-              }}>{o.label}</span>
-              <span style={{ fontSize: 12, color: revealed && isCorrect ? '#3fb950' : '#94a3b8', flex: 1, lineHeight: 1.5 }}>
-                {o.text}
+              <span style={{ fontSize: 11, fontWeight: 700, width: 18, flexShrink: 0, marginTop: 1, color: answered ? (isCorrect ? '#3fb950' : isSelected ? '#f87171' : '#475569') : materia.color }}>
+                {o.label}
               </span>
-              {revealed && isCorrect && (
-                <span style={{ fontSize: 10, color: '#3fb950', fontWeight: 600, flexShrink: 0 }}>[Correcta]</span>
-              )}
-            </div>
+              <span style={{ fontSize: 12, color: textColor, flex: 1, lineHeight: 1.55 }}>{o.text}</span>
+              {answered && isCorrect  && <span style={{ fontSize: 10, color: '#3fb950', fontWeight: 700, flexShrink: 0 }}>✓ Correcta</span>}
+              {answered && isSelected && !isCorrect && <span style={{ fontSize: 10, color: '#f87171', fontWeight: 700, flexShrink: 0 }}>✗ Incorrecta</span>}
+            </button>
           );
         })}
       </div>
 
-      {/* Explicación rápida */}
-      {revealed && p.explicacion && (
+      {/* Feedback inmediato al responder */}
+      {answered && (
         <div style={{
-          background: 'rgba(210,153,34,0.07)', border: '1px solid rgba(210,153,34,0.2)',
-          borderRadius: 8, padding: '10px 14px', marginBottom: 12,
-          fontSize: 12, color: '#d29922', lineHeight: 1.6,
+          padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 12, fontWeight: 600,
+          background: isRight ? 'rgba(63,185,80,0.08)' : 'rgba(248,81,73,0.08)',
+          border: `1px solid ${isRight ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)'}`,
+          color: isRight ? '#3fb950' : '#f87171',
         }}>
-          <span style={{ fontWeight: 700 }}>Explicación: </span>{p.explicacion}
+          {isRight
+            ? '¡Excelente! Respondiste correctamente. ¡Eso es lo que hay!'
+            : `No te rindas. La respuesta correcta es la opción ${p.respuesta}. Aquí abajo tienes la fórmula resuelta y la explicación completa.`}
         </div>
       )}
 
       {/* Acciones */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => onReveal(p.id)}
-          style={{
-            padding: '6px 14px', background: 'transparent',
-            border: `1px solid ${materia.color}40`, borderRadius: 8,
-            color: materia.color, fontSize: 11, cursor: 'pointer',
-          }}
-        >
-          {revealed ? 'Ocultar respuesta' : '👁 Ver respuesta'}
-        </button>
         <button
           onClick={() => onVisual(p)}
           style={{
@@ -1031,7 +1038,7 @@ function QuestionCard({
       )}
 
       {/* ── Explicación completa — aparece al terminar el audio ── */}
-      {showExplanation && (
+      {(showExplanation || answered) && (
         <div style={{
           marginTop: 14,
           background: 'rgba(12,18,38,0.95)',
