@@ -269,7 +269,7 @@ async def get_progress(student_id: str, db=Depends(get_db)):
     }
 
 
-# ── TTS: misma voz Neural2 que el panel de exámenes ──────────────────────────
+# ── TTS gratuito: Google Translate TTS (gTTS) — sin API key, costo $0 ────────
 class TTSRequest(BaseModel):
     text:   str
     gender: str = "female"
@@ -277,46 +277,39 @@ class TTSRequest(BaseModel):
 
 @router.post("/banco/tts")
 async def banco_tts(body: TTSRequest):
-    """Convierte texto a MP3 base64 usando Google Cloud TTS Neural2 (misma voz que exámenes)."""
+    """
+    Convierte texto a MP3 base64 usando gTTS (Google Translate TTS).
+    - Sin API key. Costo: $0.
+    - Idioma: español (es). Pronunciación natural.
+    """
     try:
-        from google.cloud import texttospeech
+        from gtts import gTTS
+        import io as _io
 
-        # Añadir pausas SSML naturales en puntos de oración
-        t = body.text
-        t = re.sub(r'\.\s+', '. <break time="450ms"/> ', t)
-        t = re.sub(r'\?\s+', '? <break time="500ms"/> ', t)
-        t = re.sub(r'!\s+',  '! <break time="500ms"/> ', t)
-        t = re.sub(r',\s+',  ', <break time="200ms"/> ', t)
-        ssml = f'<speak><prosody rate="90%" pitch="-1st">{t}</prosody></speak>'
-
-        vp     = _TTS_VOICES.get(body.gender, _TTS_VOICES["female"])
-        client = texttospeech.TextToSpeechClient()
-        inp    = texttospeech.SynthesisInput(ssml=ssml)
-        voice  = texttospeech.VoiceSelectionParams(
-            language_code=vp["language_code"],
-            name=vp["name"],
-        )
-        cfg    = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3,
-            speaking_rate=0.92,
-            pitch=-1.0,
-        )
+        # Limpiar texto para TTS
+        texto = body.text.strip()
+        texto = re.sub(r'\s+', ' ', texto)
 
         loop = asyncio.get_event_loop()
-        resp = await loop.run_in_executor(
-            None,
-            lambda: client.synthesize_speech(input=inp, voice=voice, audio_config=cfg),
-        )
-        audio_b64 = base64.b64encode(resp.audio_content).decode("utf-8")
-        logger.info(f"[banco/tts] OK — {len(body.text)} chars → {len(audio_b64)//1024}KB")
+
+        def _synth() -> bytes:
+            tts = gTTS(text=texto, lang='es', slow=False)
+            fp  = _io.BytesIO()
+            tts.write_to_fp(fp)
+            fp.seek(0)
+            return fp.read()
+
+        audio_bytes = await loop.run_in_executor(None, _synth)
+        audio_b64   = base64.b64encode(audio_bytes).decode("utf-8")
+
+        logger.info(f"[banco/tts] gTTS OK — {len(texto)} chars → {len(audio_bytes)//1024}KB")
         return JSONResponse(
             content={"audio_b64": audio_b64},
             headers=CORS_HEADERS,
         )
 
     except Exception as e:
-        logger.warning(f"[banco/tts] Google TTS no disponible: {e}")
-        # Devuelve vacío → el frontend usa Web Speech como fallback
+        logger.warning(f"[banco/tts] gTTS error: {e}")
         return JSONResponse(
             content={"audio_b64": "", "error": str(e)},
             headers=CORS_HEADERS,
