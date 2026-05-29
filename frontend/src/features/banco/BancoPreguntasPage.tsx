@@ -184,40 +184,64 @@ export default function BancoPreguntasPage({ user }: Props) {
     setViewed(prev => new Set([...prev, id]));
   }
 
-  // ── Fallback: Web Speech API (si Google TTS no está disponible) ───────────
-  function pickBestVoice(): SpeechSynthesisVoice | null {
-    const all = voicesRef.current.length
+  // ── Selección de voz colombiana — prioridad: Salomé/Gonzalo Neural > es-CO > es-US ──
+  function pickColombianVoice(gender: 'male' | 'female'): SpeechSynthesisVoice | null {
+    const all = (voicesRef.current.length
       ? voicesRef.current
-      : window.speechSynthesis?.getVoices() || [];
-    const nameLower = (v: SpeechSynthesisVoice) => v.name.toLowerCase();
-    const score = (v: SpeechSynthesisVoice) => {
+      : window.speechSynthesis?.getVoices() || []);
+
+    const score = (v: SpeechSynthesisVoice): number => {
       let s = 0;
-      if (!v.localService) s += 20;           // voces online >> locales
-      if (/natural|neural/i.test(v.name)) s += 8;
-      if (v.lang === 'es-CO') s += 6;
-      else if (v.lang === 'es-US') s += 4;
-      else if (/^es/i.test(v.lang)) s += 2;
+      const n = v.name.toLowerCase();
+      // Voces colombianas específicas (Microsoft Edge) — máxima prioridad
+      if (/salome/i.test(n)  && gender === 'female') s += 100;
+      if (/gonzalo/i.test(n) && gender === 'male')   s += 100;
+      if (/es.co/i.test(v.lang) || /colombia/i.test(n)) s += 40;
+      // Neural/Natural online >> locales robóticas
+      if (!v.localService) s += 20;
+      if (/neural|natural/i.test(n)) s += 15;
+      // Acento latinoamericano
+      if (v.lang === 'es-US') s += 8;
+      if (v.lang === 'es-MX') s += 6;
+      if (/^es/i.test(v.lang)) s += 4;
+      // Género aproximado
+      if (gender === 'female' && /female|mujer|woman|girl|sabina|helena|laura|maria|isabel|luciana|monica|paloma|paulina|fernanda|natalia|daniela|sofia|valeria|dalia|conchita|camila|paola|andrea|claudia|rosa|alicia|beatriz/i.test(n)) s += 12;
+      if (gender === 'male'   && /male|hombre|man|pablo|juan|jorge|diego|carlos|andres|alvaro|arturo|miguel|antonio|rodrigo|felipe|alejandro|sergio|manuel|javier/i.test(n)) s += 12;
       return s;
     };
+
     const spanish = all.filter(v => /^es/i.test(v.lang));
-    return spanish.sort((a, b) => score(b) - score(a))[0] ?? null;
+    if (!spanish.length) return all[0] ?? null;
+    return spanish.sort((a, b) => score(b) - score(a))[0];
   }
 
-  function fallbackWebSpeech(id: string, partes: string[]) {
+  // ── Web Speech con voz colombiana del navegador ───────────────────────────
+  function speakWithBrowser(id: string, partes: string[], gender: 'male' | 'female') {
     if (!('speechSynthesis' in window)) { onAudioFinished(id); return; }
-    const voz = pickBestVoice();
-    let idx = 0;
-    const speak = () => {
+    const voz = pickColombianVoice(gender);
+    let idx   = 0;
+    const next = () => {
       if (idx >= partes.length) { onAudioFinished(id); return; }
-      const utt = new SpeechSynthesisUtterance(partes[idx]);
-      utt.lang = 'es-CO'; utt.rate = 0.85; utt.pitch = 1.1; utt.volume = 1;
+      const utt   = new SpeechSynthesisUtterance(partes[idx]);
+      utt.lang    = 'es-CO';
+      utt.rate    = 0.82;   // más pausado = menos robótico
+      utt.pitch   = gender === 'female' ? 1.15 : 0.95;
+      utt.volume  = 1;
       if (voz) utt.voice = voz;
       utt.onstart = () => { if (idx === 0) setSpeaking(id); };
-      utt.onend   = () => { idx++; speak(); };
+      utt.onend   = () => { idx++; next(); };
       utt.onerror = () => onAudioFinished(id);
       window.speechSynthesis.speak(utt);
     };
-    speak();
+    next();
+  }
+
+  // ── ¿El navegador tiene voz colombiana neural? ────────────────────────────
+  function hasColombiaNeuralVoice(): boolean {
+    const all = voicesRef.current.length
+      ? voicesRef.current
+      : window.speechSynthesis?.getVoices() || [];
+    return all.some(v => /salome|gonzalo/i.test(v.name) || /es.co/i.test(v.lang));
   }
 
   // ── Inferir género del nombre (para voz y pronombres) ────────────────────────
@@ -490,45 +514,47 @@ export default function BancoPreguntasPage({ user }: Props) {
     return [saludo, intro_tema, concepto, explicacion_parte, respuesta_parte, cierre];
   }
 
-  // ── Reproducir audio — Google TTS Neural2 con fallback a Web Speech ──────────
+  // ── Reproducir audio ─────────────────────────────────────────────────────
   async function handleSpeak(p: Pregunta) {
-    if (played.has(p.id)) return;     // una sola vez
+    if (played.has(p.id)) return;
     if (speaking || audioLoading) return;
 
     const partes = buildScript(p);
     const texto  = partes.join(' ');
 
-    setAudioLoading(p.id);
+    // ── OPCIÓN A: Voz colombiana neural del navegador (Edge/Chrome con voces MS) ──
+    // Si el alumno usa Edge, tiene Salomé (mujer) o Gonzalo (hombre) — gratis y nativa
+    if (hasColombiaNeuralVoice()) {
+      speakWithBrowser(p.id, partes, g);
+      return;
+    }
 
+    // ── OPCIÓN B: Backend Google Neural2 (ya configurado en Railway) ──────────
+    setAudioLoading(p.id);
     try {
       const res = await fetch(`${API}/banco/tts`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ text: texto, gender: g }),
       });
-
       if (res.ok) {
         const data = await res.json();
         if (data.audio_b64) {
-          // ── Reproducir con Google TTS Neural2 ──────────────────────────
           if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
           const audio = new Audio(`data:audio/mpeg;base64,${data.audio_b64}`);
           audioRef.current = audio;
-          audio.onplay   = () => { setSpeaking(p.id); setAudioLoading(null); };
-          audio.onended  = () => onAudioFinished(p.id);
-          audio.onerror  = () => {
-            setAudioLoading(null);
-            fallbackWebSpeech(p.id, partes);
-          };
+          audio.onplay  = () => { setSpeaking(p.id); setAudioLoading(null); };
+          audio.onended = () => onAudioFinished(p.id);
+          audio.onerror = () => { setAudioLoading(null); speakWithBrowser(p.id, partes, g); };
           await audio.play();
           return;
         }
       }
     } catch {}
 
-    // ── Fallback: Web Speech API ─────────────────────────────────────────
+    // ── OPCIÓN C: Web Speech con mejor voz disponible ────────────────────────
     setAudioLoading(null);
-    fallbackWebSpeech(p.id, partes);
+    speakWithBrowser(p.id, partes, g);
   }
 
   // ── Contadores de progreso ──────────────────────────────────────────────────
