@@ -458,42 +458,48 @@ export default function BancoPreguntasPage({ user }: Props) {
     'Fotosíntesis':                     'las plantas convierten dióxido de carbono y agua en glucosa y oxígeno usando la luz solar',
   };
 
-  // ── Construir guion de pista — solo fórmula, sin datos del enunciado ────────
+  // ── Construir guion: saludo motivacional + pista con fórmula + despedida ────
   function buildScript(p: Pregunta): string[] {
+    const nombre  = user.full_name?.split(' ')[0] || 'estudiante';
     const formula = getPureFormula(p.area, p.enunciado);
-    const partes: string[] = [];
 
-    // Siempre abre con "te voy a dar una pista"
-    partes.push('te voy a dar una pista.');
+    // Hash por pregunta → variantes deterministas únicas por pregunta
+    const h  = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const iS = h % SALUDOS_CO.length;
+    const iC = (h >> 3) % CIERRES_CO.length;
+    const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
+
+    // ── 1. Saludo motivacional colombiano (activa confianza — neurociencia) ───
+    const saludo = SALUDOS_CO[iS](nombre);
+
+    // ── 2. Pista: solo la fórmula o procedimiento, sin datos del enunciado ────
+    const pistaPartes: string[] = ['te voy a dar una pista.'];
 
     if (formula) {
-      // Paso 1: nombre del concepto o fórmula
-      partes.push(`La clave de esta pregunta es ${formula.label}.`);
-
-      // Paso 2: explicar la fórmula en palabras, sin datos del enunciado
+      pistaPartes.push(`La clave de esta pregunta es ${formula.label}.`);
       if (FORMULA_VERBAL[formula.label]) {
-        partes.push(`Te la explico: ${FORMULA_VERBAL[formula.label]}.`);
+        pistaPartes.push(`Te la explico paso a paso: ${FORMULA_VERBAL[formula.label]}.`);
       }
-
-      // Paso 3: instrucción para aplicarla (sin revelar datos ni respuesta)
-      partes.push(
-        `Identifica en el enunciado cuál valor va en cada parte de la fórmula ` +
-        `y aplícalos. No agregues ni inventes datos que no aparezcan.`
+      pistaPartes.push(
+        `Ahora identifica en el enunciado cuál valor va en cada parte de esa fórmula ` +
+        `y aplícala. Sin inventar datos que no aparezcan.`
       );
     } else {
-      // Para lectura crítica, inglés, sociales — sin fórmula numérica
-      partes.push(`Lee el enunciado con calma y busca la idea principal.`);
-      partes.push(
-        `Para cada opción, pregúntate si tiene evidencia directa en el texto. ` +
-        `La respuesta correcta siempre se puede sustentar con algo que dice el enunciado.`
+      // Lectura crítica, inglés, sociales
+      pistaPartes.push(`Lee el enunciado con calma e identifica la idea principal.`);
+      pistaPartes.push(
+        `Para cada opción pregúntate: ¿tiene evidencia directa en el texto? ` +
+        `La correcta siempre se sustenta con algo que dice el enunciado.`
       );
-      partes.push(`Descarta las opciones que exageran, contradicen o no tienen respaldo en el texto.`);
+      pistaPartes.push(`Descarta las que exageran, contradicen o no tienen respaldo. ¡Así se hace!`);
     }
 
-    // Cierre motivador corto
-    partes.push(`¡Vos podés! Aplica eso y elige tu respuesta.`);
+    const pista = pistaPartes.join(' ');
 
-    return partes;
+    // ── 3. Despedida motivacional colombiana (cierra con confianza) ───────────
+    const cierre = CIERRES_CO[iC](formulaLabel);
+
+    return [saludo, pista, cierre];
   }
 
   // ── Reproducir audio ─────────────────────────────────────────────────────
