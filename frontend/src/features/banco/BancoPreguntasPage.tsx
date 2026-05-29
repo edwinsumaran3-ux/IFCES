@@ -458,54 +458,42 @@ export default function BancoPreguntasPage({ user }: Props) {
     'Fotosíntesis':                     'las plantas convierten dióxido de carbono y agua en glucosa y oxígeno usando la luz solar',
   };
 
-  // ── Construir guion colombiano (≥ 1 min, 100 combinaciones) ─────────────────
+  // ── Construir guion de pista — solo fórmula, sin datos del enunciado ────────
   function buildScript(p: Pregunta): string[] {
-    const nombre     = user.full_name?.split(' ')[0] || 'estudiante';
-    const formula    = getPureFormula(p.area, p.enunciado);
-    const opCorrecta = p.opciones.find(o => o.label === p.respuesta);
+    const formula = getPureFormula(p.area, p.enunciado);
+    const partes: string[] = [];
 
-    // Hash por pregunta → seleccionar variantes independientes
-    const h = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const iS = h % SALUDOS_CO.length;
-    const iC = (h >> 3) % CIERRES_CO.length;
-    const iT = (h >> 1) % TEMAS_CO.length;
-    const iE = (h >> 2) % EXPLICA_CO.length;
-    // También 10 estilos originales
-    const estilo = ESTILOS[h % ESTILOS.length];
+    // Siempre abre con "te voy a dar una pista"
+    partes.push('te voy a dar una pista.');
 
-    const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
+    if (formula) {
+      // Paso 1: nombre del concepto o fórmula
+      partes.push(`La clave de esta pregunta es ${formula.label}.`);
 
-    // ── 1. Saludo colombiano ──────────────────────────────────────────────────
-    const saludo = SALUDOS_CO[iS](nombre);
+      // Paso 2: explicar la fórmula en palabras, sin datos del enunciado
+      if (FORMULA_VERBAL[formula.label]) {
+        partes.push(`Te la explico: ${FORMULA_VERBAL[formula.label]}.`);
+      }
 
-    // ── 2. Intro al tema (sin símbolos) ──────────────────────────────────────
-    const areaLimpia = cleanForSpeech(p.area);
-    const temaLimpio = p.tema && p.tema !== 'General' ? cleanForSpeech(p.tema) : '';
-    const intro_tema = TEMAS_CO[iT](areaLimpia, temaLimpio);
+      // Paso 3: instrucción para aplicarla (sin revelar datos ni respuesta)
+      partes.push(
+        `Identifica en el enunciado cuál valor va en cada parte de la fórmula ` +
+        `y aplícalos. No agregues ni inventes datos que no aparezcan.`
+      );
+    } else {
+      // Para lectura crítica, inglés, sociales — sin fórmula numérica
+      partes.push(`Lee el enunciado con calma y busca la idea principal.`);
+      partes.push(
+        `Para cada opción, pregúntate si tiene evidencia directa en el texto. ` +
+        `La respuesta correcta siempre se puede sustentar con algo que dice el enunciado.`
+      );
+      partes.push(`Descarta las opciones que exageran, contradicen o no tienen respaldo en el texto.`);
+    }
 
-    // ── 3. Concepto con descripción verbal ───────────────────────────────────
-    const concepto = formula
-      ? `El concepto clave acá es ${formula.label}. ` +
-        (FORMULA_VERBAL[formula.label]
-          ? `Y le cuento en palabras simples: ${FORMULA_VERBAL[formula.label]}. `
-          : '') +
-        `Úselo como su punto de partida. Con este concepto claro, la pregunta se cae sola.`
-      : `Acá lo más importante es leer bien el texto, identificar la idea central, ` +
-        `y descartar las opciones que contradicen o exageran lo que dice el enunciado.`;
+    // Cierre motivador corto
+    partes.push(`¡Vos podés! Aplica eso y elige tu respuesta.`);
 
-    // ── 4. Proceso paso a paso (SIN usar p.explicacion — puede revelar la respuesta) ──
-    const explicacion_parte =
-      `El proceso que debe seguir es este. ` +
-      `Primero, identifique todos los datos que le da el enunciado. ` +
-      `Segundo, decida qué fórmula o concepto aplica al tipo de problema. ` +
-      `Tercero, aplique el procedimiento paso a paso sin saltarse ninguno. ` +
-      `Y cuarto, antes de seleccionar, verifique que su resultado tenga sentido. ` +
-      EXPLICA_CO[iE];
-
-    // ── 5. Cierre colombiano (sin revelar la respuesta) ───────────────────────
-    const cierre = CIERRES_CO[iC](formulaLabel);
-
-    return [saludo, intro_tema, concepto, explicacion_parte, cierre];
+    return partes;
   }
 
   // ── Reproducir audio ─────────────────────────────────────────────────────
