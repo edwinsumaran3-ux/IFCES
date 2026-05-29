@@ -5,12 +5,13 @@ import ExamEngine from './features/exam/ExamEngine'
 import TeacherDashboard from './features/teacher/TeacherDashboard'
 import AdminDashboard from './features/admin/AdminDashboard'
 import PaymentPage from './features/payment/PaymentPage'
+import BancoPreguntasPage from './features/banco/BancoPreguntasPage'
 
 interface User { id: string; email: string; full_name: string; role: string }
 interface Question { id: string; stem: string; area: string; points: number; options: { label: string; text: string }[] }
 interface ExamState { attemptId: string; questions: Question[]; durationSecs: number }
 
-type View = 'home' | 'exam' | 'teacher' | 'pricing'
+type View = 'home' | 'exam' | 'teacher' | 'banco' | 'pricing'
 
 export default function App() {
   const [user,      setUser]      = useState<User | null>(null)
@@ -86,13 +87,23 @@ export default function App() {
           <span style={{ fontSize:10,color:'#0ea5e9',background:'rgba(14,165,233,0.08)',padding:'2px 8px',borderRadius:20,border:'1px solid rgba(14,165,233,0.15)' }}>v4.0</span>
         </div>
         <div style={{ display:'flex',gap:6,alignItems:'center' }}>
-          {(['home','exam','teacher'] as View[]).map(v => (
-            <button key={v} className="nav-btn" onClick={() => v==='exam' ? startExam() : setView(v)} style={{
-              border:`1px solid ${view===v?'rgba(37,99,235,0.4)':'rgba(255,255,255,0.07)'}`,
-              background: view===v?'rgba(37,99,235,0.12)':'transparent',
-              color: view===v?'#60a5fa':'#475569',
-            }}>
-              {v==='home'?'🏠 Inicio':v==='exam'?'📝 Simulacro':'👨‍🏫 Docente'}
+          {([
+            { v: 'home',    label: '🏠 Inicio'    },
+            { v: 'banco',   label: '📚 Banco'     },
+            { v: 'exam',    label: '📝 Simulacro' },
+            { v: 'teacher', label: '👨‍🏫 Docente'  },
+          ] as { v: View; label: string }[]).map(({ v, label }) => (
+            <button
+              key={v}
+              className="nav-btn"
+              onClick={() => v === 'exam' ? startExam() : setView(v)}
+              style={{
+                border: `1px solid ${view === v ? 'rgba(37,99,235,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                background: view === v ? 'rgba(37,99,235,0.12)' : 'transparent',
+                color: view === v ? '#60a5fa' : '#475569',
+              }}
+            >
+              {label}
             </button>
           ))}
           <div style={{ width:1,height:20,background:'rgba(255,255,255,0.08)',margin:'0 4px' }} />
@@ -177,6 +188,7 @@ export default function App() {
       )}
 
       {view==='teacher' && <TeacherDashboard />}
+      {view==='banco' && user && <BancoPreguntasPage user={user} />}
       {showPayment && user && <PaymentPage user={user} onPaid={()=>setShowPayment(false)} onClose={()=>setShowPayment(false)} />}
       {user?.role === 'admin' && view==='home' && <AdminDashboard />}
     </div>

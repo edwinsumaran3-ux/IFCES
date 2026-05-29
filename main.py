@@ -1,13 +1,16 @@
 # main.py
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from src.api.routes.auth    import router as auth_router
-from src.api.routes.admin   import router as admin_router
-from src.api.routes.exams   import router as exams_router
-from src.api.routes.ai_help import router as ai_help_router
-from src.api.routes.teacher import router as teacher_router
-from src.api.routes.oauth   import router as oauth_router
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
+from src.api.routes.auth             import router as auth_router
+from src.api.routes.admin            import router as admin_router
+from src.api.routes.exams            import router as exams_router
+from src.api.routes.ai_help          import router as ai_help_router
+from src.api.routes.teacher          import router as teacher_router
+from src.api.routes.oauth            import router as oauth_router
+from src.api.routes.banco_preguntas  import router as banco_router
 from src.infrastructure.database import engine
 from sqlalchemy import text
 
@@ -35,6 +38,7 @@ app.include_router(exams_router,   prefix="/api/v1")
 app.include_router(ai_help_router, prefix="/api/v1")
 app.include_router(teacher_router, prefix="/api/v1")
 app.include_router(oauth_router,   prefix="/api/v1")
+app.include_router(banco_router,   prefix="/api/v1")
 
 @app.on_event("startup")
 async def run_migrations():
@@ -203,6 +207,32 @@ async def run_migrations():
                 created_at  TIMESTAMPTZ DEFAULT NOW()
             )
         """))
+        # Columna tema en preguntas (para banco de preguntas por tema)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE preguntas_icfes ADD COLUMN IF NOT EXISTS tema VARCHAR(60)"
+            ))
+        except Exception:
+            pass
+        # Índice para búsquedas por area+tema
+        try:
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_preguntas_area_tema ON preguntas_icfes (area, tema)"
+            ))
+        except Exception:
+            pass
+        # Progreso del estudiante en el banco
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS banco_progress (
+                id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id  UUID NOT NULL,
+                question_id UUID NOT NULL,
+                viewed      BOOLEAN DEFAULT true,
+                created_at  TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (student_id, question_id)
+            )
+        """))
+
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS ai_help_sessions (
                 id                   UUID PRIMARY KEY,
@@ -226,3 +256,20 @@ async def run_migrations():
 @app.get("/health")
 async def health():
     return {"status":"ok","system":"ERP ICFES Neuro-IA","version":"4.0.0"}
+
+# ── Servir el frontend compilado ──────────────────────────────────────────────
+_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.isdir(_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_DIST, "assets")), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str = ""):
+        # No interceptar rutas de API
+        if full_path.startswith("api/"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        index = os.path.join(_DIST, "index.html")
+        if os.path.isfile(index):
+            return FileResponse(index)
+        return {"error": "Frontend no compilado"}

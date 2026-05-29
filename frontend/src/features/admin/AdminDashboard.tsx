@@ -1,11 +1,12 @@
 // frontend/src/features/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react'
 import ImportStudents from './ImportStudents'
+import BancoPreguntasPage from '../banco/BancoPreguntasPage'
 
 interface User { id: string; full_name: string; email: string; role: string; is_active: boolean; plan_code: string; created_at: string }
 interface Payment { id: string; student_name: string; plan: string; amount: number; nequi_ref: string; status: string; created_at: string }
 
-type Tab = 'overview' | 'students' | 'teachers' | 'import' | 'payments' | 'plans'
+type Tab = 'overview' | 'students' | 'teachers' | 'import' | 'payments' | 'plans' | 'banco'
 
 const API = (path: string, opts?: RequestInit) =>
   fetch(`https://ifces-production.up.railway.app/api/v1${path}`, {
@@ -67,12 +68,13 @@ export default function AdminDashboard() {
   }
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key:'overview',  label:'Resumen',       icon:'📊' },
-    { key:'students',  label:'Alumnos',       icon:'🎓' },
-    { key:'teachers',  label:'Docentes',      icon:'👨‍🏫' },
-    { key:'import',    label:'Carga masiva',  icon:'📂' },
-    { key:'payments',  label:'Pagos',         icon:'💳' },
-    { key:'plans',     label:'Planes',        icon:'📋' },
+    { key:'overview',  label:'Resumen',          icon:'📊' },
+    { key:'students',  label:'Alumnos',          icon:'🎓' },
+    { key:'teachers',  label:'Docentes',         icon:'👨‍🏫' },
+    { key:'import',    label:'Carga masiva',     icon:'📂' },
+    { key:'payments',  label:'Pagos',            icon:'💳' },
+    { key:'plans',     label:'Planes',           icon:'📋' },
+    { key:'banco',     label:'Banco Preguntas',  icon:'📚' },
   ]
 
   const PLANS_DATA = [
@@ -298,6 +300,15 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+          )}
+
+          {/* BANCO DE PREGUNTAS */}
+          {tab==='banco' && (
+            <BancoPreguntasPage
+              user={(() => {
+                try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return { id:'', full_name:'Admin' } }
+              })()}
+            />
           )}
 
           {/* PLANS */}
