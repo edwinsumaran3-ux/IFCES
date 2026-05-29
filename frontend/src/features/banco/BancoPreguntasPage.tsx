@@ -224,7 +224,7 @@ export default function BancoPreguntasPage({ user }: Props) {
       if (idx >= partes.length) { onAudioFinished(id); return; }
       const utt   = new SpeechSynthesisUtterance(partes[idx]);
       utt.lang    = 'es-CO';
-      utt.rate    = 0.82;   // más pausado = menos robótico
+      utt.rate    = 0.93;
       utt.pitch   = gender === 'female' ? 1.15 : 0.95;
       utt.volume  = 1;
       if (voz) utt.voice = voz;
@@ -274,18 +274,18 @@ export default function BancoPreguntasPage({ user }: Props) {
     usted:    'usted',
   };
 
-  // ── 100 variantes: 10 saludos × 10 cierres colombianos (paisa - Medellín) ─
+  // ── 10 saludos — siempre "¡Hola [nombre]! Gracias por estar aquí." + contexto distinto ─
   const SALUDOS_CO = [
-    (n:string) => `¡Qué más ${APE.parce} ${n}! Bienvenido a esta explicación. Mire, yo sé que esta pregunta puede parecer difícil al principio, pero entre los dos la resolvemos, ¿listo? ¡Pilas que esto no tiene pérdida!`,
-    (n:string) => `¡Hombre ${n}! ¿Cómo le va? Venga le cuento algo: usted tiene toda la capacidad para resolver esto. No se me achicopale. Yo le explico paso a paso y verá que sí entiende.`,
-    (n:string) => `¡${APE.mije} ${n}! ¡Qué nota que estés aquí practicando! Eso es lo que diferencia a los que pasan el ICFES de los que no. ¡Hágale que esto está más fácil de lo que parece!`,
-    (n:string) => `¡Ey ${n}! ¿Qué hubo? Verá que esta pregunta tiene un truco, y cuando lo entienda va a decir: ¡uy, era tan fácil! Así que abra bien los ojos y las orejas, que le voy a explicar.`,
-    (n:string) => `¡Buenas ${n}! ¿Listo para aprender? Acá en Colombia los mejores estudiantes no son los más inteligentes, son los más pilos, y usted ya está siendo pilo por estar aquí. ¡Con todo!`,
-    (n:string) => `${n}, ¿me escucha bien? Bien. Quiero que sepa algo importante: yo creo en usted. Esta pregunta tiene solución, y juntos la vamos a encontrar. ¡Eso es lo que hay!`,
-    (n:string) => `¡Uy ${n}! Esta pregunta está cañón, ¿verdad? Pero no se me raje. Los que se rajan nunca saben cuán cerca estaban de entenderla. ¡Échele el cuerpo que yo lo/la llevo de la mano!`,
-    (n:string) => `¡Bienvenido ${n}! Acá en el barrio de las matemáticas, todos empezamos sin saber y terminamos siendo tesos. ¿Está listo para el recorrido? ¡Vamos con toda!`,
-    (n:string) => `${n}, escúcheme bien: ¿sabe cuál es el secreto del ICFES? El método. Y yo se lo voy a enseñar ahorita. Una vez que lo aprende, ninguna pregunta lo/la tumba. ¡Hágale!`,
-    (n:string) => `¡Epa ${n}! No se me ponga nervioso/a. Respire profundo, que esto no es ninguna berraquera. Con calma y método, todo se puede. ¡Yo lo/la acompaño en esto!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Mire, yo sé que esta pregunta puede parecer difícil al principio, pero entre los dos la resolvemos, ¿listo? ¡Pilas que esto no tiene pérdida!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Venga le cuento algo: usted tiene toda la capacidad para resolver esto. No se me achicopale. Yo le explico paso a paso y verá que sí entiende.`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. ¡Qué nota que estés practicando! Eso es lo que diferencia a los que pasan el ICFES de los que no. ¡Hágale que esto está más fácil de lo que parece!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Verá que esta pregunta tiene un truco, y cuando lo entienda va a decir: ¡uy, era tan fácil! Así que abra bien los oídos, que le voy a explicar.`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Los mejores estudiantes no son los más inteligentes, son los más constantes, y usted ya está demostrando esa constancia. ¡Con todo!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Quiero que sepa algo importante: yo creo en usted. Esta pregunta tiene solución, y juntos la vamos a encontrar. ¡Eso es lo que hay!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Esta pregunta puede parecer difícil, pero no se me raje. Los que no se rajan son los que entienden. ¡Échele el cuerpo que yo le explico paso a paso!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Todos empezamos sin saber y con práctica nos volvemos tesos. ¿Está listo para entender esto? ¡Vamos con toda!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. ¿Sabe cuál es el secreto del ICFES? El método. Y yo se lo voy a enseñar ahora mismo. Una vez que lo aprende, ninguna pregunta lo tumba. ¡Hágale!`,
+    (n:string) => `¡Hola ${n}! Gracias por estar aquí. Respire profundo, que esto no es ninguna berraquera. Con calma y método, todo se puede. ¡Yo lo acompaño en cada paso!`,
   ];
 
   const CIERRE_RETO = `Ya tiene toda la explicación. Ahora inténtelo. Ya tiene la respuesta dentro de usted. Y si en este momento no la ve, no se preocupe: le voy a mostrar la fórmula resuelta y la respuesta para que la entienda bien.`;
