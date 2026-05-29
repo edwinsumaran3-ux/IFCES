@@ -294,50 +294,123 @@ export default function BancoPreguntasPage({ user }: Props) {
     },
   ];
 
-  // ── Construir guion pedagógico (≥ 1 min) seleccionando estilo por pregunta ───
+  // ── Limpia notación matemática para que gTTS suene natural ──────────────────
+  function cleanForSpeech(raw: string): string {
+    if (!raw) return '';
+    return raw
+      // LaTeX fracciones → "X sobre Y"
+      .replace(/\\d?frac\{([^}]+)\}\{([^}]+)\}/gi, '$1 sobre $2')
+      // Raíces
+      .replace(/\\sqrt\{([^}]+)\}/gi, 'raíz de $1')
+      .replace(/\\sqrt/gi, 'raíz cuadrada')
+      // Potencias
+      .replace(/\^2/g, ' al cuadrado')
+      .replace(/\^3/g, ' al cubo')
+      .replace(/\^{([^}]*)}/g, ' elevado a $1')
+      .replace(/\^(\w)/g, ' elevado a $1')
+      // Subíndices
+      .replace(/_\{([^}]*)\}/g, ' $1')
+      .replace(/_(\w)/g, ' $1')
+      // Comandos LaTeX comunes
+      .replace(/\\cdot|\\times/gi, ' por ')
+      .replace(/\\pi/gi, 'pi')
+      .replace(/\\text\{([^}]+)\}/gi, '$1')
+      .replace(/\\overrightarrow\{([^}]+)\}/gi, '$1')
+      .replace(/\\left|\\right|\\quad|\\qquad|\\,|\\!|\\;/gi, ' ')
+      .replace(/\\[a-zA-Z]+/g, ' ')
+      .replace(/[{}$\\]/g, '')
+      // Símbolos especiales → palabras
+      .replace(/·/g, ', ')
+      .replace(/→/g, '. Por lo tanto, ')
+      .replace(/←/g, '. Es decir, ')
+      .replace(/≈/g, ' aproximadamente ')
+      .replace(/≠/g, ' diferente de ')
+      .replace(/≤/g, ' menor o igual a ')
+      .replace(/≥/g, ' mayor o igual a ')
+      .replace(/±/g, ' más o menos ')
+      .replace(/×/g, ' por ')
+      .replace(/÷/g, ' dividido entre ')
+      .replace(/°/g, ' grados ')
+      .replace(/\[|\]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  // Descripción verbal de la fórmula (sin LaTeX, en español hablado)
+  const FORMULA_VERBAL: Record<string, string> = {
+    'Teorema de Pitágoras':             'la hipotenusa es la raíz cuadrada de la suma de los catetos al cuadrado',
+    'Área del triángulo':               'el área es base por altura dividido entre dos',
+    'Área del rectángulo':              'el área es largo por ancho',
+    'Perímetro del rectángulo':         'el perímetro es dos veces el largo más el ancho',
+    'Círculo':                          'el área es pi por el radio al cuadrado, y la circunferencia es dos pi por el radio',
+    'Media aritmética':                 'la media es la suma de todos los datos dividida entre la cantidad de datos',
+    'Cinemática — lanzamiento vertical':'la altura es velocidad inicial por tiempo menos la mitad de la gravedad por tiempo al cuadrado',
+    'Ley de Ohm':                       'el voltaje es igual a la corriente por la resistencia',
+    'Segunda Ley de Newton':            'la fuerza es igual a la masa por la aceleración',
+    'Descuento comercial':              'el precio final es el precio base multiplicado por uno menos el descuento decimal',
+    'Porcentaje':                       'el porcentaje es la parte dividida entre el total, multiplicado por cien',
+    'Volumen del prisma':               'el volumen es el área de la base por la altura',
+    'Energía potencial gravitacional':  'la energía potencial es masa por gravedad por altura',
+    'Energía cinética':                 'la energía cinética es la mitad de la masa por la velocidad al cuadrado',
+    'Reacción química':                 'los reactivos se transforman en productos. Los coeficientes indican los moles de cada sustancia',
+    'Tabla periódica':                  'el número atómico indica los protones y electrones. La masa atómica menos el número atómico da los neutrones',
+    'Fotosíntesis':                     'las plantas convierten dióxido de carbono y agua en glucosa y oxígeno usando la luz solar',
+  };
+
+  // ── Construir guion pedagógico limpio (≥ 1 min) ───────────────────────────
   function buildScript(p: Pregunta): string[] {
-    const nombre    = user.full_name?.split(' ')[0] || 'estudiante';
-    const formula   = getPureFormula(p.area, p.enunciado);
+    const nombre     = user.full_name?.split(' ')[0] || 'estudiante';
+    const formula    = getPureFormula(p.area, p.enunciado);
     const opCorrecta = p.opciones.find(o => o.label === p.respuesta);
 
-    // Seleccionar estilo deterministamente según el id de la pregunta
-    const hash  = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const hash   = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     const estilo = ESTILOS[hash % ESTILOS.length];
 
+    // Etiqueta limpia para el cierre
     const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
 
+    // ── PARTE 1: Saludo motivacional ──────────────────────────────────────────
     const saludo = estilo.saludo(nombre);
 
-    const enunciado_intro =
-      `La pregunta nos dice lo siguiente: ${p.enunciado}. ` +
-      `Lee con calma e identifica: ¿qué datos te dan? ¿qué te están pidiendo calcular o responder?`;
+    // ── PARTE 2: Introducción al tema (sin leer el enunciado con fórmulas) ───
+    const areaLimpia = cleanForSpeech(p.area);
+    const temaLimpio = p.tema && p.tema !== 'General' ? cleanForSpeech(p.tema) : '';
+    const intro_tema =
+      `Esta pregunta es de ${areaLimpia}${temaLimpio ? ', específicamente de ' + temaLimpio : ''}. ` +
+      `Lee el enunciado con calma, identifica los datos que te dan, y luego piensa qué concepto o fórmula aplica.`;
 
+    // ── PARTE 3: Concepto clave en palabras simples ───────────────────────────
     const concepto = formula
-      ? `El concepto central aquí es ${formula.label}. ` +
-        `${formula.vars ? 'Ten en cuenta que ' + formula.vars + '. ' : ''}` +
-        `Esta fórmula es tu herramienta más poderosa para este tipo de problema. ` +
-        `No la memorices sola, entiende para qué sirve cada parte.`
-      : `Para este tipo de pregunta lo más efectivo es leer el texto con atención, ` +
-        `identificar el argumento o dato principal, y descartar las opciones que se alejan de lo que dice el enunciado.`;
+      ? `El concepto que necesitas aquí es ${formula.label}. ` +
+        (FORMULA_VERBAL[formula.label]
+          ? `Recuerda que ${FORMULA_VERBAL[formula.label]}. `
+          : '') +
+        `Este concepto es clave para resolver este tipo de problema. Úsalo como tu punto de partida.`
+      : `Para este tipo de pregunta lo más importante es leer bien el texto, ` +
+        `identificar la idea central, y descartar las opciones que contradicen lo que dice el enunciado.`;
 
-    const explicacion_detallada = p.explicacion
-      ? `Ahora te doy la explicación completa: ${p.explicacion}. ` +
-        `Observa bien cada paso, porque es exactamente así como debes razonar ` +
-        `cuando encuentres una pregunta similar en el examen.`
-      : `El proceso que debes seguir es este: primero, subraya o anota todos los datos del enunciado. ` +
-        `Segundo, decide qué fórmula o concepto aplica. ` +
-        `Tercero, sustituye los valores paso a paso sin saltarte ninguno. ` +
-        `Y cuarto, antes de marcar tu respuesta, verifica que tiene sentido con el contexto del problema.`;
+    // ── PARTE 4: Explicación limpia ───────────────────────────────────────────
+    const explicacion_limpia = cleanForSpeech(p.explicacion || '');
+    const explicacion_parte = explicacion_limpia
+      ? `Aquí está la clave para resolverla. ${explicacion_limpia}. ` +
+        `Aprende este razonamiento, porque preguntas similares aparecen en el examen.`
+      : `El proceso paso a paso es este. Primero, identifica todos los datos del enunciado. ` +
+        `Segundo, elige el método o fórmula correcta. ` +
+        `Tercero, aplica el procedimiento sin saltarte pasos. ` +
+        `Y cuarto, verifica que tu respuesta tenga sentido antes de marcar.`;
 
-    const respuesta_part =
-      `La respuesta correcta es la opción ${p.respuesta}` +
-      (opCorrecta ? `, que dice: ${opCorrecta.text}.` : '.') +
-      ` Las demás opciones son distractores, están diseñadas para confundir a quien no aplica bien el método. ` +
-      `Por eso aprender el proceso es mucho más valioso que solo adivinar.`;
+    // ── PARTE 5: Respuesta en lenguaje natural ────────────────────────────────
+    const textoRespuesta = cleanForSpeech(opCorrecta?.text || '');
+    const respuesta_parte =
+      `La respuesta correcta es la opción ${p.respuesta}. ` +
+      (textoRespuesta ? `Es la que dice: ${textoRespuesta}. ` : '') +
+      `Las otras opciones parecen plausibles pero tienen un error específico. ` +
+      `Si entiendes el proceso, puedes descartarlas con seguridad.`;
 
+    // ── PARTE 6: Cierre motivacional ─────────────────────────────────────────
     const cierre = estilo.cierre(formulaLabel);
 
-    return [saludo, enunciado_intro, concepto, explicacion_detallada, respuesta_part, cierre];
+    return [saludo, intro_tema, concepto, explicacion_parte, respuesta_parte, cierre];
   }
 
   // ── Reproducir audio — Google TTS Neural2 con fallback a Web Speech ──────────
