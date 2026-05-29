@@ -220,6 +220,81 @@ export default function BancoPreguntasPage({ user }: Props) {
     speak();
   }
 
+  // ── Inferir género del nombre (para voz y pronombres) ────────────────────────
+  function inferGender(fullName: string): 'male' | 'female' {
+    const first = (fullName || '').trim().split(/\s+/)[0].toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const femeninos = ['maria','valentina','sofia','isabella','camila','daniela',
+      'sara','laura','paula','natalia','juliana','andrea','diana','carolina',
+      'alejandra','paola','marcela','claudia','monica','patricia','fernanda',
+      'luisa','catalina','isabel','viviana','lorena','olga','rocio','gloria',
+      'esperanza','manuela','salome','mariana','tatiana','vanessa','veronica',
+      'adriana','angela','beatriz','cecilia','elena','fabiola','gabriela',
+      'helena','irene','jessica','karen','lina','milena','norma','pilar',
+      'rosa','sandra','teresa','ursula','xiomara','yolanda','zulma'];
+    if (femeninos.some(n => first === n || first.startsWith(n))) return 'female';
+    if (/[ao]$/.test(first)) return first.endsWith('o') ? 'male' : 'female';
+    return 'male';
+  }
+
+  // ── Pronombres y apelativos según género ──────────────────────────────────
+  const g = inferGender(user.full_name);
+  const APE = {
+    parce:    g === 'female' ? 'parcera' : 'parcero',
+    mije:     g === 'female' ? 'mija'    : 'mijo',
+    campeon:  g === 'female' ? 'campeona' : 'campeón',
+    duro:     g === 'female' ? 'la dura'  : 'el duro',
+    teso:     g === 'female' ? 'tesa'    : 'teso',
+    llave:    g === 'female' ? 'mi llave' : 'mi llave',
+    lo_logro: g === 'female' ? 'lo logró' : 'lo logró',
+    usted:    'usted',
+  };
+
+  // ── 100 variantes: 10 saludos × 10 cierres colombianos (paisa - Medellín) ─
+  const SALUDOS_CO = [
+    (n:string) => `¡Qué más ${APE.parce} ${n}! Bienvenido a esta explicación. Mire, yo sé que esta pregunta puede parecer difícil al principio, pero entre los dos la resolvemos, ¿listo? ¡Pilas que esto no tiene pérdida!`,
+    (n:string) => `¡Hombre ${n}! ¿Cómo le va? Venga le cuento algo: usted tiene toda la capacidad para resolver esto. No se me achicopale. Yo le explico paso a paso y verá que sí entiende.`,
+    (n:string) => `¡${APE.mije} ${n}! ¡Qué nota que estés aquí practicando! Eso es lo que diferencia a los que pasan el ICFES de los que no. ¡Hágale que esto está más fácil de lo que parece!`,
+    (n:string) => `¡Ey ${n}! ¿Qué hubo? Verá que esta pregunta tiene un truco, y cuando lo entienda va a decir: ¡uy, era tan fácil! Así que abra bien los ojos y las orejas, que le voy a explicar.`,
+    (n:string) => `¡Buenas ${n}! ¿Listo para aprender? Acá en Colombia los mejores estudiantes no son los más inteligentes, son los más pilos, y usted ya está siendo pilo por estar aquí. ¡Con todo!`,
+    (n:string) => `${n}, ¿me escucha bien? Bien. Quiero que sepa algo importante: yo creo en usted. Esta pregunta tiene solución, y juntos la vamos a encontrar. ¡Eso es lo que hay!`,
+    (n:string) => `¡Uy ${n}! Esta pregunta está cañón, ¿verdad? Pero no se me raje. Los que se rajan nunca saben cuán cerca estaban de entenderla. ¡Échele el cuerpo que yo lo/la llevo de la mano!`,
+    (n:string) => `¡Bienvenido ${n}! Acá en el barrio de las matemáticas, todos empezamos sin saber y terminamos siendo tesos. ¿Está listo para el recorrido? ¡Vamos con toda!`,
+    (n:string) => `${n}, escúcheme bien: ¿sabe cuál es el secreto del ICFES? El método. Y yo se lo voy a enseñar ahorita. Una vez que lo aprende, ninguna pregunta lo/la tumba. ¡Hágale!`,
+    (n:string) => `¡Epa ${n}! No se me ponga nervioso/a. Respire profundo, que esto no es ninguna berraquera. Con calma y método, todo se puede. ¡Yo lo/la acompaño en esto!`,
+  ];
+
+  const CIERRES_CO = [
+    (f:string) => `¡Eso ${APE.parce}! ¿Vio que sí podía? Eso es lo que yo le decía. Siga practicando ${f} y le juro que el día del ICFES va a estar más tranquilo/a. ¡Usted es ${APE.teso}!`,
+    (f:string) => `¡Bien ahí ${APE.mije}! Ya entendió esta. Ahora practique otras iguales y verá que se le graba. ${f} es su aliada. ¡Dele duro que el ICFES no le va a quedar grande!`,
+    (f:string) => `¡Qué berraquera la de usted, ${APE.campeon}! Así se estudia. ${f} Recuérdela, que vale oro en el examen. ¡Con todo, que usted puede!`,
+    (f:string) => `¡Severo! Eso es exactamente lo que necesitaba entender. ${f} Sígala repasando y va a ver que en el examen le sale sola. ¡No hay quién lo/la pare!`,
+    (f:string) => `¡Chimba que entendió! Así se hace ${APE.parce}. ${f} Guárdela en la memoria porque la van a necesitar. ¡Teso/tesa el/la combo!`,
+    (f:string) => `Mire pues cómo sí se puede. ${f} es clave. Practique un poco más y el ICFES va a ser pan comido. ¡Orgullo de Colombia, así se estudia!`,
+    (f:string) => `¡Ni que nada, ${APE.duro}! Eso estuvo bacano. ${f} Repásela esta noche y mañana ya la tiene dominada. ¡El ICFES lo/la espera y usted llega preparado/a!`,
+    (f:string) => `¡Eso es lo que hay, ${APE.mije}! Ya tiene una más en el bolsillo. ${f} Venga practique otras y verá que cada día siente más seguridad. ¡Échele ganas!`,
+    (f:string) => `¡Qué nota ${APE.parce}! Ya entendió el rollo. ${f} No la suelte. En el examen, cuando vea esta pregunta, va a sonreír por dentro. ¡Eso es estudiar con propósito!`,
+    (f:string) => `¡Le juro que usted puede, ${APE.campeon}! Hoy entendió una más. ${f} Siga así, paso a paso, y el ICFES va a ser el mejor día de su vida. ¡Con todo Colombia!`,
+  ];
+
+  // ── 10 transiciones al tema (jerga paisa) ─────────────────────────────────
+  const TEMAS_CO = [
+    (a:string,t:string) => `Esta pregunta es de ${a}${t?', específicamente '+t:''}. Léala bien, identifique los datos y piense qué concepto aplica. ¡Pilas que los datos están ahí, solo hay que verlos!`,
+    (a:string,t:string) => `Mire, esto es ${a}${t?', tema de '+t:''}. Antes de resolver, lea el enunciado dos veces. La segunda vez ya ve los datos claros. ¿Qué le están pidiendo? Esa es la pregunta del millón.`,
+    (a:string,t:string) => `Bueno, aquí la cosa es de ${a}${t?', puntualmente '+t:''}. No se le olvide: en el ICFES cada palabra del enunciado importa. Léalo bien y anote los datos clave.`,
+    (a:string,t:string) => `Esta es una pregunta de ${a}${t?' sobre '+t:''}. Venga y la atacamos con método: primero datos, luego fórmula, luego resultado. Así de simple, así de bacano.`,
+    (a:string,t:string) => `Uy, ${a}${t?', tema '+t:''}. Tranquilo/a. Esta área parece difícil pero tiene sus trucos y yo se los voy a enseñar. Una vez que los entiende, todo cambia.`,
+  ];
+
+  // ── 10 cierres de explicación ─────────────────────────────────────────────
+  const EXPLICA_CO = [
+    `Aprenda bien este razonamiento, porque en el ICFES preguntas similares aparecen varias veces. El que entiende el proceso, no el que memoriza, es el que gana.`,
+    `¿Lo vio? Paso a paso, sin afanes. Así es como se resuelve en el examen. No hay magia, hay método. Y usted ya lo tiene.`,
+    `Eso es todo. Sin complicaciones. Cuando le llegue algo parecido en el examen, va a recordar esto y va a resolverlo sin pensarlo dos veces.`,
+    `Bacano, ¿verdad? No era tan difícil. Así son la mayoría de preguntas del ICFES: fáciles cuando uno sabe el truco. Y ese truco ya lo sabe.`,
+    `Mire pues cómo todo tiene sentido cuando se aplica el método correcto. Por eso estudiar con cabeza es mejor que estudiar de memoria.`,
+  ];
+
   // ── 10 estilos motivacionales — rotan por pregunta (deterministamente) ───────
   const ESTILOS = [
     // 0 — El entrenador campeón
@@ -357,58 +432,60 @@ export default function BancoPreguntasPage({ user }: Props) {
     'Fotosíntesis':                     'las plantas convierten dióxido de carbono y agua en glucosa y oxígeno usando la luz solar',
   };
 
-  // ── Construir guion pedagógico limpio (≥ 1 min) ───────────────────────────
+  // ── Construir guion colombiano (≥ 1 min, 100 combinaciones) ─────────────────
   function buildScript(p: Pregunta): string[] {
     const nombre     = user.full_name?.split(' ')[0] || 'estudiante';
     const formula    = getPureFormula(p.area, p.enunciado);
     const opCorrecta = p.opciones.find(o => o.label === p.respuesta);
 
-    const hash   = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    const estilo = ESTILOS[hash % ESTILOS.length];
+    // Hash por pregunta → seleccionar variantes independientes
+    const h = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const iS = h % SALUDOS_CO.length;
+    const iC = (h >> 3) % CIERRES_CO.length;
+    const iT = (h >> 1) % TEMAS_CO.length;
+    const iE = (h >> 2) % EXPLICA_CO.length;
+    // También 10 estilos originales
+    const estilo = ESTILOS[h % ESTILOS.length];
 
-    // Etiqueta limpia para el cierre
     const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
 
-    // ── PARTE 1: Saludo motivacional ──────────────────────────────────────────
-    const saludo = estilo.saludo(nombre);
+    // ── 1. Saludo colombiano ──────────────────────────────────────────────────
+    const saludo = SALUDOS_CO[iS](nombre);
 
-    // ── PARTE 2: Introducción al tema (sin leer el enunciado con fórmulas) ───
+    // ── 2. Intro al tema (sin símbolos) ──────────────────────────────────────
     const areaLimpia = cleanForSpeech(p.area);
     const temaLimpio = p.tema && p.tema !== 'General' ? cleanForSpeech(p.tema) : '';
-    const intro_tema =
-      `Esta pregunta es de ${areaLimpia}${temaLimpio ? ', específicamente de ' + temaLimpio : ''}. ` +
-      `Lee el enunciado con calma, identifica los datos que te dan, y luego piensa qué concepto o fórmula aplica.`;
+    const intro_tema = TEMAS_CO[iT](areaLimpia, temaLimpio);
 
-    // ── PARTE 3: Concepto clave en palabras simples ───────────────────────────
+    // ── 3. Concepto con descripción verbal ───────────────────────────────────
     const concepto = formula
-      ? `El concepto que necesitas aquí es ${formula.label}. ` +
+      ? `El concepto clave acá es ${formula.label}. ` +
         (FORMULA_VERBAL[formula.label]
-          ? `Recuerda que ${FORMULA_VERBAL[formula.label]}. `
+          ? `Y le cuento en palabras simples: ${FORMULA_VERBAL[formula.label]}. `
           : '') +
-        `Este concepto es clave para resolver este tipo de problema. Úsalo como tu punto de partida.`
-      : `Para este tipo de pregunta lo más importante es leer bien el texto, ` +
-        `identificar la idea central, y descartar las opciones que contradicen lo que dice el enunciado.`;
+        `Úselo como su punto de partida. Con este concepto claro, la pregunta se cae sola.`
+      : `Acá lo más importante es leer bien el texto, identificar la idea central, ` +
+        `y descartar las opciones que contradicen o exageran lo que dice el enunciado.`;
 
-    // ── PARTE 4: Explicación limpia ───────────────────────────────────────────
+    // ── 4. Explicación limpia ─────────────────────────────────────────────────
     const explicacion_limpia = cleanForSpeech(p.explicacion || '');
     const explicacion_parte = explicacion_limpia
-      ? `Aquí está la clave para resolverla. ${explicacion_limpia}. ` +
-        `Aprende este razonamiento, porque preguntas similares aparecen en el examen.`
-      : `El proceso paso a paso es este. Primero, identifica todos los datos del enunciado. ` +
-        `Segundo, elige el método o fórmula correcta. ` +
-        `Tercero, aplica el procedimiento sin saltarte pasos. ` +
-        `Y cuarto, verifica que tu respuesta tenga sentido antes de marcar.`;
+      ? `Aquí está la clave: ${explicacion_limpia}. ${EXPLICA_CO[iE]}`
+      : `El proceso paso a paso: primero, anote todos los datos del enunciado. ` +
+        `Segundo, identifique qué fórmula o concepto aplica. ` +
+        `Tercero, aplique el procedimiento sin saltarse pasos. ` +
+        `Y cuarto, verifique que el resultado tenga sentido. ${EXPLICA_CO[iE]}`;
 
-    // ── PARTE 5: Respuesta en lenguaje natural ────────────────────────────────
+    // ── 5. Respuesta en lenguaje natural ──────────────────────────────────────
     const textoRespuesta = cleanForSpeech(opCorrecta?.text || '');
     const respuesta_parte =
-      `La respuesta correcta es la opción ${p.respuesta}. ` +
-      (textoRespuesta ? `Es la que dice: ${textoRespuesta}. ` : '') +
-      `Las otras opciones parecen plausibles pero tienen un error específico. ` +
-      `Si entiendes el proceso, puedes descartarlas con seguridad.`;
+      `La respuesta correcta es la opción ${p.respuesta}` +
+      (textoRespuesta ? `, la que dice ${textoRespuesta}` : '') +
+      `. Las otras opciones tienen un error específico que se nota cuando se aplica bien el método. ` +
+      `Si entiende el proceso, las puede descartar con seguridad.`;
 
-    // ── PARTE 6: Cierre motivacional ─────────────────────────────────────────
-    const cierre = estilo.cierre(formulaLabel);
+    // ── 6. Cierre colombiano ──────────────────────────────────────────────────
+    const cierre = CIERRES_CO[iC](formulaLabel);
 
     return [saludo, intro_tema, concepto, explicacion_parte, respuesta_parte, cierre];
   }
@@ -427,7 +504,7 @@ export default function BancoPreguntasPage({ user }: Props) {
       const res = await fetch(`${API}/banco/tts`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text: texto, gender: 'female' }),
+        body:    JSON.stringify({ text: texto, gender: g }),
       });
 
       if (res.ok) {

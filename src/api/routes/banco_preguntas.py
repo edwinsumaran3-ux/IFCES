@@ -269,28 +269,67 @@ async def get_progress(student_id: str, db=Depends(get_db)):
     }
 
 
-# ── TTS gratuito: Google Translate TTS (gTTS) — sin API key, costo $0 ────────
+# ── TTS: Google Cloud Neural2 (mismo sistema que exámenes) + fallback gTTS ───
+# Voces Neural2 — sonido natural, sin costo adicional (ya configurado en Railway)
+_NEURAL2_VOICES = {
+    "female":  {"language_code": "es-US", "name": "es-US-Neural2-A", "ssml_gender": "FEMALE"},
+    "male":    {"language_code": "es-US", "name": "es-US-Neural2-B", "ssml_gender": "MALE"},
+    "neutral": {"language_code": "es-US", "name": "es-US-Neural2-A", "ssml_gender": "FEMALE"},
+}
+
 class TTSRequest(BaseModel):
     text:   str
-    gender: str = "female"
+    gender: str = "neutral"   # "male" | "female" | "neutral"
 
 
 @router.post("/banco/tts")
 async def banco_tts(body: TTSRequest):
     """
-    Convierte texto a MP3 base64 usando gTTS (Google Translate TTS).
-    - Sin API key. Costo: $0.
-    - Idioma: español (es). Pronunciación natural.
+    Convierte texto a MP3 base64.
+    Prioridad 1: Google Cloud TTS Neural2 (es-US-Neural2-A/B) — voz natural.
+    Prioridad 2: gTTS — fallback si Google no responde.
     """
+    texto = re.sub(r'\s+', ' ', body.text.strip())
+    vp    = _NEURAL2_VOICES.get(body.gender, _NEURAL2_VOICES["neutral"])
+
+    # ── Intentar Google Cloud TTS Neural2 ────────────────────────────────────
+    try:
+        from google.cloud import texttospeech
+
+        # SSML con pausas naturales
+        t = texto
+        t = re.sub(r'\.\s+', '. <break time="420ms"/> ', t)
+        t = re.sub(r'\?\s+', '? <break time="480ms"/> ', t)
+        t = re.sub(r'!\s+',  '! <break time="480ms"/> ', t)
+        t = re.sub(r',\s+',  ', <break time="180ms"/> ', t)
+        ssml = f'<speak><prosody rate="88%" pitch="-1st">{t}</prosody></speak>'
+
+        client = texttospeech.TextToSpeechClient()
+        inp    = texttospeech.SynthesisInput(ssml=ssml)
+        voice  = texttospeech.VoiceSelectionParams(
+            language_code=vp["language_code"],
+            name=vp["name"],
+        )
+        cfg = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=0.90,
+            pitch=-1.0,
+        )
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(
+            None, lambda: client.synthesize_speech(input=inp, voice=voice, audio_config=cfg)
+        )
+        audio_b64 = base64.b64encode(resp.audio_content).decode("utf-8")
+        logger.info(f"[banco/tts] Neural2 OK — {len(texto)}ch — voz={vp['name']}")
+        return JSONResponse(content={"audio_b64": audio_b64, "engine": "neural2"}, headers=CORS_HEADERS)
+
+    except Exception as e_google:
+        logger.warning(f"[banco/tts] Google TTS falló: {e_google}. Usando gTTS...")
+
+    # ── Fallback: gTTS ────────────────────────────────────────────────────────
     try:
         from gtts import gTTS
         import io as _io
-
-        # Limpiar texto para TTS
-        texto = body.text.strip()
-        texto = re.sub(r'\s+', ' ', texto)
-
-        loop = asyncio.get_event_loop()
 
         def _synth() -> bytes:
             tts = gTTS(text=texto, lang='es', slow=False)
@@ -299,18 +338,12 @@ async def banco_tts(body: TTSRequest):
             fp.seek(0)
             return fp.read()
 
+        loop = asyncio.get_event_loop()
         audio_bytes = await loop.run_in_executor(None, _synth)
         audio_b64   = base64.b64encode(audio_bytes).decode("utf-8")
+        logger.info(f"[banco/tts] gTTS OK — {len(texto)}ch")
+        return JSONResponse(content={"audio_b64": audio_b64, "engine": "gtts"}, headers=CORS_HEADERS)
 
-        logger.info(f"[banco/tts] gTTS OK — {len(texto)} chars → {len(audio_bytes)//1024}KB")
-        return JSONResponse(
-            content={"audio_b64": audio_b64},
-            headers=CORS_HEADERS,
-        )
-
-    except Exception as e:
-        logger.warning(f"[banco/tts] gTTS error: {e}")
-        return JSONResponse(
-            content={"audio_b64": "", "error": str(e)},
-            headers=CORS_HEADERS,
-        )
+    except Exception as e_gtts:
+        logger.error(f"[banco/tts] Ambos TTS fallaron: {e_gtts}")
+        return JSONResponse(content={"audio_b64": "", "error": str(e_gtts)}, headers=CORS_HEADERS)
