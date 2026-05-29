@@ -3,7 +3,14 @@ dist/
 frontend/dist/
 build/
 .env
+.env.*
 __pycache__/
 *.pyc
+*.pyo
 *.log
 .vercel
+.venv/
+venv/
+env/
+*.egg-info/
+*.code-workspace
