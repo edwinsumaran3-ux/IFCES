@@ -78,13 +78,15 @@ export default function BancoPreguntasPage({ user }: Props) {
   const [viewed,         setViewed]         = useState<Set<string>>(new Set());
   // Panel visual flotante
   const [visualPanel,       setVisualPanel]       = useState<QVP | null>(null);
-  // Audio Web Speech
+  // Audio
   const [speaking,          setSpeaking]          = useState<string | null>(null);
-  const [played,            setPlayed]            = useState<Set<string>>(new Set()); // ya reproducido
-  const [explanationShown,  setExplanationShown]  = useState<Set<string>>(new Set()); // mostrar tras audio
+  const [audioLoading,      setAudioLoading]      = useState<string | null>(null);
+  const [played,            setPlayed]            = useState<Set<string>>(new Set());
+  const [explanationShown,  setExplanationShown]  = useState<Set<string>>(new Set());
+  const audioRef  = useRef<HTMLAudioElement | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // Cargar materias al montar + inicializar voces
+  // Cargar materias al montar + precargar voces de fallback
   useEffect(() => {
     fetchMaterias();
     const loadVoices = () => { voicesRef.current = window.speechSynthesis?.getVoices() || []; };
@@ -173,108 +175,210 @@ export default function BancoPreguntasPage({ user }: Props) {
     setViewed(prev => { const s = new Set(prev); s.add(id); return s; });
   }
 
-  // ── Seleccionar mejor voz disponible ─────────────────────────────────────────
+  // ── Callback compartido cuando el audio termina ───────────────────────────
+  function onAudioFinished(id: string) {
+    setSpeaking(null);
+    setAudioLoading(null);
+    setPlayed(prev => new Set([...prev, id]));
+    setExplanationShown(prev => new Set([...prev, id]));
+    setViewed(prev => new Set([...prev, id]));
+  }
+
+  // ── Fallback: Web Speech API (si Google TTS no está disponible) ───────────
   function pickBestVoice(): SpeechSynthesisVoice | null {
     const all = voicesRef.current.length
       ? voicesRef.current
       : window.speechSynthesis?.getVoices() || [];
-    // Orden de preferencia: Google > Microsoft > cualquier español
-    return (
-      all.find(v => /google.*espa/i.test(v.name)) ||
-      all.find(v => /google/i.test(v.name) && /^es/i.test(v.lang)) ||
-      all.find(v => /microsoft.*espa/i.test(v.name)) ||
-      all.find(v => /microsoft/i.test(v.name) && /^es/i.test(v.lang)) ||
-      all.find(v => /^es.*co/i.test(v.lang)) ||
-      all.find(v => /^es/i.test(v.lang)) ||
-      null
-    );
+    const nameLower = (v: SpeechSynthesisVoice) => v.name.toLowerCase();
+    const score = (v: SpeechSynthesisVoice) => {
+      let s = 0;
+      if (!v.localService) s += 20;           // voces online >> locales
+      if (/natural|neural/i.test(v.name)) s += 8;
+      if (v.lang === 'es-CO') s += 6;
+      else if (v.lang === 'es-US') s += 4;
+      else if (/^es/i.test(v.lang)) s += 2;
+      return s;
+    };
+    const spanish = all.filter(v => /^es/i.test(v.lang));
+    return spanish.sort((a, b) => score(b) - score(a))[0] ?? null;
   }
 
-  // ── Construir guion pedagógico (≥ 1 minuto ≈ 150 palabras a ritmo 0.85) ─────
+  function fallbackWebSpeech(id: string, partes: string[]) {
+    if (!('speechSynthesis' in window)) { onAudioFinished(id); return; }
+    const voz = pickBestVoice();
+    let idx = 0;
+    const speak = () => {
+      if (idx >= partes.length) { onAudioFinished(id); return; }
+      const utt = new SpeechSynthesisUtterance(partes[idx]);
+      utt.lang = 'es-CO'; utt.rate = 0.85; utt.pitch = 1.1; utt.volume = 1;
+      if (voz) utt.voice = voz;
+      utt.onstart = () => { if (idx === 0) setSpeaking(id); };
+      utt.onend   = () => { idx++; speak(); };
+      utt.onerror = () => onAudioFinished(id);
+      window.speechSynthesis.speak(utt);
+    };
+    speak();
+  }
+
+  // ── 10 estilos motivacionales — rotan por pregunta (deterministamente) ───────
+  const ESTILOS = [
+    // 0 — El entrenador campeón
+    {
+      saludo: (n: string) =>
+        `¡Hola ${n}! Bienvenido a esta sesión de práctica. Quiero que sepas algo antes de empezar: los campeones no nacen sabiendo, se hacen practicando. Y tú ya estás aquí, eso es lo primero. Vamos paso a paso con esta pregunta.`,
+      cierre: (f: string) =>
+        `¡Eso es! Lo lograste. Cada pregunta que practicas es un músculo que fortaleces. ${f} No hay atajos, pero sí hay métodos, y tú acabas de aprender uno. ¡Sigue entrenando, campeón!`,
+    },
+    // 1 — El amigo estudiante
+    {
+      saludo: (n: string) =>
+        `Oye ${n}, ¿sabes qué? Esta pregunta al principio parece difícil, pero te juro que cuando la entiendes dices: ¡era obvio! Déjame mostrarte cómo yo la vería. No te compliques, vamos sencillo.`,
+      cierre: (f: string) =>
+        `¿Ves? No era para tanto. ${f} A mí también me costó al principio, pero con práctica todo fluye. Tú tienes todo para lograrlo, solo sigue así. ¡Échale ganas!`,
+    },
+    // 2 — La maestra apasionada
+    {
+      saludo: (n: string) =>
+        `Bienvenido, ${n}. Me alegra mucho que estés aquí practicando. Quiero que sepas que creo en ti, y que con cada pregunta que estudias te acercas más a tu meta. Ahora, te voy a guiar para que entiendas esta pregunta desde su raíz.`,
+      cierre: (f: string) =>
+        `Muy bien hecho, ${n}. Ver a mis estudiantes comprender es lo que más me llena de alegría. ${f} Sigue así, con esa actitud y esa constancia llegarás muy lejos. ¡Estoy orgullosa de ti!`,
+    },
+    // 3 — El motivador de madrugada
+    {
+      saludo: (n: string) =>
+        `${n}, escúchame bien: el hecho de que estés aquí practicando, mientras otros no lo hacen, ya te pone por delante. Eso es lo que hace la diferencia. Ahora vamos a resolver esto juntos porque tú sí puedes.`,
+      cierre: (f: string) =>
+        `¡Así se hace! Recuerda: el éxito no es suerte, es preparación más oportunidad. ${f} Tú estás construyendo esa preparación ahora mismo. ¡No te detengas, sigue adelante!`,
+    },
+    // 4 — El sabio tranquilo
+    {
+      saludo: (n: string) =>
+        `Respira, ${n}. No hay prisa. El aprendizaje ocurre cuando la mente está tranquila y abierta. Esta pregunta tiene una lógica interna que vamos a descubrir juntos. No hay error posible cuando entiendes el proceso.`,
+      cierre: (f: string) =>
+        `Excelente. La comprensión que acabas de ganar no te la quita nadie. ${f} Guarda esta idea en tu memoria con calma, y verás cómo el día del examen simplemente sale sola. Confía en ti.`,
+    },
+    // 5 — El hermano mayor
+    {
+      saludo: (n: string) =>
+        `Mira ${n}, te voy a decir lo que nadie te dice: el ICFES no es para los más inteligentes, es para los más preparados. Y tú estás aquí preparándote. Eso ya es ganar. Vamos con esta pregunta, te la explico clarito.`,
+      cierre: (f: string) =>
+        `¡Crack! Eso es lo que eres. ${f} Yo sé que a veces da pereza estudiar, pero cuando ves los resultados todo tiene sentido. ¡Sigue así, que vas muy bien!`,
+    },
+    // 6 — El científico curioso
+    {
+      saludo: (n: string) =>
+        `¡Hola ${n}! ¿Sabes lo que más me gusta de esta pregunta? Que tiene una belleza oculta. Cuando la descomponemos en partes, verás que todo tiene sentido lógico. No es memorizar fórmulas, es entender por qué funcionan. ¡Eso es la ciencia!`,
+      cierre: (f: string) =>
+        `¡Ahí está! La lógica nunca falla cuando la aplicas bien. ${f} Cada vez que entiendes el por qué de una fórmula, se te graba para siempre. Sigue explorando, eso es lo que hace a los grandes mentes. ¡Tú tienes esa curiosidad!`,
+    },
+    // 7 — El coach de vida
+    {
+      saludo: (n: string) =>
+        `${n}, quiero que pienses en esto: cada obstáculo que superas en el estudio te enseña a superar obstáculos en la vida. Esta pregunta es más que matemáticas o ciencias, es una oportunidad de demostrar que tú no te rindes. ¡Vamos!`,
+      cierre: (f: string) =>
+        `Lo superaste. Así como superaste esta pregunta, vas a superar todo lo que venga. ${f} No olvides: la disciplina de hoy es la libertad de mañana. ¡Tú tienes un futuro increíble por delante!`,
+    },
+    // 8 — El compañero de sala
+    {
+      saludo: (n: string) =>
+        `¡Epale ${n}! Mira, yo sé que a veces uno mira una pregunta y dice: ¿esto qué es? Pero te prometo que cuando la vemos juntos te das cuenta de que no es nada del otro mundo. Te explico rápido y fácil.`,
+      cierre: (f: string) =>
+        `¿Verdad que sí se podía? ${f} Así son todas estas preguntas: parecen difíciles hasta que alguien te muestra el truco. ¡Ahora ya sabes, y eso nadie te lo quita! ¡Dale que vas!`,
+    },
+    // 9 — El inspirador de sueños
+    {
+      saludo: (n: string) =>
+        `${n}, cada punto que sumes en el ICFES es una puerta que se abre para tu futuro. Medicina, ingeniería, derecho, arte... todo empieza aquí, con esta pregunta, con este momento. Vamos a resolverla con todo.`,
+      cierre: (f: string) =>
+        `¡Brillante! Esa mente que acabas de usar es la misma que va a cambiar tu vida y la de los tuyos. ${f} Cada pregunta es un ladrillo de tu futuro. ¡Sigue construyendo, que el edificio va quedando precioso!`,
+    },
+  ];
+
+  // ── Construir guion pedagógico (≥ 1 min) seleccionando estilo por pregunta ───
   function buildScript(p: Pregunta): string[] {
-    const nombre = user.full_name?.split(' ')[0] || 'estudiante';
-    const formula = getPureFormula(p.area, p.enunciado);
+    const nombre    = user.full_name?.split(' ')[0] || 'estudiante';
+    const formula   = getPureFormula(p.area, p.enunciado);
     const opCorrecta = p.opciones.find(o => o.label === p.respuesta);
 
-    const saludo =
-      `¡Hola ${nombre}! Vamos a resolver juntos esta pregunta. ` +
-      `Quiero que sepas algo muy importante antes de empezar: ` +
-      `las matemáticas y todas las ciencias no son difíciles, ` +
-      `solo necesitan el método correcto y práctica constante. ` +
-      `Yo te voy a explicar paso a paso cómo se resuelve. ¿Listo?`;
+    // Seleccionar estilo deterministamente según el id de la pregunta
+    const hash  = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const estilo = ESTILOS[hash % ESTILOS.length];
+
+    const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
+
+    const saludo = estilo.saludo(nombre);
 
     const enunciado_intro =
-      `La pregunta nos plantea lo siguiente: ${p.enunciado}. ` +
-      `Tómate un momento para leerla con calma e identifica qué datos te dan y qué te están pidiendo.`;
+      `La pregunta nos dice lo siguiente: ${p.enunciado}. ` +
+      `Lee con calma e identifica: ¿qué datos te dan? ¿qué te están pidiendo calcular o responder?`;
 
     const concepto = formula
-      ? `El concepto clave aquí es ${formula.label}. ` +
-        `${formula.vars ? 'Recuerda que ' + formula.vars + '.' : ''} ` +
-        `Esta fórmula es tu herramienta principal para este tipo de problema, así que guárdala bien en tu memoria.`
-      : `Para este tipo de pregunta, lo más importante es leer con atención y descartar las opciones que no tienen sentido con los datos del enunciado.`;
+      ? `El concepto central aquí es ${formula.label}. ` +
+        `${formula.vars ? 'Ten en cuenta que ' + formula.vars + '. ' : ''}` +
+        `Esta fórmula es tu herramienta más poderosa para este tipo de problema. ` +
+        `No la memorices sola, entiende para qué sirve cada parte.`
+      : `Para este tipo de pregunta lo más efectivo es leer el texto con atención, ` +
+        `identificar el argumento o dato principal, y descartar las opciones que se alejan de lo que dice el enunciado.`;
 
     const explicacion_detallada = p.explicacion
-      ? `Ahora bien, aquí está la explicación completa: ${p.explicacion}. ` +
-        `Fíjate en cada paso porque es exactamente así como debes pensar cuando veas una pregunta similar en el examen.`
-      : `El proceso es el siguiente: primero identifica todos los datos del enunciado. ` +
-        `Segundo, elige la fórmula o el concepto que aplica al tipo de problema. ` +
-        `Tercero, sustituye los valores con cuidado. ` +
-        `Y cuarto, verifica que tu resultado tenga sentido antes de marcar.`;
+      ? `Ahora te doy la explicación completa: ${p.explicacion}. ` +
+        `Observa bien cada paso, porque es exactamente así como debes razonar ` +
+        `cuando encuentres una pregunta similar en el examen.`
+      : `El proceso que debes seguir es este: primero, subraya o anota todos los datos del enunciado. ` +
+        `Segundo, decide qué fórmula o concepto aplica. ` +
+        `Tercero, sustituye los valores paso a paso sin saltarte ninguno. ` +
+        `Y cuarto, antes de marcar tu respuesta, verifica que tiene sentido con el contexto del problema.`;
 
     const respuesta_part =
       `La respuesta correcta es la opción ${p.respuesta}` +
       (opCorrecta ? `, que dice: ${opCorrecta.text}.` : '.') +
-      ` Las otras opciones son distractores diseñados para que te confundas si no aplicas bien el método. ` +
-      `Por eso es tan importante entender el proceso, no solo memorizar.`;
+      ` Las demás opciones son distractores, están diseñadas para confundir a quien no aplica bien el método. ` +
+      `Por eso aprender el proceso es mucho más valioso que solo adivinar.`;
 
-    const cierre =
-      `¡Excelente! Ya resolviste esta pregunta. ` +
-      `¿Ves que no era tan difícil? ` +
-      `Tú puedes con esto y con mucho más. ` +
-      `${formula ? `Sigue practicando la fórmula de ${formula.label} ` : `Sigue practicando este tipo de preguntas `}` +
-      `y cada vez te saldrá más natural y rápido. ` +
-      `¡Adelante, tú puedes! Cada pregunta que practicas hoy, es un paso más cerca de tu meta.`;
+    const cierre = estilo.cierre(formulaLabel);
 
     return [saludo, enunciado_intro, concepto, explicacion_detallada, respuesta_part, cierre];
   }
 
-  // ── Reproducir audio (una sola vez por pregunta) ──────────────────────────────
-  function handleSpeak(p: Pregunta) {
-    if (!('speechSynthesis' in window)) return;
-    if (played.has(p.id)) return;          // ya reproducido → no repetir
-    if (speaking) {
-      window.speechSynthesis.cancel();
-      setSpeaking(null);
-      return;
-    }
+  // ── Reproducir audio — Google TTS Neural2 con fallback a Web Speech ──────────
+  async function handleSpeak(p: Pregunta) {
+    if (played.has(p.id)) return;     // una sola vez
+    if (speaking || audioLoading) return;
 
     const partes = buildScript(p);
-    const voz    = pickBestVoice();
-    let parteIdx = 0;
+    const texto  = partes.join(' ');
 
-    function hablarParte() {
-      if (parteIdx >= partes.length) {
-        // Fin del audio completo
-        setSpeaking(null);
-        setPlayed(prev  => new Set([...prev, p.id]));
-        setExplanationShown(prev => new Set([...prev, p.id]));
-        setViewed(prev => new Set([...prev, p.id]));
-        return;
+    setAudioLoading(p.id);
+
+    try {
+      const res = await fetch(`${API}/banco/tts`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ text: texto, gender: 'female' }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio_b64) {
+          // ── Reproducir con Google TTS Neural2 ──────────────────────────
+          if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+          const audio = new Audio(`data:audio/mpeg;base64,${data.audio_b64}`);
+          audioRef.current = audio;
+          audio.onplay   = () => { setSpeaking(p.id); setAudioLoading(null); };
+          audio.onended  = () => onAudioFinished(p.id);
+          audio.onerror  = () => {
+            setAudioLoading(null);
+            fallbackWebSpeech(p.id, partes);
+          };
+          await audio.play();
+          return;
+        }
       }
-      const utt = new SpeechSynthesisUtterance(partes[parteIdx]);
-      utt.lang  = 'es-CO';
-      utt.rate  = 0.85;
-      utt.pitch = 1.1;
-      utt.volume = 1;
-      if (voz) utt.voice = voz;
+    } catch {}
 
-      utt.onstart = () => { if (parteIdx === 0) setSpeaking(p.id); };
-      utt.onend   = () => { parteIdx++; hablarParte(); };
-      utt.onerror = () => { setSpeaking(null); };
-      window.speechSynthesis.speak(utt);
-    }
-
-    hablarParte();
+    // ── Fallback: Web Speech API ─────────────────────────────────────────
+    setAudioLoading(null);
+    fallbackWebSpeech(p.id, partes);
   }
 
   // ── Contadores de progreso ──────────────────────────────────────────────────
@@ -436,6 +540,7 @@ export default function BancoPreguntasPage({ user }: Props) {
               revealed={revealed.has(p.id)}
               viewed={viewed.has(p.id)}
               speaking={speaking === p.id}
+              audioLoading={audioLoading === p.id}
               played={played.has(p.id)}
               showExplanation={explanationShown.has(p.id)}
               onReveal={toggleReveal}
@@ -590,12 +695,12 @@ function FormulaBox({ tex, isLatex, label, vars, color }: {
 // ── Tarjeta de pregunta ───────────────────────────────────────────────────────
 function QuestionCard({
   p, idx, materia, revealed, viewed: isViewed,
-  speaking, played, showExplanation,
+  speaking, audioLoading, played, showExplanation,
   onReveal, onVisual, onSpeak,
 }: {
   p: Pregunta; idx: number; materia: Materia;
   revealed: boolean; viewed: boolean;
-  speaking: boolean; played: boolean; showExplanation: boolean;
+  speaking: boolean; audioLoading: boolean; played: boolean; showExplanation: boolean;
   onReveal: (id: string) => void;
   onVisual: (p: Pregunta) => void;
   onSpeak:  (p: Pregunta) => void;
@@ -709,16 +814,17 @@ function QuestionCard({
         {!played ? (
           <button
             onClick={() => onSpeak(p)}
-            disabled={speaking}
+            disabled={speaking || audioLoading}
             style={{
               padding: '6px 14px',
-              background: speaking ? 'rgba(52,211,153,0.12)' : 'transparent',
-              border: `1px solid ${speaking ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`,
+              background: (speaking || audioLoading) ? 'rgba(52,211,153,0.12)' : 'transparent',
+              border: `1px solid ${(speaking || audioLoading) ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`,
               borderRadius: 8, color: '#34d399', fontSize: 11,
-              cursor: speaking ? 'wait' : 'pointer', opacity: speaking ? 0.8 : 1,
+              cursor: (speaking || audioLoading) ? 'wait' : 'pointer',
+              opacity: (speaking || audioLoading) ? 0.8 : 1,
             }}
           >
-            {speaking ? '🔊 Reproduciendo...' : '🔊 Escuchar explicación'}
+            {audioLoading ? '⏳ Generando audio...' : speaking ? '🔊 Reproduciendo...' : '🔊 Escuchar explicación'}
           </button>
         ) : (
           <span style={{
