@@ -77,12 +77,20 @@ export default function BancoPreguntasPage({ user }: Props) {
   const [revealed,       setRevealed]       = useState<Set<string>>(new Set());
   const [viewed,         setViewed]         = useState<Set<string>>(new Set());
   // Panel visual flotante
-  const [visualPanel,    setVisualPanel]    = useState<QVP | null>(null);
+  const [visualPanel,       setVisualPanel]       = useState<QVP | null>(null);
   // Audio Web Speech
-  const [speaking,       setSpeaking]       = useState<string | null>(null); // id de pregunta
+  const [speaking,          setSpeaking]          = useState<string | null>(null);
+  const [played,            setPlayed]            = useState<Set<string>>(new Set()); // ya reproducido
+  const [explanationShown,  setExplanationShown]  = useState<Set<string>>(new Set()); // mostrar tras audio
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // Cargar materias al montar
-  useEffect(() => { fetchMaterias(); }, []);
+  // Cargar materias al montar + inicializar voces
+  useEffect(() => {
+    fetchMaterias();
+    const loadVoices = () => { voicesRef.current = window.speechSynthesis?.getVoices() || []; };
+    loadVoices();
+    if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
 
   async function fetchMaterias() {
     try {
@@ -165,30 +173,108 @@ export default function BancoPreguntasPage({ user }: Props) {
     setViewed(prev => { const s = new Set(prev); s.add(id); return s; });
   }
 
-  // Audio Web Speech API — gratis, sin IA
+  // ── Seleccionar mejor voz disponible ─────────────────────────────────────────
+  function pickBestVoice(): SpeechSynthesisVoice | null {
+    const all = voicesRef.current.length
+      ? voicesRef.current
+      : window.speechSynthesis?.getVoices() || [];
+    // Orden de preferencia: Google > Microsoft > cualquier español
+    return (
+      all.find(v => /google.*espa/i.test(v.name)) ||
+      all.find(v => /google/i.test(v.name) && /^es/i.test(v.lang)) ||
+      all.find(v => /microsoft.*espa/i.test(v.name)) ||
+      all.find(v => /microsoft/i.test(v.name) && /^es/i.test(v.lang)) ||
+      all.find(v => /^es.*co/i.test(v.lang)) ||
+      all.find(v => /^es/i.test(v.lang)) ||
+      null
+    );
+  }
+
+  // ── Construir guion pedagógico (≥ 1 minuto ≈ 150 palabras a ritmo 0.85) ─────
+  function buildScript(p: Pregunta): string[] {
+    const nombre = user.full_name?.split(' ')[0] || 'estudiante';
+    const formula = getPureFormula(p.area, p.enunciado);
+    const opCorrecta = p.opciones.find(o => o.label === p.respuesta);
+
+    const saludo =
+      `¡Hola ${nombre}! Vamos a resolver juntos esta pregunta. ` +
+      `Quiero que sepas algo muy importante antes de empezar: ` +
+      `las matemáticas y todas las ciencias no son difíciles, ` +
+      `solo necesitan el método correcto y práctica constante. ` +
+      `Yo te voy a explicar paso a paso cómo se resuelve. ¿Listo?`;
+
+    const enunciado_intro =
+      `La pregunta nos plantea lo siguiente: ${p.enunciado}. ` +
+      `Tómate un momento para leerla con calma e identifica qué datos te dan y qué te están pidiendo.`;
+
+    const concepto = formula
+      ? `El concepto clave aquí es ${formula.label}. ` +
+        `${formula.vars ? 'Recuerda que ' + formula.vars + '.' : ''} ` +
+        `Esta fórmula es tu herramienta principal para este tipo de problema, así que guárdala bien en tu memoria.`
+      : `Para este tipo de pregunta, lo más importante es leer con atención y descartar las opciones que no tienen sentido con los datos del enunciado.`;
+
+    const explicacion_detallada = p.explicacion
+      ? `Ahora bien, aquí está la explicación completa: ${p.explicacion}. ` +
+        `Fíjate en cada paso porque es exactamente así como debes pensar cuando veas una pregunta similar en el examen.`
+      : `El proceso es el siguiente: primero identifica todos los datos del enunciado. ` +
+        `Segundo, elige la fórmula o el concepto que aplica al tipo de problema. ` +
+        `Tercero, sustituye los valores con cuidado. ` +
+        `Y cuarto, verifica que tu resultado tenga sentido antes de marcar.`;
+
+    const respuesta_part =
+      `La respuesta correcta es la opción ${p.respuesta}` +
+      (opCorrecta ? `, que dice: ${opCorrecta.text}.` : '.') +
+      ` Las otras opciones son distractores diseñados para que te confundas si no aplicas bien el método. ` +
+      `Por eso es tan importante entender el proceso, no solo memorizar.`;
+
+    const cierre =
+      `¡Excelente! Ya resolviste esta pregunta. ` +
+      `¿Ves que no era tan difícil? ` +
+      `Tú puedes con esto y con mucho más. ` +
+      `${formula ? `Sigue practicando la fórmula de ${formula.label} ` : `Sigue practicando este tipo de preguntas `}` +
+      `y cada vez te saldrá más natural y rápido. ` +
+      `¡Adelante, tú puedes! Cada pregunta que practicas hoy, es un paso más cerca de tu meta.`;
+
+    return [saludo, enunciado_intro, concepto, explicacion_detallada, respuesta_part, cierre];
+  }
+
+  // ── Reproducir audio (una sola vez por pregunta) ──────────────────────────────
   function handleSpeak(p: Pregunta) {
     if (!('speechSynthesis' in window)) return;
-    if (speaking === p.id) {
+    if (played.has(p.id)) return;          // ya reproducido → no repetir
+    if (speaking) {
       window.speechSynthesis.cancel();
       setSpeaking(null);
       return;
     }
-    window.speechSynthesis.cancel();
-    const texto = p.explicacion
-      ? `Pregunta: ${p.enunciado}. Explicación: ${p.explicacion}`
-      : `Pregunta: ${p.enunciado}. La respuesta correcta es la opción ${p.respuesta}.`;
-    const utt = new SpeechSynthesisUtterance(texto);
-    utt.lang = 'es-CO';
-    utt.rate = 0.92;
-    utt.pitch = 1.05;
-    // Preferir voz en español si hay
-    const voces = window.speechSynthesis.getVoices();
-    const esp = voces.find(v => /^es/i.test(v.lang));
-    if (esp) utt.voice = esp;
-    utt.onstart = () => setSpeaking(p.id);
-    utt.onend   = () => setSpeaking(null);
-    utt.onerror = () => setSpeaking(null);
-    window.speechSynthesis.speak(utt);
+
+    const partes = buildScript(p);
+    const voz    = pickBestVoice();
+    let parteIdx = 0;
+
+    function hablarParte() {
+      if (parteIdx >= partes.length) {
+        // Fin del audio completo
+        setSpeaking(null);
+        setPlayed(prev  => new Set([...prev, p.id]));
+        setExplanationShown(prev => new Set([...prev, p.id]));
+        setViewed(prev => new Set([...prev, p.id]));
+        return;
+      }
+      const utt = new SpeechSynthesisUtterance(partes[parteIdx]);
+      utt.lang  = 'es-CO';
+      utt.rate  = 0.85;
+      utt.pitch = 1.1;
+      utt.volume = 1;
+      if (voz) utt.voice = voz;
+
+      utt.onstart = () => { if (parteIdx === 0) setSpeaking(p.id); };
+      utt.onend   = () => { parteIdx++; hablarParte(); };
+      utt.onerror = () => { setSpeaking(null); };
+      window.speechSynthesis.speak(utt);
+    }
+
+    hablarParte();
   }
 
   // ── Contadores de progreso ──────────────────────────────────────────────────
@@ -350,6 +436,8 @@ export default function BancoPreguntasPage({ user }: Props) {
               revealed={revealed.has(p.id)}
               viewed={viewed.has(p.id)}
               speaking={speaking === p.id}
+              played={played.has(p.id)}
+              showExplanation={explanationShown.has(p.id)}
               onReveal={toggleReveal}
               onVisual={openVisualPanel}
               onSpeak={handleSpeak}
@@ -501,11 +589,13 @@ function FormulaBox({ tex, isLatex, label, vars, color }: {
 
 // ── Tarjeta de pregunta ───────────────────────────────────────────────────────
 function QuestionCard({
-  p, idx, materia, revealed, viewed: isViewed, speaking,
+  p, idx, materia, revealed, viewed: isViewed,
+  speaking, played, showExplanation,
   onReveal, onVisual, onSpeak,
 }: {
   p: Pregunta; idx: number; materia: Materia;
-  revealed: boolean; viewed: boolean; speaking: boolean;
+  revealed: boolean; viewed: boolean;
+  speaking: boolean; played: boolean; showExplanation: boolean;
   onReveal: (id: string) => void;
   onVisual: (p: Pregunta) => void;
   onSpeak:  (p: Pregunta) => void;
@@ -513,6 +603,9 @@ function QuestionCard({
   const [showFormula, setShowFormula] = useState(false);
   const dc  = diffStyle(p.dificultad);
   const pf  = getPureFormula(p.area, p.enunciado);
+
+  // Mostrar fórmula automáticamente cuando termina el audio
+  useEffect(() => { if (showExplanation && pf) setShowFormula(true); }, [showExplanation]);
 
   // Adaptar para QuestionInlineVisual
   const qvp = {
@@ -612,23 +705,36 @@ function QuestionCard({
         >
           📐 Ver guía visual
         </button>
-        <button
-          onClick={() => { onSpeak(p); if (pf) setShowFormula(true); }}
-          style={{
-            padding: '6px 14px',
-            background: speaking ? 'rgba(52,211,153,0.12)' : 'transparent',
-            border: `1px solid ${speaking ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`,
-            borderRadius: 8, color: '#34d399', fontSize: 11, cursor: 'pointer',
-          }}
-        >
-          {speaking ? '⏹ Detener audio' : '🔊 Escuchar explicación'}
-        </button>
+        {/* Botón audio: solo disponible si no se ha reproducido aún */}
+        {!played ? (
+          <button
+            onClick={() => onSpeak(p)}
+            disabled={speaking}
+            style={{
+              padding: '6px 14px',
+              background: speaking ? 'rgba(52,211,153,0.12)' : 'transparent',
+              border: `1px solid ${speaking ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`,
+              borderRadius: 8, color: '#34d399', fontSize: 11,
+              cursor: speaking ? 'wait' : 'pointer', opacity: speaking ? 0.8 : 1,
+            }}
+          >
+            {speaking ? '🔊 Reproduciendo...' : '🔊 Escuchar explicación'}
+          </button>
+        ) : (
+          <span style={{
+            padding: '6px 14px', fontSize: 11, color: '#34d399',
+            background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
+            borderRadius: 8,
+          }}>
+            ✓ Audio reproducido
+          </span>
+        )}
         {pf && (
           <button
             onClick={() => setShowFormula(f => !f)}
             style={{
               padding: '6px 14px', background: 'transparent',
-              border: `1px solid rgba(210,153,34,0.3)`,
+              border: '1px solid rgba(210,153,34,0.3)',
               borderRadius: 8, color: '#d29922', fontSize: 11, cursor: 'pointer',
             }}
           >
@@ -637,15 +743,68 @@ function QuestionCard({
         )}
       </div>
 
-      {/* Fórmula MathJax — aparece tras el audio o al hacer clic */}
+      {/* ── Fórmula MathJax — aparece tras el audio ── */}
       {showFormula && pf && (
-        <FormulaBox
-          tex={pf.tex}
-          isLatex={pf.isLatex}
-          label={pf.label}
-          vars={pf.vars}
-          color={materia.color}
-        />
+        <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />
+      )}
+
+      {/* ── Explicación completa — aparece al terminar el audio ── */}
+      {showExplanation && (
+        <div style={{
+          marginTop: 14,
+          background: 'rgba(12,18,38,0.95)',
+          border: `1px solid ${materia.color}30`,
+          borderLeft: `3px solid ${materia.color}`,
+          borderRadius: 10, padding: '14px 16px',
+          animation: 'fadeIn 0.5s ease',
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, letterSpacing: '.08em', marginBottom: 10 }}>
+            📋 EXPLICACIÓN COMPLETA
+          </div>
+
+          {/* Respuesta correcta destacada */}
+          <div style={{
+            background: 'rgba(63,185,80,0.08)', border: '1px solid rgba(63,185,80,0.25)',
+            borderRadius: 8, padding: '8px 12px', marginBottom: 10,
+            fontSize: 12, color: '#3fb950', fontWeight: 600,
+          }}>
+            ✓ Respuesta correcta — Opción {p.respuesta}:{' '}
+            <span style={{ fontWeight: 400 }}>
+              {p.opciones.find(o => o.label === p.respuesta)?.text}
+            </span>
+          </div>
+
+          {/* Explicación del banco */}
+          {p.explicacion && (
+            <p style={{ fontSize: 13, color: '#c9d1d9', lineHeight: 1.75, margin: '0 0 10px' }}>
+              {p.explicacion}
+            </p>
+          )}
+
+          {/* Pasos de razonamiento */}
+          <div style={{ fontSize: 12, color: '#6e7681', lineHeight: 1.7 }}>
+            <div style={{ marginBottom: 6, color: '#94a3b8', fontWeight: 600 }}>Método paso a paso:</div>
+            {['Identifica los datos que te dan en el enunciado.',
+              'Elige la fórmula o concepto que aplica al tipo de problema.',
+              'Sustituye los valores con cuidado, sin saltarte pasos.',
+              'Verifica que tu resultado tenga sentido con las unidades y el contexto.',
+            ].map((paso, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                <span style={{ color: materia.color, fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                <span>{paso}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Mensaje motivacional */}
+          <div style={{
+            marginTop: 12, padding: '8px 12px',
+            background: `${materia.color}08`, border: `1px solid ${materia.color}20`,
+            borderRadius: 8, fontSize: 12, color: materia.color, fontStyle: 'italic',
+          }}>
+            🌟 ¡Tú puedes! Sigue practicando esta fórmula y cada vez te saldrá más natural.
+          </div>
+        </div>
       )}
     </div>
   );
