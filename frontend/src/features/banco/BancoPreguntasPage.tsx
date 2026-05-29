@@ -1,11 +1,12 @@
 // =============================================================================
 //  frontend/src/features/banco/BancoPreguntasPage.tsx
-//  Banco de Preguntas — Panel por Materia / Tema / Preguntas + Tutor IA
+//  Banco de Preguntas — Panel por Materia / Tema / Preguntas + Visual + Audio
 // =============================================================================
-import React, { useState, useEffect } from 'react';
-import AcrylicWhiteboard from '../ai-help/AcrylicWhiteboard';
-import NeuralAudioPlayer from '../ai-help/NeuralAudioPlayer';
-import MirrorQuestion from '../ai-help/MirrorQuestion';
+import React, { useState, useEffect, useRef } from 'react';
+import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
+import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
+
+declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> };
 
 const API = 'https://ifces-production.up.railway.app/api/v1';
 const LIMIT = 20;
@@ -34,16 +35,17 @@ interface Pregunta {
   dificultad: string;
 }
 
-interface AIData {
-  whiteboard: any;
-  audio_script: any;
-  audio_mp3_base64: string;
-  mirror_question: any;
-  session_id: string;
+// Formato que esperan QuestionInlineVisual y QuestionVisualPanel
+interface QVP {
+  id: string;
+  stem: string;
+  area: string;
+  points: number;
+  difficulty: string;
+  options: Opcion[];
 }
 
 type View = 'materias' | 'preguntas';
-type AiTab = 'pizarra' | 'audio' | 'espejo';
 
 // ── Paleta de dificultad ──────────────────────────────────────────────────────
 const DIFF: Record<string, { color: string; bg: string }> = {
@@ -63,21 +65,21 @@ interface Props {
 
 // =============================================================================
 export default function BancoPreguntasPage({ user }: Props) {
-  const [view,            setView]            = useState<View>('materias');
-  const [materias,        setMaterias]        = useState<Materia[]>([]);
-  const [materia,         setMateria]         = useState<Materia | null>(null);
-  const [temaFiltro,      setTemaFiltro]      = useState('Todas');
-  const [difFiltro,       setDifFiltro]       = useState('Todas');
-  const [preguntas,       setPreguntas]       = useState<Pregunta[]>([]);
-  const [total,           setTotal]           = useState(0);
-  const [skipOffset,      setSkipOffset]      = useState(0);
-  const [loading,         setLoading]         = useState(false);
-  const [aiLoading,       setAiLoading]       = useState(false);
-  const [aiData,          setAiData]          = useState<AIData | null>(null);
-  const [activePregunta,  setActivePregunta]  = useState<Pregunta | null>(null);
-  const [aiTab,           setAiTab]           = useState<AiTab>('pizarra');
-  const [revealed,        setRevealed]        = useState<Set<string>>(new Set());
-  const [viewed,          setViewed]          = useState<Set<string>>(new Set());
+  const [view,           setView]           = useState<View>('materias');
+  const [materias,       setMaterias]       = useState<Materia[]>([]);
+  const [materia,        setMateria]        = useState<Materia | null>(null);
+  const [temaFiltro,     setTemaFiltro]     = useState('Todas');
+  const [difFiltro,      setDifFiltro]      = useState('Todas');
+  const [preguntas,      setPreguntas]      = useState<Pregunta[]>([]);
+  const [total,          setTotal]          = useState(0);
+  const [skipOffset,     setSkipOffset]     = useState(0);
+  const [loading,        setLoading]        = useState(false);
+  const [revealed,       setRevealed]       = useState<Set<string>>(new Set());
+  const [viewed,         setViewed]         = useState<Set<string>>(new Set());
+  // Panel visual flotante
+  const [visualPanel,    setVisualPanel]    = useState<QVP | null>(null);
+  // Audio Web Speech
+  const [speaking,       setSpeaking]       = useState<string | null>(null); // id de pregunta
 
   // Cargar materias al montar
   useEffect(() => { fetchMaterias(); }, []);
@@ -131,27 +133,28 @@ export default function BancoPreguntasPage({ user }: Props) {
     if (materia) fetchPreguntas(materia, temaFiltro, difFiltro, next);
   }
 
-  async function handleExplicar(p: Pregunta) {
-    setActivePregunta(p);
-    setAiLoading(true);
-    setAiData(null);
-    setAiTab('pizarra');
-    // Marcar como vista
+  // Convierte Pregunta → formato QVP para los componentes visuales
+  function toQVP(p: Pregunta): QVP {
+    return {
+      id: p.id,
+      stem: p.enunciado,
+      area: p.area,
+      points: 1,
+      difficulty: p.dificultad,
+      options: p.opciones,
+    };
+  }
+
+  function openVisualPanel(p: Pregunta) {
+    setVisualPanel(toQVP(p));
     setViewed(prev => { const s = new Set(prev); s.add(p.id); return s; });
     try {
-      await fetch(`${API}/banco/progress`, {
+      fetch(`${API}/banco/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_id: user.id, question_id: p.id }),
       });
-      const res = await fetch(`${API}/banco/preguntas/${p.id}/explicar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: user.id, student_gender: 'neutral' }),
-      });
-      if (res.ok) setAiData(await res.json());
     } catch {}
-    setAiLoading(false);
   }
 
   function toggleReveal(id: string) {
@@ -161,6 +164,32 @@ export default function BancoPreguntasPage({ user }: Props) {
       return s;
     });
     setViewed(prev => { const s = new Set(prev); s.add(id); return s; });
+  }
+
+  // Audio Web Speech API — gratis, sin IA
+  function handleSpeak(p: Pregunta) {
+    if (!('speechSynthesis' in window)) return;
+    if (speaking === p.id) {
+      window.speechSynthesis.cancel();
+      setSpeaking(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const texto = p.explicacion
+      ? `Pregunta: ${p.enunciado}. Explicación: ${p.explicacion}`
+      : `Pregunta: ${p.enunciado}. La respuesta correcta es la opción ${p.respuesta}.`;
+    const utt = new SpeechSynthesisUtterance(texto);
+    utt.lang = 'es-CO';
+    utt.rate = 0.92;
+    utt.pitch = 1.05;
+    // Preferir voz en español si hay
+    const voces = window.speechSynthesis.getVoices();
+    const esp = voces.find(v => /^es/i.test(v.lang));
+    if (esp) utt.voice = esp;
+    utt.onstart = () => setSpeaking(p.id);
+    utt.onend   = () => setSpeaking(null);
+    utt.onerror = () => setSpeaking(null);
+    window.speechSynthesis.speak(utt);
   }
 
   // ── Contadores de progreso ──────────────────────────────────────────────────
@@ -291,16 +320,16 @@ export default function BancoPreguntasPage({ user }: Props) {
         </div>
       </div>
 
-      {/* Layout principal */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: activePregunta ? '1fr 380px' : '1fr',
-        gap: 20,
-        alignItems: 'start',
-      }}>
+      {/* Panel visual flotante */}
+      {visualPanel && (
+        <QuestionVisualPanel
+          question={visualPanel}
+          onClose={() => setVisualPanel(null)}
+        />
+      )}
 
-        {/* ── Listado de preguntas ── */}
-        <div>
+      {/* Listado de preguntas */}
+      <div>
           {loading && preguntas.length === 0 && (
             <div style={{ textAlign: 'center', padding: 60, color: '#334155', fontSize: 13 }}>
               Cargando preguntas...
@@ -320,10 +349,11 @@ export default function BancoPreguntasPage({ user }: Props) {
               idx={skipOffset + idx}
               materia={m}
               revealed={revealed.has(p.id)}
-              active={activePregunta?.id === p.id}
               viewed={viewed.has(p.id)}
+              speaking={speaking === p.id}
               onReveal={toggleReveal}
-              onExplicar={handleExplicar}
+              onVisual={openVisualPanel}
+              onSpeak={handleSpeak}
             />
           ))}
 
@@ -362,22 +392,6 @@ export default function BancoPreguntasPage({ user }: Props) {
             </div>
           </div>
         </div>
-
-        {/* ── Panel Tutor IA ── */}
-        {activePregunta && (
-          <div style={{ position: 'sticky', top: 64 }}>
-            <AITutorPanel
-              pregunta={activePregunta}
-              materia={m}
-              loading={aiLoading}
-              data={aiData}
-              tab={aiTab}
-              onTab={setAiTab}
-              onClose={() => { setActivePregunta(null); setAiData(null); }}
-            />
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -456,34 +470,70 @@ function FilterBtn({
 }
 
 // ── Tarjeta de pregunta ───────────────────────────────────────────────────────
-function QuestionCard({
-  p, idx, materia, revealed, active, viewed: isViewed,
-  onReveal, onExplicar,
-}: {
-  p: Pregunta; idx: number; materia: Materia;
-  revealed: boolean; active: boolean; viewed: boolean;
-  onReveal: (id: string) => void;
-  onExplicar: (p: Pregunta) => void;
+// ── Mini componente fórmula MathJax ───────────────────────────────────────────
+function FormulaBox({ tex, isLatex, label, vars, color }: {
+  tex: string; isLatex: boolean; label: string; vars?: string; color: string;
 }) {
-  const dc = diffStyle(p.dificultad);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current || !isLatex) return;
+    ref.current.innerHTML = `\\[${tex}\\]`;
+    try { MathJax.typesetPromise([ref.current]).catch(() => {}); } catch {}
+  }, [tex, isLatex]);
 
   return (
     <div style={{
-      background: active ? 'rgba(15,10,40,0.97)' : 'rgba(12,18,38,0.8)',
-      border: `1px solid ${active ? materia.color + '70' : 'rgba(255,255,255,0.07)'}`,
-      borderLeft: `3px solid ${active ? materia.color : (isViewed ? materia.color + '50' : 'transparent')}`,
+      background: '#0d1117', border: `1px solid ${color}40`,
+      borderRadius: 10, padding: '12px 16px', marginTop: 10,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.08em', marginBottom: 6 }}>
+        🧮 FÓRMULA — {label.toUpperCase()}
+      </div>
+      {isLatex
+        ? <div ref={ref} style={{ color, fontSize: 15, textAlign: 'center', minHeight: 36 }} />
+        : <div style={{ fontSize: 13, color, fontFamily: 'monospace', textAlign: 'center', padding: '6px 0' }}>{tex}</div>
+      }
+      {vars && (
+        <div style={{ fontSize: 11, color: '#6e7681', marginTop: 8, lineHeight: 1.6 }}>{vars}</div>
+      )}
+    </div>
+  );
+}
+
+// ── Tarjeta de pregunta ───────────────────────────────────────────────────────
+function QuestionCard({
+  p, idx, materia, revealed, viewed: isViewed, speaking,
+  onReveal, onVisual, onSpeak,
+}: {
+  p: Pregunta; idx: number; materia: Materia;
+  revealed: boolean; viewed: boolean; speaking: boolean;
+  onReveal: (id: string) => void;
+  onVisual: (p: Pregunta) => void;
+  onSpeak:  (p: Pregunta) => void;
+}) {
+  const [showFormula, setShowFormula] = useState(false);
+  const dc  = diffStyle(p.dificultad);
+  const pf  = getPureFormula(p.area, p.enunciado);
+
+  // Adaptar para QuestionInlineVisual
+  const qvp = {
+    id: p.id, stem: p.enunciado, area: p.area,
+    points: 1, difficulty: p.dificultad, options: p.opciones,
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(12,18,38,0.8)',
+      border: `1px solid ${isViewed ? materia.color + '40' : 'rgba(255,255,255,0.07)'}`,
+      borderLeft: `3px solid ${isViewed ? materia.color + '80' : 'transparent'}`,
       borderRadius: 12, padding: '18px 20px', marginBottom: 12,
       transition: 'border-color 0.2s',
     }}>
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: materia.color }}>
-            Pregunta #{idx + 1}
-          </span>
-          {p.codigo && (
-            <span style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace' }}>{p.codigo}</span>
-          )}
+          <span style={{ fontSize: 11, fontWeight: 700, color: materia.color }}>Pregunta #{idx + 1}</span>
+          {p.codigo && <span style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace' }}>{p.codigo}</span>}
           <span style={{ fontSize: 10, color: '#475569' }}>{p.tema}</span>
         </div>
         <span style={{
@@ -491,17 +541,18 @@ function QuestionCard({
           background: dc.bg, border: `1px solid ${dc.color}30`,
           padding: '2px 8px', borderRadius: 10,
         }}>
-          DIFICULTAD: {p.dificultad}
+          {p.dificultad}
         </span>
       </div>
 
       {/* Enunciado */}
-      <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 14 }}>
-        {p.enunciado}
-      </p>
+      <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{p.enunciado}</p>
+
+      {/* ── Visual inline: diagrama + fórmula ── */}
+      <QuestionInlineVisual question={qvp} color={materia.color} />
 
       {/* Opciones */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 12 }}>
         {p.opciones.map(o => {
           const isCorrect = o.label === p.respuesta;
           return (
@@ -533,8 +584,8 @@ function QuestionCard({
       {revealed && p.explicacion && (
         <div style={{
           background: 'rgba(210,153,34,0.07)', border: '1px solid rgba(210,153,34,0.2)',
-          borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12,
-          color: '#d29922', lineHeight: 1.6,
+          borderRadius: 8, padding: '10px 14px', marginBottom: 12,
+          fontSize: 12, color: '#d29922', lineHeight: 1.6,
         }}>
           <span style={{ fontWeight: 700 }}>Explicación: </span>{p.explicacion}
         </div>
@@ -550,167 +601,54 @@ function QuestionCard({
             color: materia.color, fontSize: 11, cursor: 'pointer',
           }}
         >
-          {revealed ? 'Ocultar respuesta' : 'Ver respuesta'}
+          {revealed ? 'Ocultar respuesta' : '👁 Ver respuesta'}
         </button>
         <button
-          onClick={() => onExplicar(p)}
+          onClick={() => onVisual(p)}
           style={{
-            padding: '6px 14px',
-            background: active ? 'rgba(124,58,237,0.12)' : 'transparent',
-            border: `1px solid ${active ? 'rgba(124,58,237,0.5)' : 'rgba(124,58,237,0.25)'}`,
-            borderRadius: 8, color: '#a78bfa', fontSize: 11, cursor: 'pointer',
+            padding: '6px 14px', background: 'transparent',
+            border: '1px solid rgba(96,165,250,0.35)', borderRadius: 8,
+            color: '#60a5fa', fontSize: 11, cursor: 'pointer',
           }}
         >
-          🧠 Explicar con IA →
+          📐 Ver guía visual
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Panel del Tutor IA ────────────────────────────────────────────────────────
-function AITutorPanel({
-  pregunta, materia, loading, data, tab, onTab, onClose,
-}: {
-  pregunta: Pregunta; materia: Materia;
-  loading: boolean; data: AIData | null;
-  tab: AiTab; onTab: (t: AiTab) => void;
-  onClose: () => void;
-}) {
-  const LOAD_MSGS = [
-    'Clasificando pregunta ICFES...',
-    'Diseñando estrategia socrática...',
-    'Generando pizarra acrílica...',
-    'Sintetizando audio pedagógico...',
-    'Creando pregunta espejo...',
-  ];
-  const [loadIdx, setLoadIdx] = useState(0);
-
-  useEffect(() => {
-    if (!loading) return;
-    setLoadIdx(0);
-    const id = setInterval(() => setLoadIdx(i => (i + 1) % LOAD_MSGS.length), 900);
-    return () => clearInterval(id);
-  }, [loading]);
-
-  return (
-    <div style={{
-      background: 'rgba(18,8,48,0.97)',
-      border: '1px solid rgba(124,58,237,0.35)',
-      borderRadius: 14, overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{
-        background: 'rgba(124,58,237,0.15)', padding: '12px 16px',
-        borderBottom: '1px solid rgba(124,58,237,0.2)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-      }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#a78bfa' }}>
-            🧠 Tutor IA — Explicación socrática
-          </div>
-          <div style={{ fontSize: 10, color: '#6d28d9', marginTop: 2 }}>
-            {pregunta.area}&nbsp;·&nbsp;{pregunta.tema}&nbsp;·&nbsp;{pregunta.dificultad}
-          </div>
-        </div>
         <button
-          onClick={onClose}
+          onClick={() => { onSpeak(p); if (pf) setShowFormula(true); }}
           style={{
-            background: 'transparent', border: 'none',
-            color: '#475569', cursor: 'pointer', fontSize: 14, lineHeight: 1,
+            padding: '6px 14px',
+            background: speaking ? 'rgba(52,211,153,0.12)' : 'transparent',
+            border: `1px solid ${speaking ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`,
+            borderRadius: 8, color: '#34d399', fontSize: 11, cursor: 'pointer',
           }}
-        >✕</button>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        {(['pizarra', 'audio', 'espejo'] as AiTab[]).map(t => (
+        >
+          {speaking ? '⏹ Detener audio' : '🔊 Escuchar explicación'}
+        </button>
+        {pf && (
           <button
-            key={t}
-            onClick={() => onTab(t)}
+            onClick={() => setShowFormula(f => !f)}
             style={{
-              flex: 1, padding: '9px 0',
-              background: tab === t ? 'rgba(124,58,237,0.15)' : 'transparent',
-              border: 'none',
-              borderBottom: tab === t ? '2px solid #7c3aed' : '2px solid transparent',
-              color: tab === t ? '#a78bfa' : '#475569',
-              fontSize: 11, fontWeight: tab === t ? 600 : 400,
-              cursor: 'pointer',
+              padding: '6px 14px', background: 'transparent',
+              border: `1px solid rgba(210,153,34,0.3)`,
+              borderRadius: 8, color: '#d29922', fontSize: 11, cursor: 'pointer',
             }}
           >
-            {t === 'pizarra' ? '📋 Pizarra' : t === 'audio' ? '🔊 Audio' : '🪞 Espejo'}
+            {showFormula ? 'Ocultar fórmula' : '🧮 Ver fórmula'}
           </button>
-        ))}
-      </div>
-
-      {/* Contenido */}
-      <div style={{ padding: 16, maxHeight: 520, overflowY: 'auto' }}>
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🧠</div>
-            <div style={{ fontSize: 12, color: '#7c3aed', marginBottom: 6 }}>
-              {LOAD_MSGS[loadIdx]}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
-              {[0,1,2].map(i => (
-                <div
-                  key={i}
-                  style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: '#7c3aed',
-                    opacity: (loadIdx % 3) === i ? 1 : 0.25,
-                    transition: 'opacity 0.3s',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Sin datos */}
-        {!loading && !data && (
-          <div style={{ textAlign: 'center', padding: '30px 0', color: '#334155', fontSize: 12 }}>
-            Haz clic en "Explicar con IA" para activar el tutor socrático.
-          </div>
-        )}
-
-        {/* Pizarra */}
-        {!loading && data && tab === 'pizarra' && data.whiteboard && (
-          <AcrylicWhiteboard whiteboard={data.whiteboard} visible />
-        )}
-
-        {/* Audio */}
-        {!loading && data && tab === 'audio' && (
-          <NeuralAudioPlayer
-            audioBase64={data.audio_mp3_base64 || ''}
-            script={data.audio_script?.tts_script || ''}
-            gender="neutral"
-            durationSec={data.audio_script?.estimated_duration_seconds || 60}
-          />
-        )}
-
-        {/* Espejo */}
-        {!loading && data && tab === 'espejo' && data.mirror_question && (
-          <MirrorQuestion
-            mirror={data.mirror_question}
-            sessionId={data.session_id || 'banco'}
-            originalPoints={1}
-            onAnswered={() => {}}
-          />
         )}
       </div>
 
-      {/* Nota latencia */}
-      {!loading && data && (
-        <div style={{
-          borderTop: '1px solid rgba(255,255,255,0.04)',
-          padding: '6px 14px', fontSize: 9, color: '#334155', textAlign: 'right',
-        }}>
-          Generado en {data.session_id ? '~' : ''}...ms · Motor Claude Haiku
-        </div>
+      {/* Fórmula MathJax — aparece tras el audio o al hacer clic */}
+      {showFormula && pf && (
+        <FormulaBox
+          tex={pf.tex}
+          isLatex={pf.isLatex}
+          label={pf.label}
+          vars={pf.vars}
+          color={materia.color}
+        />
       )}
     </div>
   );
 }
+
