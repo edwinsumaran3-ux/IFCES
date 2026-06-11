@@ -455,69 +455,84 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       .trim();
   }
 
-  // Descripción verbal de la fórmula (sin LaTeX, en español hablado)
-  const FORMULA_VERBAL: Record<string, string> = {
-    'Teorema de Pitágoras':             'la hipotenusa es la raíz cuadrada de la suma de los catetos al cuadrado',
-    'Área del triángulo':               'el área es base por altura dividido entre dos',
-    'Área del rectángulo':              'el área es largo por ancho',
-    'Perímetro del rectángulo':         'el perímetro es dos veces el largo más el ancho',
-    'Círculo':                          'el área es pi por el radio al cuadrado, y la circunferencia es dos pi por el radio',
-    'Media aritmética':                 'la media es la suma de todos los datos dividida entre la cantidad de datos',
-    'Cinemática — lanzamiento vertical':'la altura es velocidad inicial por tiempo menos la mitad de la gravedad por tiempo al cuadrado',
-    'Ley de Ohm':                       'el voltaje es igual a la corriente por la resistencia',
-    'Segunda Ley de Newton':            'la fuerza es igual a la masa por la aceleración',
-    'Descuento comercial':              'el precio final es el precio base multiplicado por uno menos el descuento decimal',
-    'Porcentaje':                       'el porcentaje es la parte dividida entre el total, multiplicado por cien',
-    'Volumen del prisma':               'el volumen es el área de la base por la altura',
-    'Energía potencial gravitacional':  'la energía potencial es masa por gravedad por altura',
-    'Energía cinética':                 'la energía cinética es la mitad de la masa por la velocidad al cuadrado',
-    'Reacción química':                 'los reactivos se transforman en productos. Los coeficientes indican los moles de cada sustancia',
-    'Tabla periódica':                  'el número atómico indica los protones y electrones. La masa atómica menos el número atómico da los neutrones',
-    'Fotosíntesis':                     'las plantas convierten dióxido de carbono y agua en glucosa y oxígeno usando la luz solar',
-  };
+  // ── Intro de procedimiento por área (paso a paso SIN revelar respuesta) ────
+  function buildAreaIntro(area: string): string {
+    const a = area.toLowerCase();
+    if (a.includes('matemát') || a.includes('geometr') || a.includes('álgebr') || a.includes('estadíst') || a.includes('aritmét')) {
+      return 'Te explico el procedimiento paso a paso. Primero: identifica los datos numéricos que da el enunciado. Segundo: determina la fórmula o concepto matemático que aplica. Tercero: sustituye los valores en la fórmula y opera con cuidado. Cuarto: verifica que tu resultado tenga sentido antes de elegir.';
+    }
+    if (a.includes('física') || a.includes('fisica')) {
+      return 'Vamos paso a paso. Primero: identifica las magnitudes físicas del problema, como masa, velocidad, tiempo o fuerza. Segundo: reconoce la ley o principio físico que aplica. Tercero: aplica la ecuación, sustituye valores con sus unidades y simplifica.';
+    }
+    if (a.includes('quím') || a.includes('quim')) {
+      return 'Analicemos juntos. Primero: identifica las sustancias, elementos o compuestos involucrados. Segundo: reconoce el tipo de reacción o concepto químico que se aplica. Tercero: aplica el principio paso a paso, ya sea balanceo, estequiometría o propiedades periódicas.';
+    }
+    if (a.includes('biolog') || a.includes('biol')) {
+      return 'El procedimiento es así. Primero: identifica el sistema biológico o proceso que describe el enunciado. Segundo: recuerda las características o fases de ese proceso. Tercero: relaciona los datos del enunciado con el concepto biológico para seleccionar.';
+    }
+    if (a.includes('ciencias naturales')) {
+      return 'Paso a paso. Primero: identifica si la pregunta es de física, química o biología. Segundo: ubica el concepto o ley que aplica. Tercero: aplica el procedimiento específico de esa ciencia con los datos del enunciado.';
+    }
+    if (a.includes('lectura') || a.includes('crítica') || a.includes('critica')) {
+      return 'Para lectura crítica el método es: primero lee el enunciado completo y localiza la idea principal. Segundo: identifica qué te está pidiendo la pregunta, si es inferir, interpretar o analizar. Tercero: evalúa cada opción y descarta las que no tienen respaldo directo en el texto.';
+    }
+    if (a.includes('inglés') || a.includes('ingles') || a.includes('english')) {
+      return 'For this English question: first read the text carefully and identify the key words. Second: determine what the question is asking, whether it is about main idea, detail, vocabulary or inference. Third: choose the option that best matches the meaning according to the context.';
+    }
+    if (a.includes('sociales') || a.includes('ciudadan') || a.includes('historia') || a.includes('geografía')) {
+      return 'El procedimiento para sociales es: primero identifica el contexto histórico, geográfico o cívico del enunciado. Segundo: analiza la relación causa-efecto o el concepto social que se pregunta. Tercero: elige la opción que mejor explica el fenómeno según la evidencia del enunciado.';
+    }
+    return 'Analiza el enunciado con atención. Identifica los datos clave, determina el concepto o fórmula que aplica, y desarrolla el procedimiento paso a paso antes de elegir tu respuesta.';
+  }
 
-  // ── Construir guion: saludo motivacional + pista con fórmula + despedida ────
+  // ── Limpiar explicación del banco para TTS — quitar spoilers de respuesta ───
+  function sanitizeExplicacion(raw: string): string {
+    return cleanForTTS(raw)
+      // Eliminar frases que revelan la letra de la respuesta correcta
+      .replace(/la\s+respuesta\s+(correcta\s+)?es\s+la\s+opci[oó]n\s+[A-Da-d]/gi, '')
+      .replace(/la\s+opci[oó]n\s+(correcta\s+)?es\s+[A-Da-d][^a-z]/gi, '')
+      .replace(/\bopci[oó]n\s+[A-Da-d]\s+es\s+(la\s+)?correcta/gi, '')
+      .replace(/por\s+lo\s+tanto[,\s]+la\s+respuesta\s+es\s+[A-Da-d]/gi, '')
+      .replace(/respuesta\s*:\s*[A-Da-d]/gi, '')
+      .replace(/\bcorrecta?\s+[A-Da-d]\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  // ── Construir guion completo: usa p.explicacion del banco para TODAS las áreas ─
   function buildScript(p: Pregunta): string[] {
-    const nombre  = user.full_name?.split(' ')[0] || 'estudiante';
-    const formula = getPureFormula(p.area, p.enunciado);
-
-    // Hash por pregunta → variantes deterministas únicas por pregunta
+    const nombre = user.full_name?.split(' ')[0] || 'estudiante';
     const h  = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
     const iS = h % SALUDOS_CO.length;
     const iC = (h >> 3) % CIERRES_CO.length;
+
+    const formula      = getPureFormula(p.area, p.enunciado);
     const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
 
-    // ── 1. Saludo motivacional colombiano (activa confianza — neurociencia) ───
+    // 1. Saludo motivacional
     const saludo = SALUDOS_CO[iS](nombre);
 
-    // ── 2. Pista: solo la fórmula o procedimiento, sin datos del enunciado ────
-    const pistaPartes: string[] = ['te voy a dar una pista.'];
+    // 2. Intro con procedimiento específico del área
+    const introArea = buildAreaIntro(p.area);
 
-    if (formula) {
-      pistaPartes.push(`La clave de esta pregunta es ${formula.label}.`);
-      if (FORMULA_VERBAL[formula.label]) {
-        pistaPartes.push(`Te la explico paso a paso: ${FORMULA_VERBAL[formula.label]}.`);
-      }
-      pistaPartes.push(
-        `Ahora identifica en el enunciado cuál valor va en cada parte de esa fórmula ` +
-        `y aplícala. Sin inventar datos que no aparezcan.`
-      );
-    } else {
-      // Lectura crítica, inglés, sociales
-      pistaPartes.push(`Lee el enunciado con calma e identifica la idea principal.`);
-      pistaPartes.push(
-        `Para cada opción pregúntate: ¿tiene evidencia directa en el texto? ` +
-        `La correcta siempre se sustenta con algo que dice el enunciado.`
-      );
-      pistaPartes.push(`Descarta las que exageran, contradicen o no tienen respaldo. ¡Así se hace!`);
-    }
+    // 3. Explicación del banco limpia de spoilers (campo p.explicacion)
+    const explicacionLimpia = p.explicacion ? sanitizeExplicacion(p.explicacion) : '';
 
-    const pista = pistaPartes.join(' ');
+    // 4. Fórmula verbal si aplica
+    const formulaParte = formula
+      ? `La fórmula que necesitas es la de ${formula.label}. Aplícala con los datos del enunciado sin inventar valores que no estén.`
+      : '';
 
-    // ── 3. Despedida motivacional colombiana (cierra con confianza) ───────────
+    // Cuerpo: intro por área + explicación real del banco + fórmula
+    const partesCuerpo = [introArea];
+    if (explicacionLimpia) partesCuerpo.push(explicacionLimpia);
+    if (formulaParte)      partesCuerpo.push(formulaParte);
+    const cuerpo = partesCuerpo.join(' ');
+
+    // 5. Cierre motivacional
     const cierre = CIERRES_CO[iC](formulaLabel);
 
-    return [saludo, pista, cierre];
+    return [saludo, cuerpo, cierre];
   }
 
   // ── Reproducir audio ─────────────────────────────────────────────────────
