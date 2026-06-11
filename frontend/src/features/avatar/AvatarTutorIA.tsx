@@ -101,7 +101,7 @@ export default function AvatarTutorIA({
     if (!vid) return;
     if (state === 'talking') {
       vid.currentTime = 0;
-      vid.playbackRate = 0.75;
+      vid.playbackRate = 0.88;
       vid.play().catch(() => {});
     } else {
       vid.pause();
@@ -135,7 +135,7 @@ export default function AvatarTutorIA({
       if (!mountedRef.current) return;
       setInternalState('talking');
       const vid = videoRef.current;
-      if (vid) { vid.currentTime = 0; vid.playbackRate = 0.75; vid.play().catch(() => {}); }
+      if (vid) { vid.currentTime = 0; vid.playbackRate = 0.88; vid.play().catch(() => {}); }
     };
 
     // Cada palabra dispara un pulso de velocidad: simula la boca abriéndose
@@ -144,7 +144,7 @@ export default function AvatarTutorIA({
       const vid = videoRef.current;
       if (!vid) return;
       vid.playbackRate = 1.6;
-      setTimeout(() => { if (videoRef.current) videoRef.current.playbackRate = 0.75; }, 130);
+      setTimeout(() => { if (videoRef.current) videoRef.current.playbackRate = 0.88; }, 130);
     };
 
     const stopVideo = () => {
