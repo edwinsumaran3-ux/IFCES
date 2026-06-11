@@ -455,51 +455,120 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       .trim();
   }
 
-  // ── Intro de procedimiento por área (paso a paso SIN revelar respuesta) ────
-  function buildAreaIntro(area: string): string {
+  // ── Detectar concepto desde el enunciado y construir paso a paso sin respuesta ──
+  function buildPasoAPaso(enunciado: string, area: string): string {
+    const e = enunciado.toLowerCase();
     const a = area.toLowerCase();
-    if (a.includes('matemát') || a.includes('geometr') || a.includes('álgebr') || a.includes('estadíst') || a.includes('aritmét')) {
-      return 'Te explico el procedimiento paso a paso. Primero: identifica los datos numéricos que da el enunciado. Segundo: determina la fórmula o concepto matemático que aplica. Tercero: sustituye los valores en la fórmula y opera con cuidado. Cuarto: verifica que tu resultado tenga sentido antes de elegir.';
+
+    // ── CIENCIAS NATURALES — Física ──────────────────────────────────────────
+    if (e.includes('celsius') || e.includes('fahrenheit') || e.includes('kelvin')) {
+      return 'Esta pregunta es de conversión de temperatura. Paso 1: identifica la escala que te dan y a cuál debes convertir. Paso 2: aplica la fórmula correcta: de Celsius a Fahrenheit es F igual a C multiplicado por 9 sobre 5, más 32. De Celsius a Kelvin es K igual a C más 273. Paso 3: sustituye el valor numérico del enunciado y opera de izquierda a derecha. Paso 4: compara tu resultado con las opciones y elige la más cercana.';
     }
-    if (a.includes('física') || a.includes('fisica')) {
-      return 'Vamos paso a paso. Primero: identifica las magnitudes físicas del problema, como masa, velocidad, tiempo o fuerza. Segundo: reconoce la ley o principio físico que aplica. Tercero: aplica la ecuación, sustituye valores con sus unidades y simplifica.';
+    if (e.includes('energía cinética') || e.includes('energia cinetica') || (e.includes('cinética') && e.includes('veloc'))) {
+      return 'Esta pregunta involucra energía cinética. Paso 1: localiza la masa y la velocidad en el enunciado. Paso 2: aplica la fórmula Ec igual a la mitad de la masa por la velocidad al cuadrado. Paso 3: primero eleva la velocidad al cuadrado, luego multiplica por la masa y finalmente divide entre 2. Paso 4: el resultado está en Joules, elige la opción que coincide.';
     }
-    if (a.includes('quím') || a.includes('quim')) {
-      return 'Analicemos juntos. Primero: identifica las sustancias, elementos o compuestos involucrados. Segundo: reconoce el tipo de reacción o concepto químico que se aplica. Tercero: aplica el principio paso a paso, ya sea balanceo, estequiometría o propiedades periódicas.';
+    if (e.includes('energía potencial') || e.includes('energia potencial')) {
+      return 'Esta pregunta es de energía potencial gravitacional. Paso 1: identifica la masa en kilogramos, la altura en metros y el valor de la gravedad que indica el enunciado. Paso 2: aplica la fórmula Ep igual a masa por gravedad por altura. Paso 3: multiplica los tres valores en orden. Paso 4: el resultado en Joules es tu respuesta, ubícala entre las opciones.';
     }
-    if (a.includes('biolog') || a.includes('biol')) {
-      return 'El procedimiento es así. Primero: identifica el sistema biológico o proceso que describe el enunciado. Segundo: recuerda las características o fases de ese proceso. Tercero: relaciona los datos del enunciado con el concepto biológico para seleccionar.';
+    if (e.includes('velocidad') && (e.includes('distancia') || e.includes('tiempo') || e.includes('recorre'))) {
+      return 'Esta pregunta es de cinemática. Paso 1: identifica qué dos magnitudes te dan: distancia, velocidad o tiempo. Paso 2: usa la relación distancia igual a velocidad por tiempo. Paso 3: despeja la magnitud que te piden. Paso 4: sustituye los valores numéricos del enunciado y calcula.';
     }
-    if (a.includes('ciencias naturales')) {
-      return 'Paso a paso. Primero: identifica si la pregunta es de física, química o biología. Segundo: ubica el concepto o ley que aplica. Tercero: aplica el procedimiento específico de esa ciencia con los datos del enunciado.';
+    if (e.includes('fuerza') && (e.includes('masa') || e.includes('aceleración') || e.includes('aceleracion'))) {
+      return 'Esta pregunta aplica la Segunda Ley de Newton. Paso 1: identifica la masa en kilogramos y la aceleración en metros sobre segundo cuadrado. Paso 2: la fórmula es Fuerza igual a masa por aceleración. Paso 3: multiplica los dos valores. Paso 4: el resultado en Newtons te indica la opción correcta.';
     }
+    if (e.includes('refracc') || e.includes('reflexi') || e.includes('onda') || e.includes('frecuenc') || e.includes('longitud de onda')) {
+      return 'Esta pregunta es de ondas o óptica. Paso 1: identifica el fenómeno: refracción es cambio de dirección por cambio de medio, reflexión es rebote de la onda. Paso 2: si hay valores numéricos, relaciona velocidad, frecuencia y longitud de onda con la fórmula v igual a frecuencia por longitud de onda. Paso 3: aplica la definición del fenómeno al enunciado y elige la opción que lo describe correctamente.';
+    }
+    if (e.includes('voltaje') || e.includes('corriente') || e.includes('resistencia') || e.includes('ohm')) {
+      return 'Esta pregunta aplica la Ley de Ohm. Paso 1: identifica las dos magnitudes que te dan entre voltaje, corriente y resistencia. Paso 2: la fórmula es Voltaje igual a Corriente por Resistencia. Paso 3: despeja la magnitud que te piden y sustituye. Paso 4: revisa las unidades: voltios, amperios y ohmios.';
+    }
+    if (e.includes('gravedad') && (e.includes('caída') || e.includes('caida') || e.includes('lanzamiento') || e.includes('proyectil'))) {
+      return 'Esta pregunta es de caída libre o lanzamiento. Paso 1: identifica la altura inicial, la velocidad inicial y el tiempo. Paso 2: la fórmula de altura es h igual a velocidad inicial por tiempo menos la mitad de g por tiempo al cuadrado, donde g es 9.8 o 10 metros sobre segundo cuadrado. Paso 3: sustituye los valores en orden y opera cada término. Paso 4: el resultado te da la posición o tiempo pedido.';
+    }
+
+    // ── CIENCIAS NATURALES — Química ─────────────────────────────────────────
+    if (e.includes('mol') || e.includes('estequiom') || e.includes('reactivo') || e.includes('producto') || e.includes('reacción') || e.includes('reaccion')) {
+      return 'Esta pregunta es de química, específicamente de reacciones y estequiometría. Paso 1: identifica los reactivos y productos en la ecuación. Paso 2: verifica que la ecuación esté balanceada, los átomos de cada elemento deben ser iguales en ambos lados. Paso 3: usa los coeficientes estequiométricos como factores de conversión entre moles. Paso 4: aplica la regla de tres entre los moles del dato y la incógnita.';
+    }
+    if (e.includes('ph') || e.includes('ácido') || e.includes('acido') || e.includes('base') || e.includes('alcalin')) {
+      return 'Esta pregunta es de ácidos y bases. Paso 1: recuerda que pH menor a 7 es ácido, pH igual a 7 es neutro y pH mayor a 7 es básico. Paso 2: identifica si el enunciado pregunta por el tipo de sustancia, por el pH numérico o por la concentración de iones. Paso 3: aplica la definición que corresponde al contexto. Paso 4: elige la opción que es coherente con el concepto de ácido o base.';
+    }
+    if (e.includes('átomo') || e.includes('atomo') || e.includes('protón') || e.includes('proton') || e.includes('electrón') || e.includes('electron') || e.includes('neutrón') || e.includes('neutron') || e.includes('número atómico') || e.includes('masa atómica')) {
+      return 'Esta pregunta es de estructura atómica. Paso 1: recuerda que el número atómico indica la cantidad de protones y también de electrones en un átomo neutro. Paso 2: la masa atómica es aproximadamente la suma de protones más neutrones. Paso 3: para hallar los neutrones resta el número atómico a la masa atómica. Paso 4: aplica estos datos al elemento que menciona el enunciado.';
+    }
+    if (e.includes('enlace') || e.includes('covalente') || e.includes('iónico') || e.includes('ionico') || e.includes('electronegativi')) {
+      return 'Esta pregunta es de enlaces químicos. Paso 1: recuerda que el enlace covalente comparte electrones entre no metales. Paso 2: el enlace iónico transfiere electrones de metal a no metal. Paso 3: identifica los elementos del enunciado y determina si son metales o no metales. Paso 4: elige el tipo de enlace que corresponde según esa clasificación.';
+    }
+    if (e.includes('tabla periódica') || e.includes('tabla periodica') || e.includes('período') || e.includes('periodo') || e.includes('grupo') || e.includes('elemento quím')) {
+      return 'Esta pregunta es de tabla periódica. Paso 1: recuerda que los grupos son columnas verticales y los períodos son filas horizontales. Paso 2: los elementos del mismo grupo tienen propiedades químicas similares por tener igual número de electrones de valencia. Paso 3: identifica la propiedad o tendencia que pregunta el enunciado, como radio atómico, electronegatividad o reactividad. Paso 4: aplica la tendencia periódica correcta.';
+    }
+    if (e.includes('mezcla') || e.includes('solución') || e.includes('solucion') || e.includes('concentración') || e.includes('concentracion') || e.includes('soluto') || e.includes('solvente')) {
+      return 'Esta pregunta es de mezclas y soluciones. Paso 1: identifica si es una mezcla homogénea (solución) o heterogénea. Paso 2: si hay concentración, usa la fórmula: concentración igual a masa del soluto dividida entre volumen de la solución. Paso 3: sustituye los valores numéricos del enunciado. Paso 4: verifica las unidades y elige la opción que coincide con tu cálculo.';
+    }
+
+    // ── CIENCIAS NATURALES — Biología ────────────────────────────────────────
+    if (e.includes('fotosíntesis') || e.includes('fotosintesis') || e.includes('clorofila') || e.includes('cloroplasto')) {
+      return 'Esta pregunta es de fotosíntesis. Paso 1: recuerda que la fotosíntesis ocurre en los cloroplastos usando luz solar, dióxido de carbono y agua. Paso 2: los productos son glucosa y oxígeno. Paso 3: identifica qué parte del proceso pregunta el enunciado: reactivos, productos, lugar donde ocurre o función. Paso 4: elige la opción que describe correctamente ese aspecto.';
+    }
+    if (e.includes('adn') || e.includes('gen') || e.includes('cromosoma') || e.includes('herencia') || e.includes('mutación') || e.includes('mutacion')) {
+      return 'Esta pregunta es de genética. Paso 1: identifica si pregunta sobre ADN, genes, cromosomas o herencia. Paso 2: recuerda que el ADN lleva la información genética, los genes son segmentos de ADN y los cromosomas son estructuras que contienen el ADN. Paso 3: si es de herencia mendeliana, identifica los alelos dominantes y recesivos del enunciado. Paso 4: aplica el cuadro de Punnett o la ley de Mendel que corresponde.';
+    }
+    if (e.includes('selección natural') || e.includes('seleccion natural') || e.includes('evolución') || e.includes('evolucion') || e.includes('adaptación') || e.includes('adaptacion')) {
+      return 'Esta pregunta es de evolución. Paso 1: recuerda que la selección natural favorece las variaciones heredables que aumentan la supervivencia y reproducción. Paso 2: identifica la variación o adaptación que describe el enunciado. Paso 3: relaciona esa variación con la ventaja que ofrece en el ambiente descrito. Paso 4: elige la opción que explica correctamente el mecanismo evolutivo.';
+    }
+    if (e.includes('célula') || e.includes('celula') || e.includes('mitosis') || e.includes('meiosis') || e.includes('membrana') || e.includes('núcleo') || e.includes('nucleo')) {
+      return 'Esta pregunta es de biología celular. Paso 1: identifica si pregunta sobre la estructura celular, la división o la función de un orgánulo. Paso 2: recuerda que la membrana regula el paso de sustancias, el núcleo contiene el ADN y la mitocondria produce energía. Paso 3: relaciona el orgánulo o proceso del enunciado con su función. Paso 4: elige la opción que describe correctamente esa función o estructura.';
+    }
+    if (e.includes('sistema') && (e.includes('digestivo') || e.includes('respiratorio') || e.includes('circulatorio') || e.includes('nervioso') || e.includes('excretor'))) {
+      return 'Esta pregunta es de sistemas del cuerpo humano. Paso 1: identifica el sistema que menciona el enunciado. Paso 2: recuerda sus órganos principales y su función general. Paso 3: relaciona el órgano o función específica que pregunta con el sistema al que pertenece. Paso 4: elige la opción que es coherente con la función de ese sistema.';
+    }
+    if (e.includes('ecosistema') || e.includes('cadena alimentaria') || e.includes('cadena trófica') || e.includes('biodiversidad') || e.includes('nicho') || e.includes('hábitat') || e.includes('habitat')) {
+      return 'Esta pregunta es de ecología. Paso 1: identifica si pregunta sobre la cadena alimentaria, el ecosistema o la biodiversidad. Paso 2: en una cadena trófica, los productores son plantas, los consumidores primarios son herbívoros y los secundarios son carnívoros. Paso 3: analiza las relaciones entre organismos del enunciado. Paso 4: elige la opción que describe correctamente esa relación ecológica.';
+    }
+
+    // ── MATEMÁTICAS ───────────────────────────────────────────────────────────
+    if (e.includes('hipotenusa') || e.includes('cateto') || (e.includes('triángulo') && e.includes('rectángulo'))) {
+      return 'Esta pregunta aplica el Teorema de Pitágoras. Paso 1: identifica los catetos y la hipotenusa en el enunciado. Paso 2: la fórmula es hipotenusa al cuadrado igual a cateto A al cuadrado más cateto B al cuadrado. Paso 3: sustituye los valores que te dan. Paso 4: si te dan los catetos, suma sus cuadrados y saca la raíz cuadrada. Si te dan la hipotenusa, resta el cuadrado del cateto conocido y saca la raíz.';
+    }
+    if (e.includes('porcentaje') || e.includes('%') || e.includes('descuento') || e.includes('interés') || e.includes('interes')) {
+      return 'Esta pregunta es de porcentajes. Paso 1: identifica el valor total y el porcentaje que pide el enunciado. Paso 2: para hallar el porcentaje de un número, multiplica el número por el porcentaje y divide entre 100. Paso 3: si es descuento, resta el resultado al precio original. Paso 4: verifica que el resultado sea razonable comparado con las opciones.';
+    }
+    if (e.includes('área') || e.includes('area') || e.includes('perímetro') || e.includes('perimetro') || e.includes('volumen')) {
+      return 'Esta pregunta es de geometría. Paso 1: identifica la figura geométrica del enunciado: triángulo, rectángulo, círculo, prisma u otra. Paso 2: recuerda la fórmula de área o volumen de esa figura. Para triángulo: base por altura entre 2. Para rectángulo: largo por ancho. Para círculo: pi por radio al cuadrado. Paso 3: identifica los valores que te da el enunciado y sustitúyelos. Paso 4: opera con cuidado las unidades.';
+    }
+    if (e.includes('promedio') || e.includes('media') || e.includes('moda') || e.includes('mediana') || e.includes('datos')) {
+      return 'Esta pregunta es de estadística. Paso 1: identifica si pide la media, la moda o la mediana. Paso 2: para la media, suma todos los datos y divide entre la cantidad de datos. Para la moda, busca el dato que más se repite. Para la mediana, ordena los datos de menor a mayor y toma el del centro. Paso 3: aplica el cálculo con los números del enunciado.';
+    }
+    if (e.includes('ecuación') || e.includes('ecuacion') || e.includes('despeja') || e.includes('valor de x') || e.includes('valor de y')) {
+      return 'Esta pregunta es de álgebra. Paso 1: identifica la ecuación o expresión del enunciado. Paso 2: para despejar la incógnita, aplica operaciones inversas en ambos lados de la ecuación. Paso 3: si hay paréntesis, distribúyelos primero. Paso 4: verifica tu respuesta sustituyendo el valor hallado en la ecuación original.';
+    }
+    if (e.includes('función') || e.includes('funcion') || e.includes('gráfica') || e.includes('grafica') || e.includes('pendiente') || e.includes('coordenadas')) {
+      return 'Esta pregunta es de funciones o geometría analítica. Paso 1: identifica el tipo de función: lineal, cuadrática o exponencial. Paso 2: para una función lineal y igual a mx más b, la pendiente m indica la inclinación y b el punto de corte con el eje y. Paso 3: si tienes dos puntos, calcula la pendiente como el cambio en y dividido entre el cambio en x. Paso 4: sustituye los valores del enunciado en la función.';
+    }
+    if (e.includes('fracción') || e.includes('fraccion') || e.includes('razón') || e.includes('razon') || e.includes('proporción') || e.includes('proporcion')) {
+      return 'Esta pregunta es de fracciones o proporciones. Paso 1: identifica las dos razones o fracciones del enunciado. Paso 2: para una proporción, el producto cruzado debe ser igual: si a sobre b es igual a c sobre d, entonces a por d es igual a b por c. Paso 3: despeja la incógnita multiplicando en cruz. Paso 4: simplifica el resultado si es necesario.';
+    }
+
+    // ── LECTURA CRÍTICA ───────────────────────────────────────────────────────
     if (a.includes('lectura') || a.includes('crítica') || a.includes('critica')) {
-      return 'Para lectura crítica el método es: primero lee el enunciado completo y localiza la idea principal. Segundo: identifica qué te está pidiendo la pregunta, si es inferir, interpretar o analizar. Tercero: evalúa cada opción y descarta las que no tienen respaldo directo en el texto.';
+      return 'Para esta pregunta de lectura crítica: Paso 1: lee el enunciado completo y localiza la idea principal o tesis del texto. Paso 2: determina qué te pide la pregunta: inferir, interpretar, analizar la intención del autor o identificar una idea implícita. Paso 3: evalúa cada opción y busca cuál tiene respaldo directo en el texto. Paso 4: descarta las que exageran, contradicen o no tienen evidencia en el enunciado.';
     }
-    if (a.includes('inglés') || a.includes('ingles') || a.includes('english')) {
-      return 'For this English question: first read the text carefully and identify the key words. Second: determine what the question is asking, whether it is about main idea, detail, vocabulary or inference. Third: choose the option that best matches the meaning according to the context.';
+
+    // ── INGLÉS ────────────────────────────────────────────────────────────────
+    if (a.includes('inglés') || a.includes('ingles')) {
+      return 'For this English question: Step 1: read the text carefully and identify the main idea. Step 2: locate the key words in the question and find where they appear in the text. Step 3: evaluate each option and eliminate those that contradict or are not supported by the text. Step 4: choose the option that best matches the meaning according to the context.';
     }
-    if (a.includes('sociales') || a.includes('ciudadan') || a.includes('historia') || a.includes('geografía')) {
-      return 'El procedimiento para sociales es: primero identifica el contexto histórico, geográfico o cívico del enunciado. Segundo: analiza la relación causa-efecto o el concepto social que se pregunta. Tercero: elige la opción que mejor explica el fenómeno según la evidencia del enunciado.';
+
+    // ── SOCIALES ─────────────────────────────────────────────────────────────
+    if (a.includes('sociales') || a.includes('ciudadan') || a.includes('historia')) {
+      return 'Para esta pregunta de sociales: Paso 1: identifica el contexto histórico, geográfico o cívico que describe el enunciado. Paso 2: determina el concepto central que se pregunta: causa, consecuencia, característica o relación entre eventos. Paso 3: descarta las opciones que no se relacionan directamente con ese contexto. Paso 4: elige la opción que mejor explica el fenómeno con base en lo que dice el enunciado.';
     }
-    return 'Analiza el enunciado con atención. Identifica los datos clave, determina el concepto o fórmula que aplica, y desarrolla el procedimiento paso a paso antes de elegir tu respuesta.';
+
+    // Fallback genérico
+    return 'Paso 1: lee el enunciado con atención e identifica los datos clave. Paso 2: determina qué concepto o fórmula aplica para este tipo de pregunta. Paso 3: desarrolla el procedimiento usando solo los datos del enunciado, sin inventar valores. Paso 4: compara tu resultado con las opciones y elige la que coincide.';
   }
 
-  // ── Limpiar explicación del banco para TTS — quitar spoilers de respuesta ───
-  function sanitizeExplicacion(raw: string): string {
-    return cleanForSpeech(raw)
-      // Eliminar frases que revelan la letra de la respuesta correcta
-      .replace(/la\s+respuesta\s+(correcta\s+)?es\s+la\s+opci[oó]n\s+[A-Da-d]/gi, '')
-      .replace(/la\s+opci[oó]n\s+(correcta\s+)?es\s+[A-Da-d][^a-z]/gi, '')
-      .replace(/\bopci[oó]n\s+[A-Da-d]\s+es\s+(la\s+)?correcta/gi, '')
-      .replace(/por\s+lo\s+tanto[,\s]+la\s+respuesta\s+es\s+[A-Da-d]/gi, '')
-      .replace(/respuesta\s*:\s*[A-Da-d]/gi, '')
-      .replace(/\bcorrecta?\s+[A-Da-d]\b/gi, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-  }
-
-  // ── Construir guion completo: usa p.explicacion del banco para TODAS las áreas ─
+  // ── Construir guion completo — SIN usar p.explicacion que revela la respuesta ─
   function buildScript(p: Pregunta): string[] {
     const nombre = user.full_name?.split(' ')[0] || 'estudiante';
     const h  = p.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -509,30 +578,11 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
     const formula      = getPureFormula(p.area, p.enunciado);
     const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
 
-    // 1. Saludo motivacional
-    const saludo = SALUDOS_CO[iS](nombre);
+    const saludo    = SALUDOS_CO[iS](nombre);
+    const pasoAPaso = buildPasoAPaso(p.enunciado, p.area);
+    const cierre    = CIERRES_CO[iC](formulaLabel);
 
-    // 2. Intro con procedimiento específico del área
-    const introArea = buildAreaIntro(p.area);
-
-    // 3. Explicación del banco limpia de spoilers (campo p.explicacion)
-    const explicacionLimpia = p.explicacion ? sanitizeExplicacion(p.explicacion) : '';
-
-    // 4. Fórmula verbal si aplica
-    const formulaParte = formula
-      ? `La fórmula que necesitas es la de ${formula.label}. Aplícala con los datos del enunciado sin inventar valores que no estén.`
-      : '';
-
-    // Cuerpo: intro por área + explicación real del banco + fórmula
-    const partesCuerpo = [introArea];
-    if (explicacionLimpia) partesCuerpo.push(explicacionLimpia);
-    if (formulaParte)      partesCuerpo.push(formulaParte);
-    const cuerpo = partesCuerpo.join(' ');
-
-    // 5. Cierre motivacional
-    const cierre = CIERRES_CO[iC](formulaLabel);
-
-    return [saludo, cuerpo, cierre];
+    return [saludo, pasoAPaso, cierre];
   }
 
   // ── Reproducir audio ─────────────────────────────────────────────────────
