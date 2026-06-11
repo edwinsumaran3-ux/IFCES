@@ -93,6 +93,21 @@ export default function AvatarTutorIA({
     return () => { mountedRef.current = false; };
   }, []);
 
+  // ── Video sincronizado con el estado ─────────────────────────────────────
+  // Cada vez que state cambia a 'talking' → play desde el inicio.
+  // Cualquier otro estado → pause y vuelve al frame 0.
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (state === 'talking') {
+      vid.currentTime = 0;
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+      vid.currentTime = 0;
+    }
+  }, [state]);
+
   // ── TTS (solo cuando no se usa externalState) ────────────────────────────
   const speak = useCallback((value: string) => {
     if (externalState !== undefined) return; // audio externo — no duplicar
@@ -114,9 +129,20 @@ export default function AvatarTutorIA({
     utter.pitch  = gender === 'male' ? 0.9 : 1.1;
     utter.volume = 1.0;
 
-    utter.onstart = () => { if (mountedRef.current) setInternalState('talking'); };
-    utter.onend   = () => { if (mountedRef.current) setInternalState('idle'); };
-    utter.onerror = () => { if (mountedRef.current) setInternalState('idle'); };
+    utter.onstart = () => {
+      if (!mountedRef.current) return;
+      setInternalState('talking');
+      const vid = videoRef.current;
+      if (vid) { vid.currentTime = 0; vid.play().catch(() => {}); }
+    };
+    const stopVideo = () => {
+      if (!mountedRef.current) return;
+      setInternalState('idle');
+      const vid = videoRef.current;
+      if (vid) { vid.pause(); vid.currentTime = 0; }
+    };
+    utter.onend   = stopVideo;
+    utter.onerror = stopVideo;
 
     window.speechSynthesis.speak(utter);
   }, [gender, externalState]);
@@ -185,7 +211,6 @@ export default function AvatarTutorIA({
             <video
               ref={videoRef}
               src={videoSrc}
-              autoPlay
               loop
               muted
               playsInline
