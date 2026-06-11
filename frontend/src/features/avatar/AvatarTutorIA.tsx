@@ -18,9 +18,9 @@ interface Props {
 }
 
 const VIDEO_SRC: Record<'male' | 'female' | 'neutral', string> = {
-  female:  '/avatars/avatar_female.mp4',
+  female:  '/avatars/avatar_male.mp4',
   male:    '/avatars/avatar_male.mp4',
-  neutral: '/avatars/avatar_female.mp4',
+  neutral: '/avatars/avatar_male.mp4',
 };
 
 const FEMALE_HINTS = [
