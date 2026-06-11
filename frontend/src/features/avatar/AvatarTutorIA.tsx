@@ -94,17 +94,19 @@ export default function AvatarTutorIA({
   }, []);
 
   // ── Video sincronizado con el estado ─────────────────────────────────────
-  // Cada vez que state cambia a 'talking' → play desde el inicio.
-  // Cualquier otro estado → pause y vuelve al frame 0.
+  // talking → play; cualquier otro estado → pause al frame 0.
+  // (El TTS interno también controla el video directamente para mayor precisión.)
   useEffect(() => {
     const vid = videoRef.current;
     if (!vid) return;
     if (state === 'talking') {
       vid.currentTime = 0;
+      vid.playbackRate = 0.75;
       vid.play().catch(() => {});
     } else {
       vid.pause();
       vid.currentTime = 0;
+      vid.playbackRate = 1;
     }
   }, [state]);
 
@@ -133,13 +135,23 @@ export default function AvatarTutorIA({
       if (!mountedRef.current) return;
       setInternalState('talking');
       const vid = videoRef.current;
-      if (vid) { vid.currentTime = 0; vid.play().catch(() => {}); }
+      if (vid) { vid.currentTime = 0; vid.playbackRate = 0.75; vid.play().catch(() => {}); }
     };
+
+    // Cada palabra dispara un pulso de velocidad: simula la boca abriéndose
+    utter.onboundary = (e: SpeechSynthesisEvent) => {
+      if (e.name !== 'word') return;
+      const vid = videoRef.current;
+      if (!vid) return;
+      vid.playbackRate = 1.6;
+      setTimeout(() => { if (videoRef.current) videoRef.current.playbackRate = 0.75; }, 130);
+    };
+
     const stopVideo = () => {
       if (!mountedRef.current) return;
       setInternalState('idle');
       const vid = videoRef.current;
-      if (vid) { vid.pause(); vid.currentTime = 0; }
+      if (vid) { vid.pause(); vid.currentTime = 0; vid.playbackRate = 1; }
     };
     utter.onend   = stopVideo;
     utter.onerror = stopVideo;
