@@ -326,7 +326,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid',
     background: '#000',
   },
-  video: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  video: { width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'top center', display: 'block' },
   videoFallback: {
     width: '100%', height: '100%', minHeight: 260,
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
