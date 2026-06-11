@@ -487,7 +487,7 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
 
   // ── Limpiar explicación del banco para TTS — quitar spoilers de respuesta ───
   function sanitizeExplicacion(raw: string): string {
-    return cleanForTTS(raw)
+    return cleanForSpeech(raw)
       // Eliminar frases que revelan la letra de la respuesta correcta
       .replace(/la\s+respuesta\s+(correcta\s+)?es\s+la\s+opci[oó]n\s+[A-Da-d]/gi, '')
       .replace(/la\s+opci[oó]n\s+(correcta\s+)?es\s+[A-Da-d][^a-z]/gi, '')
