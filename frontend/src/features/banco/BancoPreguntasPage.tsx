@@ -88,15 +88,26 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   const [played,            setPlayed]            = useState<Set<string>>(new Set());
   const [explanationShown,  setExplanationShown]  = useState<Set<string>>(new Set());
   const [currentReadText,   setCurrentReadText]   = useState('');
-  const audioRef  = useRef<HTMLAudioElement | null>(null);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const audioRef    = useRef<HTMLAudioElement | null>(null);
+  const voicesRef   = useRef<SpeechSynthesisVoice[]>([]);
+  const speakToken  = useRef(0); // cancela cadenas recursivas al incrementar
 
-  // Cargar materias al montar + precargar voces de fallback
+  // Cancelar todo el audio activo
+  function cancelAudio() {
+    speakToken.current += 1;
+    window.speechSynthesis?.cancel();
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setSpeaking(null);
+    setAudioLoading(null);
+  }
+
+  // Cargar materias al montar + precargar voces de fallback + cleanup en unmount
   useEffect(() => {
     fetchMaterias();
     const loadVoices = () => { voicesRef.current = window.speechSynthesis?.getVoices() || []; };
     loadVoices();
     if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { cancelAudio(); };
   }, []);
 
   async function fetchMaterias() {
@@ -223,9 +234,11 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   // ── Web Speech con voz colombiana del navegador ───────────────────────────
   function speakWithBrowser(id: string, partes: string[], gender: 'male' | 'female') {
     if (!('speechSynthesis' in window)) { onAudioFinished(id); return; }
-    const voz = pickColombianVoice(gender);
-    let idx   = 0;
-    const next = () => {
+    const voz   = pickColombianVoice(gender);
+    const token = speakToken.current; // snapshot — si cambia, esta cadena es obsoleta
+    let idx     = 0;
+    const next  = () => {
+      if (speakToken.current !== token) return; // cancelada
       if (idx >= partes.length) { onAudioFinished(id); return; }
       const utt   = new SpeechSynthesisUtterance(partes[idx]);
       utt.lang    = 'es-CO';
@@ -233,9 +246,9 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       utt.pitch   = gender === 'female' ? 1.15 : 0.95;
       utt.volume  = 1;
       if (voz) utt.voice = voz;
-      utt.onstart = () => { if (idx === 0) setSpeaking(id); };
+      utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id); };
       utt.onend   = () => { idx++; next(); };
-      utt.onerror = () => onAudioFinished(id);
+      utt.onerror = () => { if (speakToken.current === token) onAudioFinished(id); };
       window.speechSynthesis.speak(utt);
     };
     next();
@@ -510,7 +523,10 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   // ── Reproducir audio ─────────────────────────────────────────────────────
   async function handleSpeak(p: Pregunta) {
     if (played.has(p.id)) return;
-    if (speaking || audioLoading) return;
+    // Toggle: si ya está sonando esta pregunta, parar
+    if (speaking === p.id || audioLoading === p.id) { cancelAudio(); return; }
+    // Si suena otra, cancelarla primero
+    if (speaking || audioLoading) cancelAudio();
     setCurrentReadText(p.enunciado);
 
     const partes = buildScript(p);

@@ -77,6 +77,11 @@ export default function ExamEngine({
     return () => clearInterval(t);
   }, []);
 
+  // Cancelar TTS al desmontar el simulacro
+  useEffect(() => {
+    return () => { window.speechSynthesis?.cancel(); };
+  }, []);
+
   const q = questions[currentIdx];
   if (!q) return null;
 
