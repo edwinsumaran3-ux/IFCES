@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import AIHelpModal from '../ai-help/AIHelpModal';
 import QuestionInlineVisual, { getPureFormula } from './QuestionInlineVisual';
+import AvatarTutorIA from '../avatar/AvatarTutorIA';
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> };
 
@@ -150,7 +151,15 @@ export default function ExamEngine({
       </div>
 
       {/* ── BODY ───────────────────────────────────────────────────────────── */}
-      <div style={styles.body}>
+      <style>{`
+        @media (max-width: 980px) {
+          .ifces-exam-body { flex-direction: column !important; }
+          .ifces-avatar-col { position: static !important; width: 100% !important; flex-basis: auto !important; height: 420px !important; }
+          .ifces-main-col { max-width: 100% !important; }
+        }
+      `}</style>
+      <div style={styles.body} className="ifces-exam-body">
+        <div style={styles.mainCol} className="ifces-main-col">
 
         {/* ── QUESTION CARD ───────────────────────────────────────────────── */}
         <div style={{ ...styles.qCard, borderColor: areaTheme.border }}>
@@ -346,6 +355,17 @@ export default function ExamEngine({
             Siguiente →
           </button>
         </div>
+        </div>{/* fin mainCol */}
+
+        {/* ── PANEL DERECHO: AVATAR TUTOR IA ─────────────────────────────── */}
+        <div style={styles.avatarCol} className="ifces-avatar-col">
+          <AvatarTutorIA
+            text={q.stem}
+            gender={studentGender}
+            autoPlay
+            label="Tutor IA · Lectura de la pregunta"
+          />
+        </div>
       </div>
 
       {showHelp && (
@@ -408,13 +428,29 @@ const styles: Record<string, React.CSSProperties> = {
   progressFill: { height: 3, transition: 'width .5s ease, background .5s ease' },
   body: {
     flex: 1,
-    maxWidth: 780,
+    maxWidth: 1240,
     margin: '0 auto',
     width: '100%',
     padding: '24px 20px 100px',
     display: 'flex',
+    flexDirection: 'row',
+    gap: 20,
+    alignItems: 'flex-start',
+  },
+  mainCol: {
+    flex: '1 1 0%',
+    minWidth: 0,
+    maxWidth: 780,
+    display: 'flex',
     flexDirection: 'column',
     gap: 16,
+  },
+  avatarCol: {
+    flex: '0 0 340px',
+    position: 'sticky' as const,
+    top: 24,
+    height: 'calc(100vh - 140px)',
+    minHeight: 460,
   },
   qCard: {
     background: '#161b22',

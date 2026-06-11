@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
 import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
+import AvatarTutorIA from '../avatar/AvatarTutorIA';
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> };
 
@@ -86,6 +87,7 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   const [audioLoading,      setAudioLoading]      = useState<string | null>(null);
   const [played,            setPlayed]            = useState<Set<string>>(new Set());
   const [explanationShown,  setExplanationShown]  = useState<Set<string>>(new Set());
+  const [currentReadText,   setCurrentReadText]   = useState('');
   const audioRef  = useRef<HTMLAudioElement | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
@@ -345,7 +347,7 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       saludo: (n: string) =>
         `Bienvenido, ${n}. Me alegra mucho que estés aquí practicando. Quiero que sepas que creo en ti, y que con cada pregunta que estudias te acercas más a tu meta. Ahora, te voy a guiar para que entiendas esta pregunta desde su raíz.`,
       cierre: (f: string) =>
-        `Muy bien hecho, ${n}. Ver a mis estudiantes comprender es lo que más me llena de alegría. ${f} Sigue así, con esa actitud y esa constancia llegarás muy lejos. ¡Estoy orgullosa de ti!`,
+        `Muy bien hecho. Ver a mis estudiantes comprender es lo que más me llena de alegría. ${f} Sigue así, con esa actitud y esa constancia llegarás muy lejos. ¡Estoy orgullosa de ti!`,
     },
     // 3 — El motivador de madrugada
     {
@@ -509,6 +511,7 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   async function handleSpeak(p: Pregunta) {
     if (played.has(p.id)) return;
     if (speaking || audioLoading) return;
+    setCurrentReadText(p.enunciado);
 
     const partes = buildScript(p);
     const texto  = partes.join(' ');
@@ -671,8 +674,21 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   // ===========================================================================
   const m = materia!;
 
+  // Estado del avatar sincronizado con el audio del banco
+  const avatarState = audioLoading
+    ? 'thinking'
+    : speaking
+    ? 'talking'
+    : 'idle';
+
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 20px' }}>
+      <style>{`
+        @media (max-width: 900px) {
+          .banco-body { flex-direction: column !important; }
+          .banco-avatar-col { position: static !important; width: 100% !important; height: 380px !important; flex-basis: auto !important; }
+        }
+      `}</style>
 
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, fontSize: 12, color: '#475569' }}>
@@ -693,6 +709,10 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
           {total} preguntas&nbsp;·&nbsp;Con explicación IA&nbsp;·&nbsp;Dificultad: Básica a Alta
         </p>
       </div>
+
+      {/* Layout: columna principal + avatar sticky */}
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }} className="banco-body">
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -799,6 +819,29 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
             </div>
           </div>
         </div>
+      </div>{/* fin columna principal */}
+
+      {/* ── PANEL DERECHO: AVATAR TUTOR IA ──────────────────────────────── */}
+      <div
+        className="banco-avatar-col"
+        style={{
+          flex: '0 0 320px',
+          position: 'sticky',
+          top: 72,
+          height: 'calc(100vh - 100px)',
+          minHeight: 460,
+        }}
+      >
+        <AvatarTutorIA
+          text={currentReadText || m.label}
+          gender={g}
+          autoPlay={false}
+          externalState={avatarState as any}
+          label="Tutor IA · Banco de Preguntas"
+        />
+      </div>
+
+      </div>{/* fin banco-body */}
     </div>
   );
 }
