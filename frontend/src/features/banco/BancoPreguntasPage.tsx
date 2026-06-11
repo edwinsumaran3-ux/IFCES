@@ -455,117 +455,166 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       .trim();
   }
 
-  // ── Detectar concepto desde el enunciado y construir paso a paso sin respuesta ──
+  // ── Explicación razonada: construye el PORQUÉ de la fórmula, no solo la fórmula ─
   function buildPasoAPaso(enunciado: string, area: string): string {
     const e = enunciado.toLowerCase();
     const a = area.toLowerCase();
 
-    // ── CIENCIAS NATURALES — Física ──────────────────────────────────────────
+    // ── FÍSICA — Temperatura ─────────────────────────────────────────────────
     if (e.includes('celsius') || e.includes('fahrenheit') || e.includes('kelvin')) {
-      return 'Esta pregunta es de conversión de temperatura. Paso 1: identifica la escala que te dan y a cuál debes convertir. Paso 2: aplica la fórmula correcta: de Celsius a Fahrenheit es F igual a C multiplicado por 9 sobre 5, más 32. De Celsius a Kelvin es K igual a C más 273. Paso 3: sustituye el valor numérico del enunciado y opera de izquierda a derecha. Paso 4: compara tu resultado con las opciones y elige la más cercana.';
+      if (e.includes('fahrenheit') || e.includes('celsius')) {
+        return 'Construyamos la fórmula desde cero. Sabemos dos puntos fijos: cero grados Celsius equivale a 32 Fahrenheit, y cien grados Celsius equivale a 212 Fahrenheit. Si subimos 100 grados en Celsius, ¿cuántos Fahrenheit cambian? 212 menos 32 es 180. Entonces 100 grados Celsius corresponden a 180 Fahrenheit. Cada grado Celsius vale 180 dividido entre 100, que es 9 sobre 5. Por eso la fórmula multiplica por 9 sobre 5. Pero cuando Celsius vale cero, Fahrenheit no vale cero sino 32, así que sumamos ese desfase. La fórmula completa es: F igual a C por 9 sobre 5, más 32. Toma el valor del enunciado, aplica esa lógica y elige la opción más cercana.';
+      }
+      return 'La escala Kelvin empieza en el cero absoluto, que es el punto donde los átomos dejan de moverse. Los científicos midieron que ese punto ocurre a menos 273 grados Celsius. Por eso para convertir de Celsius a Kelvin simplemente se suma 273. No hay factor de escala porque ambas escalas tienen el mismo tamaño de grado. Toma el valor del enunciado, aplica esa suma y compara con las opciones.';
     }
-    if (e.includes('energía cinética') || e.includes('energia cinetica') || (e.includes('cinética') && e.includes('veloc'))) {
-      return 'Esta pregunta involucra energía cinética. Paso 1: localiza la masa y la velocidad en el enunciado. Paso 2: aplica la fórmula Ec igual a la mitad de la masa por la velocidad al cuadrado. Paso 3: primero eleva la velocidad al cuadrado, luego multiplica por la masa y finalmente divide entre 2. Paso 4: el resultado está en Joules, elige la opción que coincide.';
+
+    // ── FÍSICA — Energía cinética ────────────────────────────────────────────
+    if (e.includes('cinética') || e.includes('cinetica') || (e.includes('energía') && e.includes('veloc') && e.includes('masa'))) {
+      return 'Pensemos en qué es la energía cinética. Es la energía que tiene un objeto por estar en movimiento. Intuitivamente, si duplicamos la masa el objeto es el doble de difícil de detener. Pero si duplicamos la velocidad, el objeto es cuatro veces más difícil de detener, porque la velocidad aparece al cuadrado. Los físicos demostraron con cálculo que la energía cinética es exactamente la mitad de la masa por la velocidad al cuadrado. El factor un medio viene de integrar la fuerza sobre la distancia. Con los datos del enunciado: primero eleva la velocidad al cuadrado, luego multiplica por la masa y finalmente divide entre dos. El resultado está en Joules.';
     }
-    if (e.includes('energía potencial') || e.includes('energia potencial')) {
-      return 'Esta pregunta es de energía potencial gravitacional. Paso 1: identifica la masa en kilogramos, la altura en metros y el valor de la gravedad que indica el enunciado. Paso 2: aplica la fórmula Ep igual a masa por gravedad por altura. Paso 3: multiplica los tres valores en orden. Paso 4: el resultado en Joules es tu respuesta, ubícala entre las opciones.';
+
+    // ── FÍSICA — Energía potencial gravitacional ─────────────────────────────
+    if (e.includes('potencial') && (e.includes('gravit') || e.includes('altura') || e.includes('masa'))) {
+      return 'La energía potencial gravitacional es la energía que almacena un objeto por estar elevado. Piensa así: para subir un objeto necesitas hacer fuerza hacia arriba contra la gravedad. Esa fuerza es la masa multiplicada por g. Y el trabajo que haces es esa fuerza por la distancia recorrida, que es la altura. Por eso la fórmula es Ep igual a masa por g por altura. No hay factores extraños porque es una acumulación directa: más masa, más altura o más gravedad, más energía almacenada. Con los datos del enunciado multiplica los tres valores. El resultado es en Joules.';
     }
+
+    // ── FÍSICA — Cinemática ──────────────────────────────────────────────────
     if (e.includes('velocidad') && (e.includes('distancia') || e.includes('tiempo') || e.includes('recorre'))) {
-      return 'Esta pregunta es de cinemática. Paso 1: identifica qué dos magnitudes te dan: distancia, velocidad o tiempo. Paso 2: usa la relación distancia igual a velocidad por tiempo. Paso 3: despeja la magnitud que te piden. Paso 4: sustituye los valores numéricos del enunciado y calcula.';
+      return 'La velocidad mide cuánto espacio se recorre por unidad de tiempo. Si en un segundo recorres 10 metros, en dos segundos recorres 20. La relación es directamente proporcional: distancia igual a velocidad por tiempo. Esta es la base de toda cinemática. Si el enunciado te da dos de las tres magnitudes, despeja la tercera. Si te dan distancia y tiempo, la velocidad es distancia dividida entre tiempo. Si te dan velocidad y tiempo, la distancia es la multiplicación de ambas. Identifica qué te dan y qué te piden, luego opera.';
     }
+
+    // ── FÍSICA — Segunda Ley de Newton ───────────────────────────────────────
     if (e.includes('fuerza') && (e.includes('masa') || e.includes('aceleración') || e.includes('aceleracion'))) {
-      return 'Esta pregunta aplica la Segunda Ley de Newton. Paso 1: identifica la masa en kilogramos y la aceleración en metros sobre segundo cuadrado. Paso 2: la fórmula es Fuerza igual a masa por aceleración. Paso 3: multiplica los dos valores. Paso 4: el resultado en Newtons te indica la opción correcta.';
+      return 'Newton observó que empujar algo más pesado requiere más fuerza para conseguir la misma aceleración. También observó que la misma fuerza sobre algo más liviano produce más aceleración. Esa relación proporcional directa entre fuerza, masa y aceleración se escribe como F igual a masa por aceleración. No hay constantes extrañas porque Newton definió el Newton precisamente como la fuerza que acelera un kilogramo a un metro sobre segundo cuadrado. Identifica en el enunciado cuáles dos magnitudes te dan, despeja la tercera y sustituye.';
     }
+
+    // ── FÍSICA — Ondas ───────────────────────────────────────────────────────
     if (e.includes('refracc') || e.includes('reflexi') || e.includes('onda') || e.includes('frecuenc') || e.includes('longitud de onda')) {
-      return 'Esta pregunta es de ondas o óptica. Paso 1: identifica el fenómeno: refracción es cambio de dirección por cambio de medio, reflexión es rebote de la onda. Paso 2: si hay valores numéricos, relaciona velocidad, frecuencia y longitud de onda con la fórmula v igual a frecuencia por longitud de onda. Paso 3: aplica la definición del fenómeno al enunciado y elige la opción que lo describe correctamente.';
+      return 'Pensemos en las ondas. Una onda tiene dos características independientes: la frecuencia, cuántas veces vibra por segundo, y la longitud de onda, qué tan larga es cada ciclo. La velocidad de la onda es el producto de ambas, porque en cada segundo la onda avanza tantas longitudes como ciclos completa. Por eso v igual a frecuencia por longitud de onda. La refracción ocurre cuando la onda pasa de un medio a otro y cambia velocidad, lo que obliga a cambiar de dirección. La reflexión es cuando la onda rebota sin cambiar de medio. Identifica cuál fenómeno describe el enunciado y aplica esa definición.';
     }
+
+    // ── FÍSICA — Ley de Ohm ──────────────────────────────────────────────────
     if (e.includes('voltaje') || e.includes('corriente') || e.includes('resistencia') || e.includes('ohm')) {
-      return 'Esta pregunta aplica la Ley de Ohm. Paso 1: identifica las dos magnitudes que te dan entre voltaje, corriente y resistencia. Paso 2: la fórmula es Voltaje igual a Corriente por Resistencia. Paso 3: despeja la magnitud que te piden y sustituye. Paso 4: revisa las unidades: voltios, amperios y ohmios.';
-    }
-    if (e.includes('gravedad') && (e.includes('caída') || e.includes('caida') || e.includes('lanzamiento') || e.includes('proyectil'))) {
-      return 'Esta pregunta es de caída libre o lanzamiento. Paso 1: identifica la altura inicial, la velocidad inicial y el tiempo. Paso 2: la fórmula de altura es h igual a velocidad inicial por tiempo menos la mitad de g por tiempo al cuadrado, donde g es 9.8 o 10 metros sobre segundo cuadrado. Paso 3: sustituye los valores en orden y opera cada término. Paso 4: el resultado te da la posición o tiempo pedido.';
+      return 'Ohm descubrió que en un conductor la corriente que fluye es directamente proporcional al voltaje aplicado e inversamente proporcional a la resistencia. Piénsalo así: el voltaje es la presión que empuja los electrones, la resistencia es el obstáculo, y la corriente es cuántos electrones pasan. Más presión, más corriente. Más obstáculo, menos corriente. Eso se escribe V igual a I por R, o despejando, I igual a V sobre R. Con los datos del enunciado identifica cuáles dos magnitudes te dan y despeja la tercera.';
     }
 
-    // ── CIENCIAS NATURALES — Química ─────────────────────────────────────────
+    // ── FÍSICA — Caída libre ──────────────────────────────────────────────────
+    if (e.includes('caída') || e.includes('caida') || e.includes('lanzamiento') || e.includes('proyectil') || (e.includes('gravedad') && e.includes('tiempo'))) {
+      return 'En caída libre, la gravedad acelera el objeto de forma constante. Piensa en la velocidad: empieza en cero y crece a razón de g metros por segundo cada segundo. La distancia recorrida es el área bajo esa curva de velocidad, que es un triángulo: base por altura sobre dos. Eso nos da la mitad de g por tiempo al cuadrado. Si hay velocidad inicial, simplemente se agrega como distancia adicional. La fórmula es h igual a velocidad inicial por tiempo más la mitad de g por tiempo al cuadrado. Con los datos del enunciado sustituye los valores que te dan y despeja lo que te preguntan.';
+    }
+
+    // ── QUÍMICA — Reacciones y estequiometría ────────────────────────────────
     if (e.includes('mol') || e.includes('estequiom') || e.includes('reactivo') || e.includes('producto') || e.includes('reacción') || e.includes('reaccion')) {
-      return 'Esta pregunta es de química, específicamente de reacciones y estequiometría. Paso 1: identifica los reactivos y productos en la ecuación. Paso 2: verifica que la ecuación esté balanceada, los átomos de cada elemento deben ser iguales en ambos lados. Paso 3: usa los coeficientes estequiométricos como factores de conversión entre moles. Paso 4: aplica la regla de tres entre los moles del dato y la incógnita.';
+      return 'Construyamos la lógica de la estequiometría. Una ecuación química balanceada es como una receta: los coeficientes te dicen cuántos moles de cada ingrediente necesitas y cuántos moles de producto obtienes. Si la receta dice que 2 moles de hidrógeno reaccionan con 1 mol de oxígeno, entonces la razón es siempre 2 a 1, sin importar la cantidad total. Para resolver el problema primero verifica que la ecuación esté balanceada, luego establece una proporción entre los coeficientes y los moles que te dan en el enunciado. Aplica regla de tres entre el coeficiente conocido y la incógnita.';
     }
+
+    // ── QUÍMICA — Ácidos y bases ─────────────────────────────────────────────
     if (e.includes('ph') || e.includes('ácido') || e.includes('acido') || e.includes('base') || e.includes('alcalin')) {
-      return 'Esta pregunta es de ácidos y bases. Paso 1: recuerda que pH menor a 7 es ácido, pH igual a 7 es neutro y pH mayor a 7 es básico. Paso 2: identifica si el enunciado pregunta por el tipo de sustancia, por el pH numérico o por la concentración de iones. Paso 3: aplica la definición que corresponde al contexto. Paso 4: elige la opción que es coherente con el concepto de ácido o base.';
+      return 'El pH nació de la necesidad de medir la acidez sin usar números enormes. La concentración de iones de hidrógeno en el agua pura es 0.0000001, que es 10 elevado a menos 7. Para simplificar, se toma el exponente con signo cambiado: pH 7. Un ácido tiene más iones de hidrógeno que el agua pura, así que su concentración es mayor a 10 a la menos 7, lo que da un pH menor a 7. Una base tiene menos iones de hidrógeno, pH mayor a 7. La escala va de 0 a 14. Aplica ese razonamiento a la sustancia que describe el enunciado y elige la opción coherente con ese concepto.';
     }
+
+    // ── QUÍMICA — Estructura atómica ─────────────────────────────────────────
     if (e.includes('átomo') || e.includes('atomo') || e.includes('protón') || e.includes('proton') || e.includes('electrón') || e.includes('electron') || e.includes('neutrón') || e.includes('neutron') || e.includes('número atómico') || e.includes('masa atómica')) {
-      return 'Esta pregunta es de estructura atómica. Paso 1: recuerda que el número atómico indica la cantidad de protones y también de electrones en un átomo neutro. Paso 2: la masa atómica es aproximadamente la suma de protones más neutrones. Paso 3: para hallar los neutrones resta el número atómico a la masa atómica. Paso 4: aplica estos datos al elemento que menciona el enunciado.';
+      return 'El modelo atómico se construyó así: Rutherford descubrió que hay un núcleo pequeño y denso con carga positiva, rodeado de electrones. Los protones en el núcleo definen de qué elemento se trata, por eso su cantidad se llama número atómico. Los neutrones no tienen carga pero sí masa, y junto con los protones dan la masa atómica. Si quieres saber cuántos neutrones hay, razona así: la masa total del núcleo es protones más neutrones, entonces neutrones es masa atómica menos número atómico. Para un átomo neutro, los electrones igualan a los protones. Con los datos del enunciado aplica esa lógica.';
     }
+
+    // ── QUÍMICA — Enlaces ────────────────────────────────────────────────────
     if (e.includes('enlace') || e.includes('covalente') || e.includes('iónico') || e.includes('ionico') || e.includes('electronegativi')) {
-      return 'Esta pregunta es de enlaces químicos. Paso 1: recuerda que el enlace covalente comparte electrones entre no metales. Paso 2: el enlace iónico transfiere electrones de metal a no metal. Paso 3: identifica los elementos del enunciado y determina si son metales o no metales. Paso 4: elige el tipo de enlace que corresponde según esa clasificación.';
+      return 'Los enlaces químicos se forman porque los átomos buscan completar su capa de valencia con 8 electrones. Cuando dos no metales se juntan, ninguno quiere ceder sus electrones definitivamente, así que los comparten: eso es un enlace covalente. Cuando un metal se junta con un no metal, el metal cede sus electrones fácilmente porque tiene pocos en la capa exterior, y el no metal los acepta: eso es un enlace iónico, que genera cargas opuestas que se atraen. Identifica en el enunciado si los elementos son metales o no metales y decide qué tipo de enlace describe mejor la situación.';
     }
-    if (e.includes('tabla periódica') || e.includes('tabla periodica') || e.includes('período') || e.includes('periodo') || e.includes('grupo') || e.includes('elemento quím')) {
-      return 'Esta pregunta es de tabla periódica. Paso 1: recuerda que los grupos son columnas verticales y los períodos son filas horizontales. Paso 2: los elementos del mismo grupo tienen propiedades químicas similares por tener igual número de electrones de valencia. Paso 3: identifica la propiedad o tendencia que pregunta el enunciado, como radio atómico, electronegatividad o reactividad. Paso 4: aplica la tendencia periódica correcta.';
+
+    // ── QUÍMICA — Tabla periódica ─────────────────────────────────────────────
+    if (e.includes('tabla periódica') || e.includes('tabla periodica') || e.includes('período') || e.includes('periodo') || e.includes('grupo') || (e.includes('element') && (e.includes('propiedad') || e.includes('tendencia')))) {
+      return 'Mendeléev organizó los elementos por número atómico creciente y notó que las propiedades se repetían periódicamente. Los que tienen las mismas propiedades quedaron en la misma columna, los grupos. Los elementos del mismo grupo tienen igual número de electrones de valencia, que son los que participan en las reacciones. Por eso se comportan de forma similar. En los períodos, filas horizontales, al avanzar hacia la derecha el núcleo atrae más fuerte a los electrones porque hay más protones. Esa tensión define tendencias como electronegatividad y radio atómico. Identifica qué propiedad pregunta el enunciado y aplica la tendencia del período o grupo correspondiente.';
     }
+
+    // ── QUÍMICA — Soluciones ──────────────────────────────────────────────────
     if (e.includes('mezcla') || e.includes('solución') || e.includes('solucion') || e.includes('concentración') || e.includes('concentracion') || e.includes('soluto') || e.includes('solvente')) {
-      return 'Esta pregunta es de mezclas y soluciones. Paso 1: identifica si es una mezcla homogénea (solución) o heterogénea. Paso 2: si hay concentración, usa la fórmula: concentración igual a masa del soluto dividida entre volumen de la solución. Paso 3: sustituye los valores numéricos del enunciado. Paso 4: verifica las unidades y elige la opción que coincide con tu cálculo.';
+      return 'Una solución es una mezcla homogénea donde el soluto se disuelve en el solvente. La concentración mide cuánto soluto hay en cierto volumen de solución. Piénsalo como una receta de café: si pones más café en la misma agua, la concentración sube. La fórmula es concentración igual a masa del soluto dividida entre el volumen de la solución. Si el enunciado tiene valores numéricos, identifica cuál es el soluto, cuál es su masa y cuál es el volumen total de la solución, luego divide. Si es una pregunta conceptual, razona si al agregar más soluto o más solvente la concentración sube o baja.';
     }
 
-    // ── CIENCIAS NATURALES — Biología ────────────────────────────────────────
+    // ── BIOLOGÍA — Fotosíntesis ───────────────────────────────────────────────
     if (e.includes('fotosíntesis') || e.includes('fotosintesis') || e.includes('clorofila') || e.includes('cloroplasto')) {
-      return 'Esta pregunta es de fotosíntesis. Paso 1: recuerda que la fotosíntesis ocurre en los cloroplastos usando luz solar, dióxido de carbono y agua. Paso 2: los productos son glucosa y oxígeno. Paso 3: identifica qué parte del proceso pregunta el enunciado: reactivos, productos, lugar donde ocurre o función. Paso 4: elige la opción que describe correctamente ese aspecto.';
-    }
-    if (e.includes('adn') || e.includes('gen') || e.includes('cromosoma') || e.includes('herencia') || e.includes('mutación') || e.includes('mutacion')) {
-      return 'Esta pregunta es de genética. Paso 1: identifica si pregunta sobre ADN, genes, cromosomas o herencia. Paso 2: recuerda que el ADN lleva la información genética, los genes son segmentos de ADN y los cromosomas son estructuras que contienen el ADN. Paso 3: si es de herencia mendeliana, identifica los alelos dominantes y recesivos del enunciado. Paso 4: aplica el cuadro de Punnett o la ley de Mendel que corresponde.';
-    }
-    if (e.includes('selección natural') || e.includes('seleccion natural') || e.includes('evolución') || e.includes('evolucion') || e.includes('adaptación') || e.includes('adaptacion')) {
-      return 'Esta pregunta es de evolución. Paso 1: recuerda que la selección natural favorece las variaciones heredables que aumentan la supervivencia y reproducción. Paso 2: identifica la variación o adaptación que describe el enunciado. Paso 3: relaciona esa variación con la ventaja que ofrece en el ambiente descrito. Paso 4: elige la opción que explica correctamente el mecanismo evolutivo.';
-    }
-    if (e.includes('célula') || e.includes('celula') || e.includes('mitosis') || e.includes('meiosis') || e.includes('membrana') || e.includes('núcleo') || e.includes('nucleo')) {
-      return 'Esta pregunta es de biología celular. Paso 1: identifica si pregunta sobre la estructura celular, la división o la función de un orgánulo. Paso 2: recuerda que la membrana regula el paso de sustancias, el núcleo contiene el ADN y la mitocondria produce energía. Paso 3: relaciona el orgánulo o proceso del enunciado con su función. Paso 4: elige la opción que describe correctamente esa función o estructura.';
-    }
-    if (e.includes('sistema') && (e.includes('digestivo') || e.includes('respiratorio') || e.includes('circulatorio') || e.includes('nervioso') || e.includes('excretor'))) {
-      return 'Esta pregunta es de sistemas del cuerpo humano. Paso 1: identifica el sistema que menciona el enunciado. Paso 2: recuerda sus órganos principales y su función general. Paso 3: relaciona el órgano o función específica que pregunta con el sistema al que pertenece. Paso 4: elige la opción que es coherente con la función de ese sistema.';
-    }
-    if (e.includes('ecosistema') || e.includes('cadena alimentaria') || e.includes('cadena trófica') || e.includes('biodiversidad') || e.includes('nicho') || e.includes('hábitat') || e.includes('habitat')) {
-      return 'Esta pregunta es de ecología. Paso 1: identifica si pregunta sobre la cadena alimentaria, el ecosistema o la biodiversidad. Paso 2: en una cadena trófica, los productores son plantas, los consumidores primarios son herbívoros y los secundarios son carnívoros. Paso 3: analiza las relaciones entre organismos del enunciado. Paso 4: elige la opción que describe correctamente esa relación ecológica.';
+      return 'La fotosíntesis resuelve un problema fundamental: las plantas necesitan energía pero no pueden moverse a buscar comida. La solución fue capturar la energía de la luz solar. Los cloroplastos tienen clorofila, un pigmento verde que absorbe la luz. Esa energía se usa para romper moléculas de agua y combinar el hidrógeno liberado con el dióxido de carbono del aire, formando glucosa. El oxígeno que sobra se libera como subproducto. Eso explica por qué las plantas necesitan luz, agua y CO2, y producen oxígeno y glucosa. Con esa lógica identifica qué parte del proceso pregunta el enunciado.';
     }
 
-    // ── MATEMÁTICAS ───────────────────────────────────────────────────────────
-    if (e.includes('hipotenusa') || e.includes('cateto') || (e.includes('triángulo') && e.includes('rectángulo'))) {
-      return 'Esta pregunta aplica el Teorema de Pitágoras. Paso 1: identifica los catetos y la hipotenusa en el enunciado. Paso 2: la fórmula es hipotenusa al cuadrado igual a cateto A al cuadrado más cateto B al cuadrado. Paso 3: sustituye los valores que te dan. Paso 4: si te dan los catetos, suma sus cuadrados y saca la raíz cuadrada. Si te dan la hipotenusa, resta el cuadrado del cateto conocido y saca la raíz.';
+    // ── BIOLOGÍA — Genética ───────────────────────────────────────────────────
+    if (e.includes('adn') || e.includes('gen') || e.includes('cromosoma') || e.includes('herencia') || e.includes('mutación') || e.includes('mutacion') || e.includes('alelo') || e.includes('dominant') || e.includes('recesiv')) {
+      return 'Mendel descubrió las leyes de la herencia observando guisantes. Notó que los rasgos se transmiten en unidades discretas, los genes, y que cada individuo tiene dos copias de cada gen, una de cada progenitor. Cuando los dos alelos son distintos, uno se impone sobre el otro: el dominante se expresa y el recesivo se oculta. Para predecir la descendencia se usa el cuadro de Punnett: escribe los alelos de un progenitor en filas y los del otro en columnas, y las combinaciones del interior muestran los posibles descendientes. Identifica en el enunciado cuáles son los alelos dominantes y recesivos y aplica esa lógica.';
     }
-    if (e.includes('porcentaje') || e.includes('%') || e.includes('descuento') || e.includes('interés') || e.includes('interes')) {
-      return 'Esta pregunta es de porcentajes. Paso 1: identifica el valor total y el porcentaje que pide el enunciado. Paso 2: para hallar el porcentaje de un número, multiplica el número por el porcentaje y divide entre 100. Paso 3: si es descuento, resta el resultado al precio original. Paso 4: verifica que el resultado sea razonable comparado con las opciones.';
+
+    // ── BIOLOGÍA — Evolución ──────────────────────────────────────────────────
+    if (e.includes('selección natural') || e.includes('seleccion natural') || e.includes('evolución') || e.includes('evolucion') || e.includes('adaptación') || e.includes('adaptacion') || e.includes('supervivencia') || e.includes('heredable')) {
+      return 'Darwin razonó así: en una población siempre hay variación entre individuos. Algunos tienen rasgos que les permiten sobrevivir mejor o reproducirse más. Si ese rasgo es heredable, los descendientes también lo tendrán. Con el tiempo, ese rasgo se vuelve más común en la población. No hay un plan o dirección: simplemente los que sobreviven dejan más descendientes. Eso es la selección natural. Para responder la pregunta, identifica cuál es la variación que describe el enunciado, qué ventaja ofrece en ese ambiente y por qué esa ventaja se volvería más común con el tiempo.';
     }
-    if (e.includes('área') || e.includes('area') || e.includes('perímetro') || e.includes('perimetro') || e.includes('volumen')) {
-      return 'Esta pregunta es de geometría. Paso 1: identifica la figura geométrica del enunciado: triángulo, rectángulo, círculo, prisma u otra. Paso 2: recuerda la fórmula de área o volumen de esa figura. Para triángulo: base por altura entre 2. Para rectángulo: largo por ancho. Para círculo: pi por radio al cuadrado. Paso 3: identifica los valores que te da el enunciado y sustitúyelos. Paso 4: opera con cuidado las unidades.';
+
+    // ── BIOLOGÍA — Célula ────────────────────────────────────────────────────
+    if (e.includes('célula') || e.includes('celula') || e.includes('mitosis') || e.includes('meiosis') || e.includes('membrana') || e.includes('orgánulo') || e.includes('organulo') || e.includes('mitocondria')) {
+      return 'La célula es la unidad básica de la vida porque tiene todo lo necesario para vivir de forma autónoma. La membrana plasmática actúa como frontera selectiva: deja entrar nutrientes y saca desechos. El núcleo es el centro de control porque contiene el ADN con las instrucciones para fabricar proteínas. La mitocondria produce la energía en forma de ATP usando oxígeno y glucosa. En la división celular, la mitosis produce dos células idénticas para crecer o reparar tejidos, mientras la meiosis produce cuatro células con la mitad de cromosomas para la reproducción sexual. Identifica cuál proceso o estructura pregunta el enunciado.';
     }
-    if (e.includes('promedio') || e.includes('media') || e.includes('moda') || e.includes('mediana') || e.includes('datos')) {
-      return 'Esta pregunta es de estadística. Paso 1: identifica si pide la media, la moda o la mediana. Paso 2: para la media, suma todos los datos y divide entre la cantidad de datos. Para la moda, busca el dato que más se repite. Para la mediana, ordena los datos de menor a mayor y toma el del centro. Paso 3: aplica el cálculo con los números del enunciado.';
+
+    // ── BIOLOGÍA — Sistemas corporales ───────────────────────────────────────
+    if (e.includes('sistema') && (e.includes('digestivo') || e.includes('respiratorio') || e.includes('circulatorio') || e.includes('nervioso') || e.includes('excretor') || e.includes('inmune') || e.includes('endocrino'))) {
+      return 'Los sistemas del cuerpo evolucionaron para resolver problemas específicos. El digestivo desmenuza los alimentos y absorbe nutrientes. El circulatorio transporta esos nutrientes y el oxígeno a cada célula usando el corazón como bomba. El respiratorio capta oxígeno del aire y elimina dióxido de carbono. El excretor filtra la sangre y elimina desechos en la orina. El nervioso procesa información y coordina respuestas. El endocrino regula procesos a largo plazo mediante hormonas. Identifica cuál sistema menciona el enunciado, recuerda su función principal y elige la opción que la describe correctamente.';
     }
-    if (e.includes('ecuación') || e.includes('ecuacion') || e.includes('despeja') || e.includes('valor de x') || e.includes('valor de y')) {
-      return 'Esta pregunta es de álgebra. Paso 1: identifica la ecuación o expresión del enunciado. Paso 2: para despejar la incógnita, aplica operaciones inversas en ambos lados de la ecuación. Paso 3: si hay paréntesis, distribúyelos primero. Paso 4: verifica tu respuesta sustituyendo el valor hallado en la ecuación original.';
+
+    // ── BIOLOGÍA — Ecología ───────────────────────────────────────────────────
+    if (e.includes('ecosistema') || e.includes('cadena') || e.includes('trófica') || e.includes('trofica') || e.includes('biodiversidad') || e.includes('hábitat') || e.includes('habitat') || e.includes('depredador') || e.includes('presa')) {
+      return 'Un ecosistema funciona como una red de transferencia de energía. Las plantas capturan energía solar y la almacenan en glucosa: son los productores. Los herbívoros comen plantas y transfieren esa energía: consumidores primarios. Los carnívoros comen herbívoros: consumidores secundarios. En cada paso se pierde energía como calor, por eso las cadenas tienen pocos eslabones. Si un eslabón desaparece, los que dependían de él se afectan. La biodiversidad hace al ecosistema más resistente porque hay más opciones de alimento. Con esa lógica analiza la relación que describe el enunciado y elige la opción coherente.';
     }
-    if (e.includes('función') || e.includes('funcion') || e.includes('gráfica') || e.includes('grafica') || e.includes('pendiente') || e.includes('coordenadas')) {
-      return 'Esta pregunta es de funciones o geometría analítica. Paso 1: identifica el tipo de función: lineal, cuadrática o exponencial. Paso 2: para una función lineal y igual a mx más b, la pendiente m indica la inclinación y b el punto de corte con el eje y. Paso 3: si tienes dos puntos, calcula la pendiente como el cambio en y dividido entre el cambio en x. Paso 4: sustituye los valores del enunciado en la función.';
+
+    // ── MATEMÁTICAS — Pitágoras ───────────────────────────────────────────────
+    if (e.includes('hipotenusa') || e.includes('cateto') || (e.includes('triángulo') && (e.includes('rectángulo') || e.includes('rectangulo')))) {
+      return 'El Teorema de Pitágoras nació de observar que en todo triángulo rectángulo se puede construir un cuadrado sobre cada lado. El área del cuadrado de la hipotenusa siempre es exactamente igual a la suma de las áreas de los cuadrados de los dos catetos. Eso es lo que dice la fórmula: cateto A al cuadrado más cateto B al cuadrado es igual a la hipotenusa al cuadrado. Si te dan los dos catetos, súmalos al cuadrado y saca la raíz para encontrar la hipotenusa. Si te dan la hipotenusa y un cateto, resta el cuadrado del cateto conocido al cuadrado de la hipotenusa y saca la raíz. Identifica cuáles valores te da el enunciado y cuál te piden.';
     }
-    if (e.includes('fracción') || e.includes('fraccion') || e.includes('razón') || e.includes('razon') || e.includes('proporción') || e.includes('proporcion')) {
-      return 'Esta pregunta es de fracciones o proporciones. Paso 1: identifica las dos razones o fracciones del enunciado. Paso 2: para una proporción, el producto cruzado debe ser igual: si a sobre b es igual a c sobre d, entonces a por d es igual a b por c. Paso 3: despeja la incógnita multiplicando en cruz. Paso 4: simplifica el resultado si es necesario.';
+
+    // ── MATEMÁTICAS — Porcentajes ─────────────────────────────────────────────
+    if (e.includes('porcentaje') || e.includes('%') || e.includes('descuento') || e.includes('interés') || e.includes('interes') || e.includes('rebaja')) {
+      return 'El porcentaje nació para comparar proporciones sobre una base común de cien. Si digo que el 30 porciento de algo es mío, significa que de cada cien partes tengo 30. Para encontrar el porcentaje de un número multiplica ese número por el porcentaje y divide entre cien. O de forma equivalente multiplica por la fracción decimal: 30 por ciento es lo mismo que multiplicar por 0.30. Para un descuento, calcula el porcentaje del precio y réstalo. Para un aumento, calcula el porcentaje y súmalo. Identifica en el enunciado qué operación te piden y cuáles son el valor total y el porcentaje.';
+    }
+
+    // ── MATEMÁTICAS — Geometría ───────────────────────────────────────────────
+    if (e.includes('área') || e.includes('area') || e.includes('perímetro') || e.includes('perimetro') || e.includes('volumen') || e.includes('superficie')) {
+      return 'Las fórmulas de geometría no son arbitrarias, tienen una lógica. El área del rectángulo es base por altura porque estás contando cuántos cuadrados de lado 1 caben: tantos como columnas por filas. El área del triángulo es la mitad de base por altura porque un triángulo es exactamente la mitad de un paralelogramo. El área del círculo es pi por radio al cuadrado porque pi es la constante que relaciona la circunferencia con el diámetro. El volumen de un prisma es área de la base por la altura porque estás apilando capas del área base. Identifica la figura del enunciado y aplica la fórmula correspondiente con los valores que te dan.';
+    }
+
+    // ── MATEMÁTICAS — Estadística ─────────────────────────────────────────────
+    if (e.includes('promedio') || e.includes('media') || e.includes('moda') || e.includes('mediana') || (e.includes('datos') && e.includes('conjunto'))) {
+      return 'Las medidas de tendencia central resumen un conjunto de datos de formas distintas. La media aritmética es el valor que tendría cada dato si todos fueran iguales: suma todos y divide entre cuántos son. La mediana es el valor del centro cuando ordenas los datos de menor a mayor: la mitad está por debajo y la mitad por encima. La moda es el valor que más se repite, el más frecuente. Ninguna es mejor que las otras en general: depende de qué quieres representar. La media se afecta por valores extremos, la mediana no. Identifica cuál medida pide el enunciado y aplica el procedimiento correspondiente con los datos que te dan.';
+    }
+
+    // ── MATEMÁTICAS — Álgebra ─────────────────────────────────────────────────
+    if (e.includes('ecuación') || e.includes('ecuacion') || e.includes('despeja') || e.includes('incógnita') || e.includes('incognita') || e.includes('valor de x') || e.includes('valor de y')) {
+      return 'Una ecuación es una balanza en equilibrio: lo que haces a un lado debes hacerlo al otro para mantener la igualdad. Para despejar la incógnita aplica operaciones inversas: si está sumando, resta; si está multiplicando, divide; si está al cuadrado, saca raíz. El orden es: primero elimina lo que está fuera de paréntesis, luego lo que está dentro. Siempre verifica al final sustituyendo el valor que encontraste en la ecuación original. Si ambos lados son iguales, la solución es correcta. Con el enunciado identifica la ecuación, despeja la incógnita siguiendo esa lógica.';
+    }
+
+    // ── MATEMÁTICAS — Proporciones y razones ──────────────────────────────────
+    if (e.includes('proporción') || e.includes('proporcion') || e.includes('razón') || e.includes('razon') || e.includes('fracción') || e.includes('fraccion') || e.includes('regla de tres')) {
+      return 'Una proporción dice que dos razones son iguales. La lógica de la regla de tres viene de ahí: si la relación entre dos cantidades es constante, cuando una cambia la otra cambia en la misma proporción. Para resolver, el producto cruzado de una proporción siempre es igual: si A sobre B es igual a C sobre D, entonces A por D es igual a B por C. Identifica en el enunciado cuáles tres valores te dan y cuál incógnita debes encontrar. Escribe la proporción, cruza los productos y despeja. Eso funciona tanto para aumentos directos como para variaciones inversas.';
+    }
+
+    // ── MATEMÁTICAS — Funciones ───────────────────────────────────────────────
+    if (e.includes('función') || e.includes('funcion') || e.includes('gráfica') || e.includes('grafica') || e.includes('pendiente') || e.includes('coordenadas') || e.includes('eje x') || e.includes('eje y')) {
+      return 'Una función describe cómo una cantidad depende de otra. La función lineal y igual a m por x más b es la más simple: m es la pendiente, que mide cuánto sube y por cada unidad que avanza x, y b es el punto de partida cuando x vale cero. La pendiente se construye así: toma dos puntos, calcula el cambio en y dividido entre el cambio en x. Si la pendiente es positiva la función sube, si es negativa baja. Para evaluar una función en un punto, sustituye el valor de x y opera. Identifica en el enunciado qué te piden: la pendiente, un valor de la función o interpretar su gráfica.';
     }
 
     // ── LECTURA CRÍTICA ───────────────────────────────────────────────────────
     if (a.includes('lectura') || a.includes('crítica') || a.includes('critica')) {
-      return 'Para esta pregunta de lectura crítica: Paso 1: lee el enunciado completo y localiza la idea principal o tesis del texto. Paso 2: determina qué te pide la pregunta: inferir, interpretar, analizar la intención del autor o identificar una idea implícita. Paso 3: evalúa cada opción y busca cuál tiene respaldo directo en el texto. Paso 4: descarta las que exageran, contradicen o no tienen evidencia en el enunciado.';
+      return 'La lectura crítica no busca que memorices el texto, sino que razones sobre él. Hay tres niveles de lectura: el literal, que es lo que el texto dice explícitamente; el inferencial, que es lo que se puede deducir de lo que dice; y el crítico, que evalúa por qué lo dice y qué pretende el autor. Para responder, primero identifica en qué nivel está la pregunta. Luego busca en el texto la evidencia directa. La opción correcta siempre puede justificarse con algo que dice o implica el texto. Las incorrectas suelen exagerar, contradecir o añadir información que el texto no da. Con esa lógica evalúa cada opción.';
     }
 
     // ── INGLÉS ────────────────────────────────────────────────────────────────
     if (a.includes('inglés') || a.includes('ingles')) {
-      return 'For this English question: Step 1: read the text carefully and identify the main idea. Step 2: locate the key words in the question and find where they appear in the text. Step 3: evaluate each option and eliminate those that contradict or are not supported by the text. Step 4: choose the option that best matches the meaning according to the context.';
+      return 'Reading comprehension works by identifying what the text actually says, not what you think it should say. First, read the question carefully and identify the key words. Then scan the text to find where those key words or their synonyms appear. The correct answer paraphrases what the text says, using different words but the same meaning. Incorrect options usually distort the meaning, add information not in the text, or contradict what the text says. Apply that reasoning to each option and eliminate the ones that cannot be supported directly by the text.';
     }
 
-    // ── SOCIALES ─────────────────────────────────────────────────────────────
-    if (a.includes('sociales') || a.includes('ciudadan') || a.includes('historia')) {
-      return 'Para esta pregunta de sociales: Paso 1: identifica el contexto histórico, geográfico o cívico que describe el enunciado. Paso 2: determina el concepto central que se pregunta: causa, consecuencia, característica o relación entre eventos. Paso 3: descarta las opciones que no se relacionan directamente con ese contexto. Paso 4: elige la opción que mejor explica el fenómeno con base en lo que dice el enunciado.';
+    // ── SOCIALES ──────────────────────────────────────────────────────────────
+    if (a.includes('sociales') || a.includes('ciudadan') || a.includes('historia') || a.includes('geografía') || a.includes('geografia')) {
+      return 'En ciencias sociales las preguntas buscan que entiendas relaciones causa-efecto, contextos históricos y conceptos cívicos. Primero identifica de qué período, región o concepto trata el enunciado. Luego pregúntate: ¿qué condiciones llevaron a ese evento? ¿Qué consecuencias tuvo? ¿Qué principios democráticos o geográficos aplican? La opción correcta explica el fenómeno con coherencia interna: la causa produce la consecuencia de forma lógica. Las incorrectas suelen mezclar períodos, invertir causas y efectos o usar conceptos de otro contexto. Aplica ese razonamiento a lo que describe el enunciado.';
     }
 
-    // Fallback genérico
-    return 'Paso 1: lee el enunciado con atención e identifica los datos clave. Paso 2: determina qué concepto o fórmula aplica para este tipo de pregunta. Paso 3: desarrolla el procedimiento usando solo los datos del enunciado, sin inventar valores. Paso 4: compara tu resultado con las opciones y elige la que coincide.';
+    // Fallback genérico razonado
+    return 'Abordemos esta pregunta desde la lógica. Primero lee el enunciado completo e identifica qué concepto o relación está describiendo. Pregúntate: ¿por qué ese fenómeno ocurre de esa manera? ¿Qué principio explica la situación? Una vez que tienes claro el concepto, evalúa cada opción preguntándote si es coherente con ese principio. La opción correcta siempre tiene una razón clara que la sustenta; las incorrectas suelen ser parcialmente ciertas o mezclan conceptos. Razona desde el porqué, no solo desde la fórmula.';
   }
 
   // ── Construir guion completo — SIN usar p.explicacion que revela la respuesta ─
