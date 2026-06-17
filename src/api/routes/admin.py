@@ -4,22 +4,19 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from src.infrastructure.database import get_db
-try:
-    from src.services.email_service import send_plan_approved
-except:
-    send_plan_approved = None
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class CreateUserRequest(BaseModel):
-    full_name: str
-    email: str
-    password: str
-    role: str = "student"
-    plan_code: str = "basic"
+    full_name:    str
+    email:        str
+    password:     str
+    role:         str = "student"
+    plan_code:    str = "basic"
+    country:      str = "CO"
+    institution:  str = ""
 
 class PaymentRequest(BaseModel):
     user_id: str
@@ -50,20 +47,16 @@ async def create_user(body: CreateUserRequest, db=Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="El correo ya existe")
 
-    tenant = (await db.execute(text("SELECT id FROM tenants LIMIT 1"))).fetchone()
-    if not tenant:
-        raise HTTPException(status_code=500, detail="No hay tenant configurado")
-
     user_id = str(uuid4())
-    hashed = pwd_context.hash(body.password)
+    hashed  = _bcrypt.hashpw(body.password.encode(), _bcrypt.gensalt()).decode()
+    country = getattr(body, 'country', 'CO')
     await db.execute(
         text("""
-            INSERT INTO users (id, tenant_id, email, password_hash, full_name, role, is_active, plan_code, created_at)
-            VALUES (:id, :tenant_id, :email, :hash, :name, :role, true, :plan, NOW())
+            INSERT INTO users (id, email, password_hash, full_name, role, is_active, plan_code, country, status, created_at)
+            VALUES (:id, :email, :hash, :name, :role, true, :plan, :country, 'active', NOW())
         """),
-        {"id": user_id, "tenant_id": str(tenant.id),
-         "email": body.email.lower().strip(), "hash": hashed,
-         "name": body.full_name, "role": body.role, "plan": body.plan_code}
+        {"id": user_id, "email": body.email.lower().strip(), "hash": hashed,
+         "name": body.full_name, "role": body.role, "plan": body.plan_code, "country": country}
     )
     await db.commit()
     return {"success": True, "user_id": user_id}

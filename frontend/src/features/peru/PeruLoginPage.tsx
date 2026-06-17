@@ -1,7 +1,8 @@
 // =============================================================================
 //  PeruLoginPage.tsx — Login TES-LA PRO (Perú)
 // =============================================================================
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useScreenGuide } from '../audio/AudioGuide'
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -14,6 +15,25 @@ interface Props {
 }
 
 export default function PeruLoginPage({ onLogin, onBack }: Props) {
+  useScreenGuide('login_pe', 1500)
+
+  // Handle Google OAuth redirect back
+  useEffect(() => {
+    const params  = new URLSearchParams(window.location.search)
+    const token   = params.get('token')
+    const userRaw = params.get('user')
+    if (token && userRaw) {
+      try {
+        const u = JSON.parse(decodeURIComponent(userRaw))
+        const peruUser = { ...u, country: 'PE' as const }
+        localStorage.setItem('access_token_peru', token)
+        localStorage.setItem('user_peru', JSON.stringify(peruUser))
+        window.history.replaceState({}, '', window.location.pathname)
+        onLogin(peruUser, token)
+      } catch {}
+    }
+  }, [])
+
   const [tab,      setTab]      = useState<'login' | 'register'>('login')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -108,12 +128,24 @@ export default function PeruLoginPage({ onLogin, onBack }: Props) {
           </div>
         </div>
 
-        {error && (
-          <div style={s.errorBox}>⚠ {error}</div>
-        )}
+        {error && <div style={s.errorBox}>⚠ {error}</div>}
 
         <button onClick={submit} disabled={loading} style={s.submitBtn}>
           {loading ? '⏳ Verificando...' : tab === 'login' ? '🚀 Entrar a TES-LA PRO' : '✨ Crear cuenta'}
+        </button>
+
+        {/* Google */}
+        <div style={{ display:'flex',alignItems:'center',gap:8,margin:'10px 0',color:'#334155',fontSize:10 }}>
+          <div style={{ flex:1,height:1,background:'rgba(255,255,255,0.06)' }} />
+          o continúa con
+          <div style={{ flex:1,height:1,background:'rgba(255,255,255,0.06)' }} />
+        </div>
+        <button
+          onClick={() => { window.location.href = `${BACKEND}/api/v1/auth/google` }}
+          style={{ width:'100%',padding:'10px 0',background:'rgba(234,67,53,0.07)',border:'1px solid rgba(234,67,53,0.25)',borderRadius:10,color:'#fca5a5',fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'inherit',marginBottom:8 }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"/><path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987z"/><path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21z"/><path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 0 0 0 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067z"/></svg>
+          Entrar con Google
         </button>
 
         {/* Métodos de pago */}

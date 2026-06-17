@@ -1,5 +1,6 @@
-// frontend/src/App.tsx — con autenticacion + selector de país
+// frontend/src/App.tsx — con autenticacion + selector de país + audio guía
 import React, { useState, useEffect } from 'react'
+import { AudioGuideProvider, useAudioGuide } from './features/audio/AudioGuide'
 import CountrySelector from './features/country-selector/CountrySelector'
 import LoginPage from './features/auth/LoginPage'
 import ExamEngine from './features/exam/ExamEngine'
@@ -19,6 +20,15 @@ type View = 'home' | 'exam' | 'teacher' | 'banco' | 'pricing'
 type Country = 'CO' | 'PE' | null
 
 export default function App() {
+  return (
+    <AudioGuideProvider>
+      <AppInner />
+    </AudioGuideProvider>
+  )
+}
+
+function AppInner() {
+  const { play } = useAudioGuide()
   const [country,    setCountry]    = useState<Country>(null)
   const [user,       setUser]       = useState<User | null>(null)
   const [peruUser,   setPeruUser]   = useState<PeruUser | null>(null)
@@ -93,6 +103,18 @@ export default function App() {
     return <PeruApp user={peruUser} onLogout={logout} />
   }
 
+  // ── Colombia home screen audio guide (hook must be before any return) ────
+  useEffect(() => {
+    if (!user || country !== 'CO') return
+    const guides: Record<string, string> = { home: 'home_co', banco: 'banco', teacher: 'admin' }
+    const key = `guide_played_co_${view}`
+    if (guides[view] && !sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      const t = setTimeout(() => play(guides[view]), 900)
+      return () => clearTimeout(t)
+    }
+  }, [view, user, country])
+
   // ── COLOMBIA branch ───────────────────────────────────────────────────────
   if (!user) return <LoginPage onLogin={(u, _t) => { setUser(u) }} />
 
@@ -153,6 +175,7 @@ export default function App() {
             <span style={{ fontSize:11,color:'#94a3b8' }}>{user.full_name?.split(' ')[0]}</span>
           </div>
           <button className="nav-btn" onClick={()=>setShowPayment(true)} style={{ border:"1px solid rgba(37,99,235,0.2)",background:"transparent",color:"#60a5fa" }}>💳 Planes</button>
+          <button className="nav-btn" onClick={() => setCountry(null)} style={{ border:'1px solid rgba(255,255,255,0.07)',background:'transparent',color:'#334155' }}>🌎</button>
           <button className="nav-btn" onClick={logout} style={{ border:'1px solid rgba(239,68,68,0.2)',background:'transparent',color:'#f87171' }}>Salir</button>
         </div>
       </nav>

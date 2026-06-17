@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import PeruExamEngine from './PeruExamEngine'
 import PeruPaymentPage from './PeruPaymentPage'
+import { useScreenGuide } from '../audio/AudioGuide'
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -28,6 +29,7 @@ const SECCIONES_INFO: Record<SeccionCombo, { label: string; desc: string; materi
 }
 
 export default function PeruApp({ user, onLogout }: Props) {
+  useScreenGuide('home_pe', 1200)
   const [view,        setView]        = useState<View>('home')
   const [examState,   setExamState]   = useState<ExamState | null>(null)
   const [loading,     setLoading]     = useState(false)

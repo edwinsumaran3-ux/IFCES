@@ -3,6 +3,7 @@
 //  Motor de simulacro — integra pregunta + contador + botón de ayuda IA
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react';
+import { useScreenGuide } from '../audio/AudioGuide';
 import AIHelpModal from '../ai-help/AIHelpModal';
 import QuestionInlineVisual, { getPureFormula } from './QuestionInlineVisual';
 import AvatarTutorIA from '../avatar/AvatarTutorIA';
@@ -56,6 +57,7 @@ function PureFormulaBox({ tex, color }: { tex: string; color: string }) {
 export default function ExamEngine({
   attemptId, studentId, studentGender, questions, durationSecs,
 }: Props) {
+  useScreenGuide('exam', 1200)
   const [currentIdx,      setCurrentIdx]     = useState(0);
   const [answers,         setAnswers]        = useState<Record<string, string>>({});
   const [lockedQuestions, setLocked]         = useState<Set<string>>(new Set());

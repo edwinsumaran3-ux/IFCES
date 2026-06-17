@@ -1,7 +1,8 @@
 // =============================================================================
 //  CountrySelector.tsx — Pantalla inicial: elige Colombia o Perú
 // =============================================================================
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useAudioGuide } from '../audio/AudioGuide'
 
 interface Props {
   onSelect: (country: 'CO' | 'PE') => void
@@ -9,6 +10,14 @@ interface Props {
 
 export default function CountrySelector({ onSelect }: Props) {
   const [hovered, setHovered] = useState<'CO' | 'PE' | null>(null)
+  const { playWelcome, play, enabled } = useAudioGuide()
+
+  useEffect(() => {
+    if (!enabled) return
+    const t1 = setTimeout(() => playWelcome(), 800)
+    const t2 = setTimeout(() => play('country'), 8000)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [])
 
   return (
     <div style={s.root}>

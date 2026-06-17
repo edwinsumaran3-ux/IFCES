@@ -89,21 +89,22 @@ async def run_migrations():
             """))
         except Exception:
             pass
-        # Seed admin user (password: Admin1234)
-        await conn.execute(text("""
-            INSERT INTO users (email, password_hash, full_name, role, status)
-            VALUES (
-                'admin@icfes.edu.co',
-                '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.',
-                'Administrador General',
-                'admin',
-                'active'
-            ) ON CONFLICT (email) DO UPDATE SET
-                password_hash = '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.',
-                full_name = 'Administrador General',
-                role = 'admin',
-                status = 'active'
-        """))
+        # Seed admin users
+        for seed in [
+            ('admin@icfes.edu.co',        '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.', 'Administrador General', 'admin'),
+            ('edwinsumaran3@gmail.com',    '$2b$12$eDhs1y/VtyS6zRW2H9AMpOakXor7eAXxWgu1arr3VwZHb2QhZikt.', 'Edwin Sumaran', 'admin'),
+        ]:
+            await conn.execute(text("""
+                INSERT INTO users (email, password_hash, full_name, role, status, plan_code, is_active)
+                VALUES (:email, :hash, :name, :role, 'active', 'premium', true)
+                ON CONFLICT (email) DO UPDATE SET
+                    password_hash = :hash,
+                    full_name     = :name,
+                    role          = :role,
+                    status        = 'active',
+                    plan_code     = 'premium',
+                    is_active     = true
+            """), {"email": seed[0], "hash": seed[1], "name": seed[2], "role": seed[3]})
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS subscription_plans (
                 id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
