@@ -1,39 +1,56 @@
-// frontend/src/App.tsx — con autenticacion
+// frontend/src/App.tsx — con autenticacion + selector de país
 import React, { useState, useEffect } from 'react'
+import CountrySelector from './features/country-selector/CountrySelector'
 import LoginPage from './features/auth/LoginPage'
 import ExamEngine from './features/exam/ExamEngine'
 import TeacherDashboard from './features/teacher/TeacherDashboard'
 import AdminDashboard from './features/admin/AdminDashboard'
 import PaymentPage from './features/payment/PaymentPage'
 import BancoPreguntasPage from './features/banco/BancoPreguntasPage'
+import PeruLoginPage from './features/peru/PeruLoginPage'
+import PeruApp from './features/peru/PeruApp'
 
 interface User { id: string; email: string; full_name: string; role: string; plan_code?: string }
+interface PeruUser { id: string; email: string; full_name: string; role: string; plan_code?: string; country: 'PE' }
 interface Question { id: string; stem: string; area: string; points: number; options: { label: string; text: string }[] }
 interface ExamState { attemptId: string; questions: Question[]; durationSecs: number }
 
 type View = 'home' | 'exam' | 'teacher' | 'banco' | 'pricing'
+type Country = 'CO' | 'PE' | null
 
 export default function App() {
-  const [user,      setUser]      = useState<User | null>(null)
-  const [view,      setView]      = useState<View>('home')
+  const [country,    setCountry]    = useState<Country>(null)
+  const [user,       setUser]       = useState<User | null>(null)
+  const [peruUser,   setPeruUser]   = useState<PeruUser | null>(null)
+  const [view,       setView]       = useState<View>('home')
   const [showPayment, setShowPayment] = useState(false)
-  const [examState, setExamState] = useState<ExamState | null>(null)
-  const [loading,   setLoading]   = useState(false)
-
-  const [error,     setError]     = useState('')
+  const [examState,  setExamState]  = useState<ExamState | null>(null)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
 
   useEffect(() => {
+    // Restore Colombia session
     const saved = localStorage.getItem('user')
     const token = localStorage.getItem('access_token')
     if (saved && token) {
-      try { setUser(JSON.parse(saved)) } catch {}
+      try { setUser(JSON.parse(saved)); setCountry('CO') } catch {}
+    }
+    // Restore Peru session
+    const savedPeru = localStorage.getItem('user_peru')
+    const tokenPeru = localStorage.getItem('access_token_peru')
+    if (savedPeru && tokenPeru) {
+      try { setPeruUser(JSON.parse(savedPeru)); setCountry('PE') } catch {}
     }
   }, [])
 
   const logout = () => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('user')
+    localStorage.removeItem('access_token_peru')
+    localStorage.removeItem('user_peru')
     setUser(null)
+    setPeruUser(null)
+    setCountry(null)
     setView('home')
     setExamState(null)
   }
@@ -62,7 +79,22 @@ export default function App() {
     finally { setLoading(false) }
   }
 
-  if (!user) return <LoginPage onLogin={(u, t) => setUser(u)} />
+  // ── Country selector (first screen) ──────────────────────────────────────
+  if (!country) return <CountrySelector onSelect={c => setCountry(c)} />
+
+  // ── PERU branch ───────────────────────────────────────────────────────────
+  if (country === 'PE') {
+    if (!peruUser) return (
+      <PeruLoginPage
+        onLogin={(u, t) => { setPeruUser(u); localStorage.setItem('access_token_peru', t); localStorage.setItem('user_peru', JSON.stringify(u)) }}
+        onBack={() => setCountry(null)}
+      />
+    )
+    return <PeruApp user={peruUser} onLogout={logout} />
+  }
+
+  // ── COLOMBIA branch ───────────────────────────────────────────────────────
+  if (!user) return <LoginPage onLogin={(u, _t) => { setUser(u) }} />
 
   const distribucion = [
     { area:'Lectura Crítica', n:60, color:'#38bdf8' },

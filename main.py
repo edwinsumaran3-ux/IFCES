@@ -11,6 +11,8 @@ from src.api.routes.ai_help          import router as ai_help_router
 from src.api.routes.teacher          import router as teacher_router
 from src.api.routes.oauth            import router as oauth_router
 from src.api.routes.banco_preguntas  import router as banco_router
+from src.api.routes.peru_auth        import router as peru_auth_router
+from src.api.routes.peru_exams       import router as peru_exams_router
 from src.infrastructure.database import engine
 from sqlalchemy import text
 
@@ -32,13 +34,15 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers={"Access-Control-Allow-Origin": "*"},
     )
 
-app.include_router(auth_router,    prefix="/api/v1")
-app.include_router(admin_router,   prefix="/api/v1")
-app.include_router(exams_router,   prefix="/api/v1")
-app.include_router(ai_help_router, prefix="/api/v1")
-app.include_router(teacher_router, prefix="/api/v1")
-app.include_router(oauth_router,   prefix="/api/v1")
-app.include_router(banco_router,   prefix="/api/v1")
+app.include_router(auth_router,       prefix="/api/v1")
+app.include_router(admin_router,      prefix="/api/v1")
+app.include_router(exams_router,      prefix="/api/v1")
+app.include_router(ai_help_router,    prefix="/api/v1")
+app.include_router(teacher_router,    prefix="/api/v1")
+app.include_router(oauth_router,      prefix="/api/v1")
+app.include_router(banco_router,      prefix="/api/v1")
+app.include_router(peru_auth_router,  prefix="/api/v1")
+app.include_router(peru_exams_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def run_migrations():
@@ -230,6 +234,51 @@ async def run_migrations():
                 viewed      BOOLEAN DEFAULT true,
                 created_at  TIMESTAMPTZ DEFAULT NOW(),
                 UNIQUE (student_id, question_id)
+            )
+        """))
+
+        # ── PERU tables ──────────────────────────────────────────────────────────
+        # Add country column to users (for multi-country support)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(5) DEFAULT 'CO'"
+            ))
+        except Exception:
+            pass
+
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS peru_preguntas (
+                id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                seccion     VARCHAR(5)  NOT NULL,      -- A | B | C | D
+                materia     VARCHAR(80) NOT NULL,
+                enunciado   TEXT        NOT NULL,
+                opcion_a    TEXT,
+                opcion_b    TEXT,
+                opcion_c    TEXT,
+                opcion_d    TEXT,
+                respuesta   VARCHAR(2)  NOT NULL,
+                explicacion TEXT,
+                dificultad  VARCHAR(20) DEFAULT 'MEDIA',
+                created_at  TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        try:
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_peru_preguntas_seccion ON peru_preguntas (seccion)"
+            ))
+        except Exception:
+            pass
+
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS peru_intentos (
+                id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id       TEXT        NOT NULL,
+                seccion          VARCHAR(10) NOT NULL,
+                status           VARCHAR(20) DEFAULT 'in_progress',
+                total_questions  INTEGER     DEFAULT 0,
+                score_pct        FLOAT       DEFAULT 0.0,
+                created_at       TIMESTAMPTZ DEFAULT NOW(),
+                finished_at      TIMESTAMPTZ
             )
         """))
 
