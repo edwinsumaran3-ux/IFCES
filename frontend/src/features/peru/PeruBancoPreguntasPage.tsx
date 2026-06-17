@@ -1038,6 +1038,17 @@ function FormulaBox({ tex, isLatex, label, vars, color }: { tex: string; isLatex
 
 // ── Formatea explicacion del PDF en segmentos visuales ───────────────────────
 type Seg = { type: 'header' | 'step' | 'result' | 'body'; text: string; num?: number }
+
+function isGarbledLine(s: string): boolean {
+  const t = s.trim()
+  if (t.length === 0) return true
+  const words = t.split(/\s+/)
+  const realWords = words.filter(w => /[a-záéíóúüñ]{3,}/i.test(w))
+  if (realWords.length === 0 && t.length < 50) return true
+  if (words.length <= 4 && realWords.length === 0 && /^[A-Z0-9\s+\-*/()[\]°%k]+$/i.test(t)) return true
+  return false
+}
+
 function formatExplicacion(raw: string): Seg[] {
   // 1. Limpiar caracteres basura del PDF
   const cleaned = raw
@@ -1058,6 +1069,7 @@ function formatExplicacion(raw: string): Seg[] {
     })
     .map(s => s.trim())
     .filter(s => s.length > 1)
+    .filter(s => !isGarbledLine(s))
 
   let stepCounter = 0
   return parts.map((text): Seg => {
@@ -1164,6 +1176,10 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
             ✓ Respuesta correcta — Opción {p.respuesta}:{' '}
             <span style={{ fontWeight: 400 }}>{p.opciones.find(o => o.label === p.respuesta)?.text}</span>
           </div>
+
+          {/* Diagrama visual en la resolución — mismo canvas que arriba */}
+          <QuestionInlineVisual question={qvp} color={materia.color} />
+          {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
           {p.explicacion ? (
             <div style={{ margin: '0 0 10px' }}>
