@@ -1,12 +1,14 @@
 // =============================================================================
 //  PeruExamEngine.tsx — Motor de examen TES-LA PRO (Perú)
-//  Avatar tutor + Ayuda IA + Voz acento peruano
+//  Mismo formato que Colombia: Ver Fórmula + IA socrática + Avatar + Audio
 // =============================================================================
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AIHelpModal from '../ai-help/AIHelpModal'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
-import { useScreenGuide } from '../audio/AudioGuide'
-import QuestionInlineVisual from '../exam/QuestionInlineVisual'
+import { useScreenGuide, useAudioGuide } from '../audio/AudioGuide'
+import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
+
+declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -27,25 +29,43 @@ const SECCION_RGB: Record<string, string> = {
   AB: '124,58,237', BC: '13,148,136', ABCD: '220,38,38',
 }
 
+// ── MathJax box ──────────────────────────────────────────────────────────────
+function PureFormulaBox({ tex, color }: { tex: string; color: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.innerHTML = `\\[${tex}\\]`
+    try { MathJax.typesetPromise([ref.current]).catch(() => {}) } catch {}
+  }, [tex])
+  return <div ref={ref} style={{ textAlign: 'center', fontSize: 16, color, padding: '8px 0' }} />
+}
+
 export default function PeruExamEngine({ attemptId, studentId, questions, durationSecs, seccion, onExit }: Props) {
   useScreenGuide('exam', 1400)
+  const { speaking, enabled, toggleEnabled, stop } = useAudioGuide()
 
   const [idx,            setIdx]            = useState(0)
   const [answers,        setAnswers]        = useState<Record<string, string>>({})
   const [locked,         setLocked]         = useState<Set<string>>(new Set())
   const [scores,         setScores]         = useState<Record<string, number>>({})
+  const [formulaPens,    setFormulaPens]    = useState<Record<string, number>>({})
+  const [formulaShown,   setFormulaShown]   = useState<Set<string>>(new Set())
+  const [showFConfirm,   setShowFConfirm]   = useState(false)
   const [timeLeft,       setTimeLeft]       = useState(durationSecs)
   const [finished,       setFinished]       = useState(false)
   const [showHelp,       setShowHelp]       = useState(false)
   const [remainingHelps, setRemainingHelps] = useState(3)
-  const [avatarText,     setAvatarText]     = useState('¡Bienvenido al examen de admisión! Soy tu tutor virtual peruano. Lee cada pregunta con calma y usa la Ayuda IA si necesitas orientación.')
+  const [avatarText,     setAvatarText]     = useState('¡Bienvenido al examen de admisión! Soy tu tutor peruano. Lee cada pregunta con calma y usa la Ayuda IA si necesitas orientación.')
   const [avatarState,    setAvatarState]    = useState<'idle'|'thinking'|'talking'>('talking')
   const intervalRef = useRef<ReturnType<typeof setInterval>>()
 
   const sColor = SECCION_COLOR[seccion] || '#dc2626'
   const sRgb   = SECCION_RGB[seccion]   || '220,38,38'
 
-  // ── Timer ──────────────────────────────────────────────────────────────────
+  // Reset fórmula al cambiar pregunta
+  useEffect(() => { setShowFConfirm(false) }, [idx])
+
+  // Timer
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setTimeLeft(t => {
@@ -59,11 +79,9 @@ export default function PeruExamEngine({ attemptId, studentId, questions, durati
   const submitExam = useCallback(async () => {
     clearInterval(intervalRef.current)
     setFinished(true)
-    setAvatarText('¡Muy bien! Completaste el examen. Revisa tu puntaje y sigue practicando.')
+    setAvatarText('¡Muy bien! Completaste el examen. Revisa tu puntaje y sigue practicando para alcanzar tu universidad.')
     setAvatarState('talking')
-    try {
-      await fetch(`${BACKEND}/api/v1/peru/exams/submit/${attemptId}`, { method: 'POST' })
-    } catch {}
+    try { await fetch(`${BACKEND}/api/v1/peru/exams/submit/${attemptId}`, { method: 'POST' }) } catch {}
   }, [attemptId])
 
   const selectAnswer = (qId: string, opt: string) => {
@@ -87,35 +105,36 @@ export default function PeruExamEngine({ attemptId, studentId, questions, durati
     setAvatarState('talking')
   }
 
-  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
-  const answered  = Object.keys(answers).length
-  const progress  = questions.length ? (answered / questions.length) * 100 : 0
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0)
-  const urgent    = timeLeft < 300
-  const q         = questions[idx]
+  const confirmRevealFormula = () => {
+    setFormulaShown(prev => new Set([...prev, q.id]))
+    setFormulaPens(prev => ({ ...prev, [q.id]: 0.20 }))
+    setShowFConfirm(false)
+  }
 
-  // ── Finished screen ────────────────────────────────────────────────────────
+  const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
+  const answered   = Object.keys(answers).length
+  const progress   = questions.length ? (answered / questions.length) * 100 : 0
+  const totalScore = Math.max(0, Object.values(scores).reduce((a,b) => a+b, 0) - Object.values(formulaPens).reduce((a,b) => a+b, 0))
+  const urgent     = timeLeft < 300
+  const q          = questions[idx]
+
+  // ── Fin de examen ──────────────────────────────────────────────────────────
   if (finished) {
-    const correct = questions.filter(x => answers[x.id] === x.options[0]?.label).length
-    const pct     = questions.length ? Math.round((correct / questions.length) * 100) : 0
+    const correct = questions.filter(x => answers[x.id] && x.options[0] && answers[x.id] === x.options.find(o => o.label === answers[x.id])?.label).length
+    const pct = questions.length ? Math.round((Object.values(scores).reduce((a,b)=>a+b,0) / questions.length) * 100) : 0
     return (
       <div style={{ background:'#040813', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Inter,system-ui,sans-serif', color:'#e2e8f0' }}>
         <div style={{ textAlign:'center', maxWidth:500, padding:32 }}>
           <div style={{ fontSize:64, marginBottom:16 }}>{pct >= 70 ? '🏆' : pct >= 50 ? '📊' : '📝'}</div>
           <h2 style={{ fontSize:28, fontWeight:800, color:'#f1f5f9', marginBottom:8 }}>Examen TES-LA PRO Finalizado</h2>
-          <div style={{ fontSize:52, fontWeight:900, color: pct >= 70 ? '#4ade80' : '#fbbf24', margin:'16px 0' }}>{pct}%</div>
+          <div style={{ fontSize:52, fontWeight:900, color: pct >= 70 ? '#4ade80' : '#fbbf24', margin:'16px 0' }}>{totalScore.toFixed(1)} pts</div>
           <p style={{ color:'#475569', fontSize:14, marginBottom:8 }}>Respondiste {answered} de {questions.length} preguntas · Sección {seccion}</p>
-          <p style={{ color:'#64748b', fontSize:12, marginBottom:28 }}>Puntaje ponderado: {totalScore.toFixed(1)} pts</p>
-
           <div style={{ margin:'0 auto 28px', maxWidth:320 }}>
             <AvatarTutorIA text={avatarText} gender="male" autoPlay label="Tutor TES-LA PRO" />
           </div>
-
-          <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
-            <button onClick={onExit} style={{ padding:'11px 28px', background:sColor, border:'none', borderRadius:10, color:'#fff', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-              Volver al inicio
-            </button>
-          </div>
+          <button onClick={onExit} style={{ padding:'11px 28px', background:sColor, border:'none', borderRadius:10, color:'#fff', fontWeight:700, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
+            Volver al inicio
+          </button>
         </div>
       </div>
     )
@@ -129,197 +148,239 @@ export default function PeruExamEngine({ attemptId, studentId, questions, durati
     </div>
   )
 
-  const isLocked = locked.has(q.id)
+  const isLocked      = locked.has(q.id)
+  const isFormShown   = formulaShown.has(q.id)
+  const pureFormula   = getPureFormula(q.area, q.stem)
 
   return (
-    <div style={{ background:'#040813', minHeight:'100vh', fontFamily:'Inter,system-ui,sans-serif', color:'#e2e8f0' }}>
+    <div style={{ background:'#0d1117', minHeight:'100vh', fontFamily:"'Segoe UI',system-ui,sans-serif", color:'#e2e8f0', display:'flex', flexDirection:'column' }}>
       <style>{`
-        @media (max-width:900px) {
+        @media (max-width:980px) {
           .pe-body { flex-direction: column !important; }
-          .pe-avatar-col { width:100% !important; position:static !important; height:280px !important; }
+          .pe-avatar-col { position: static !important; width: 100% !important; height: 380px !important; }
         }
+        @keyframes urgentPulse { 0%,100%{opacity:1}50%{opacity:.6} }
       `}</style>
 
-      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <header style={{ background:'rgba(4,8,19,0.97)', borderBottom:'1px solid rgba(255,255,255,0.06)', padding:'0 16px', height:52, display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:100 }}>
+      {/* ── HEADER ────────────────────────────────────────────────────────────── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 24px', background:'#161b22', borderBottom:'1px solid #21262d', gap:16, flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ fontSize:20 }}>🇵🇪</span>
+          <span style={{ fontSize:22 }}>🇵🇪</span>
           <div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#f1f5f9' }}>TES-LA PRO · Sección {seccion}</div>
-            <div style={{ fontSize:10, color:'#475569' }}>Examen de Admisión Universitario</div>
+            <div style={{ fontSize:13, fontWeight:800, color:'#fca5a5', letterSpacing:-0.3 }}>TES-LA PRO</div>
+            <div style={{ fontSize:10, color:'#374151' }}>Sección {seccion} · Examen Admisión UNT</div>
           </div>
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          {/* Stats */}
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           {[
-            { icon:'✅', val:`${answered}/${questions.length}`, label:'Respondidas', color:'#4ade80' },
-            { icon:'🤖', val:`${remainingHelps}/3`,             label:'Ayudas IA',   color:'#a78bfa' },
+            { icon:'✅', val:`${answered}/${questions.length}`, label:'Resp.', color:'#3fb950' },
+            { icon:'🏆', val:`${totalScore.toFixed(1)} pts`, label:'Puntaje', color:'#fbbf24' },
+            { icon:'🤖', val:`${remainingHelps}/3`, label:'Ayuda IA', color:'#a78bfa' },
           ].map(s => (
-            <div key={s.label} style={{ textAlign:'center', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8, padding:'4px 10px' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:s.color }}>{s.icon} {s.val}</div>
-              <div style={{ fontSize:9, color:'#334155' }}>{s.label}</div>
+            <div key={s.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:10, padding:'6px 12px', minWidth:64 }}>
+              <span style={{ fontSize:14, lineHeight:1 }}>{s.icon}</span>
+              <span style={{ fontSize:12, fontWeight:700, color:s.color, marginTop:2 }}>{s.val}</span>
+              <span style={{ fontSize:9, color:'#475569', marginTop:1, textTransform:'uppercase' as const, letterSpacing:'.05em' }}>{s.label}</span>
             </div>
           ))}
 
           {/* Timer */}
-          <div style={{ background:`rgba(${urgent?'239,68,68':'255,255,255'},0.04)`, border:`1px solid rgba(${urgent?'239,68,68':'255,255,255'},${urgent?'0.3':'0.08'})`, borderRadius:8, padding:'4px 12px', fontWeight:700, fontSize:15, color: urgent ? '#f87171' : '#e2e8f0', fontVariantNumeric:'tabular-nums' }}>
-            ⏱ {fmt(timeLeft)}
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', background: urgent ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border:`1px solid ${urgent ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.07)'}`, borderRadius:10, padding:'6px 14px', animation: urgent ? 'urgentPulse 1s infinite' : 'none' }}>
+            <span style={{ fontSize:14, lineHeight:1 }}>⏱</span>
+            <span style={{ fontSize:13, fontWeight:700, color: urgent ? '#f87171' : '#94a3b8', marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmt(timeLeft)}</span>
+            <span style={{ fontSize:9, color:'#475569', marginTop:1, textTransform:'uppercase' as const, letterSpacing:'.05em' }}>Tiempo</span>
           </div>
 
+          {/* Audio toggle */}
           <button
-            onClick={() => { if (window.confirm('¿Finalizar el examen ahora?')) { clearInterval(intervalRef.current); submitExam() } }}
-            style={{ padding:'5px 14px', background:'rgba(22,163,74,0.1)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:20, color:'#4ade80', fontSize:11, cursor:'pointer', fontFamily:'inherit', fontWeight:600 }}
+            onClick={() => { if (speaking) stop(); else toggleEnabled() }}
+            title={speaking ? 'Detener audio' : enabled ? 'Audio activo' : 'Audio desactivado'}
+            style={{ width:40, height:40, borderRadius:'50%', background: speaking ? 'rgba(239,68,68,0.2)' : enabled ? `rgba(${sRgb},0.15)` : 'rgba(255,255,255,0.04)', border:`1px solid ${speaking ? 'rgba(239,68,68,0.4)' : enabled ? `rgba(${sRgb},0.4)` : 'rgba(255,255,255,0.08)'}`, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}
           >
+            {speaking ? '⏹' : enabled ? '🔊' : '🔇'}
+          </button>
+
+          <button onClick={() => { if (window.confirm('¿Finalizar el examen ahora?')) submitExam() }}
+            style={{ padding:'7px 16px', background:'rgba(22,163,74,0.1)', border:'1px solid rgba(22,163,74,0.3)', borderRadius:20, color:'#4ade80', fontSize:11, cursor:'pointer', fontFamily:'inherit', fontWeight:600 }}>
             ✓ Finalizar
           </button>
-          <button
-            onClick={() => { if (window.confirm('¿Salir del examen?')) { clearInterval(intervalRef.current); onExit() } }}
-            style={{ padding:'5px 14px', background:'transparent', border:'1px solid rgba(239,68,68,0.2)', borderRadius:20, color:'#f87171', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}
-          >
+          <button onClick={() => { if (window.confirm('¿Salir del examen?')) { clearInterval(intervalRef.current); onExit() } }}
+            style={{ padding:'7px 16px', background:'transparent', border:'1px solid rgba(239,68,68,0.2)', borderRadius:20, color:'#f87171', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>
             Salir
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Progress bar */}
-      <div style={{ height:3, background:'rgba(255,255,255,0.04)' }}>
+      <div style={{ height:3, background:'#21262d' }}>
         <div style={{ width:`${progress}%`, height:'100%', background:sColor, transition:'width 0.4s' }} />
       </div>
 
-      {/* ── BODY ────────────────────────────────────────────────────────────── */}
-      <div style={{ display:'flex', gap:0, minHeight:'calc(100vh - 55px)' }} className="pe-body">
+      {/* ── BODY ──────────────────────────────────────────────────────────────── */}
+      <div style={{ flex:1, maxWidth:1240, margin:'0 auto', width:'100%', padding:'24px 20px 80px', display:'flex', gap:20, alignItems:'flex-start' }} className="pe-body">
 
-        {/* Sidebar */}
-        <aside style={{ width:200, flexShrink:0, background:'rgba(8,12,24,0.95)', borderRight:'1px solid rgba(255,255,255,0.05)', padding:'14px 10px', overflowY:'auto' }}>
-          <div style={{ fontSize:9, fontWeight:600, color:'#334155', letterSpacing:1, marginBottom:10 }}>PREGUNTAS — SEC. {seccion}</div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:3 }}>
-            {questions.map((question, i) => {
-              const done    = !!answers[question.id]
-              const current = i === idx
-              const lkd     = locked.has(question.id)
-              return (
-                <button key={question.id} onClick={() => setIdx(i)} style={{
-                  height:26, borderRadius:6, fontSize:9, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-                  border:`1px solid ${current ? sColor : done ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                  background: current ? `rgba(${sRgb},0.2)` : done ? 'rgba(34,197,94,0.08)' : 'transparent',
-                  color: current ? '#f1f5f9' : done ? '#4ade80' : '#334155',
-                }}>
-                  {lkd ? '🔒' : i + 1}
-                </button>
-              )
-            })}
-          </div>
+        {/* ── COLUMNA PRINCIPAL ──────────────────────────────────────────────── */}
+        <div style={{ flex:'1 1 0%', minWidth:0, maxWidth:780, display:'flex', flexDirection:'column', gap:16 }}>
 
-          <div style={{ marginTop:16, padding:'10px', background:'rgba(255,255,255,0.03)', borderRadius:8, border:'1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize:9, color:'#334155', marginBottom:4 }}>MATERIA</div>
-            <div style={{ fontSize:11, fontWeight:600, color:'#94a3b8' }}>{q.area}</div>
-            <div style={{ fontSize:9, color:sColor, marginTop:2 }}>Sección {q.seccion}</div>
-          </div>
+          {/* Tarjeta de pregunta */}
+          <div style={{ background:'#161b22', border:`1px solid rgba(${sRgb},0.35)`, borderRadius:14, padding:'22px 24px', display:'flex', flexDirection:'column', gap:18 }}>
 
-          <div style={{ marginTop:10, padding:'8px 10px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ fontSize:9, color:'#334155', marginBottom:4 }}>PROGRESO</div>
-            <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2 }}>
-              <div style={{ width:`${progress}%`, height:'100%', background:sColor, borderRadius:2 }} />
+            {/* Cabecera */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+              <span style={{ fontSize:11, fontWeight:700, padding:'4px 12px', borderRadius:20, textTransform:'uppercase' as const, letterSpacing:'.06em', color:sColor, background:`rgba(${sRgb},0.1)`, border:`1px solid rgba(${sRgb},0.3)` }}>
+                {q.area}
+              </span>
+              <span style={{ fontSize:12, color:'#8b949e', background:'#21262d', border:'1px solid #30363d', padding:'4px 12px', borderRadius:20, marginLeft:'auto', fontVariantNumeric:'tabular-nums' }}>
+                Pregunta {idx+1} / {questions.length}
+              </span>
+              {isLocked && <span style={{ fontSize:11, color:'#f85149', background:'rgba(248,81,73,0.1)', border:'1px solid rgba(248,81,73,0.3)', padding:'4px 12px', borderRadius:20 }}>🔒 Bloqueada</span>}
             </div>
-            <div style={{ fontSize:9, color:'#475569', marginTop:4 }}>{answered} de {questions.length}</div>
-          </div>
-        </aside>
 
-        {/* Main question area */}
-        <main style={{ flex:1, padding:'24px 28px', maxWidth:720, overflowY:'auto' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:18 }}>
-            <span style={{ fontSize:11, color:'#475569' }}>Pregunta {idx+1} de {questions.length}</span>
-            <span style={{ fontSize:10, color:sColor, background:`rgba(${sRgb},0.1)`, border:`1px solid rgba(${sRgb},0.25)`, borderRadius:20, padding:'2px 8px' }}>
-              {q.area}
-            </span>
-            {isLocked && <span style={{ fontSize:10, color:'#fbbf24', background:'rgba(251,191,36,0.1)', border:'1px solid rgba(251,191,36,0.25)', borderRadius:20, padding:'2px 8px' }}>🔒 Respondida con IA</span>}
-          </div>
+            {/* Enunciado */}
+            <p style={{ fontSize:16, color:'#e6edf3', lineHeight:1.8, margin:0 }}>{q.stem}</p>
 
-          <div style={{ fontSize:15, lineHeight:1.8, color:'#e2e8f0', marginBottom:16, fontWeight:400 }}>
-            {q.stem}
-          </div>
+            {/* Visual inline (diagrama/chips) */}
+            <QuestionInlineVisual
+              question={{ id:q.id, stem:q.stem, area:q.area, options:q.options, points:q.points }}
+              color={sColor}
+            />
 
-          <QuestionInlineVisual
-            question={{ id: q.id, stem: q.stem, area: q.area, options: q.options, points: q.points }}
-            color={sColor}
-          />
+            {/* Opciones */}
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {q.options.map(opt => {
+                const sel = answers[q.id] === opt.label
+                return (
+                  <button key={opt.label} onClick={() => selectAnswer(q.id, opt.label)} disabled={isLocked} style={{
+                    display:'flex', alignItems:'center', gap:14, padding:'14px 16px',
+                    borderRadius:10, border:`1px solid ${sel ? sColor : 'rgba(255,255,255,0.08)'}`,
+                    background: sel ? `rgba(${sRgb},0.1)` : 'rgba(255,255,255,0.02)',
+                    opacity: isLocked ? 0.45 : 1, cursor: isLocked ? 'not-allowed' : 'pointer',
+                    width:'100%', textAlign:'left' as const, transition:'all .15s',
+                    boxShadow: sel ? `0 0 0 1px rgba(${sRgb},0.35)` : 'none',
+                  }}>
+                    <span style={{ width:32, height:32, borderRadius:8, border:`1px solid ${sel ? sColor : 'rgba(255,255,255,0.1)'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color: sel ? '#fff' : '#64748b', background: sel ? sColor : 'rgba(255,255,255,0.05)', flexShrink:0, transition:'all .15s' }}>
+                      {opt.label}
+                    </span>
+                    <span style={{ fontSize:14, color: sel ? '#f1f5f9' : '#c9d1d9', lineHeight:1.6 }}>{opt.text}</span>
+                  </button>
+                )
+              })}
+            </div>
 
-          <div style={{ display:'flex', flexDirection:'column', gap:9, marginTop:16 }}>
-            {q.options.map(opt => {
-              const selected = answers[q.id] === opt.label
-              return (
-                <button key={opt.label} onClick={() => selectAnswer(q.id, opt.label)} style={{
-                  display:'flex', alignItems:'flex-start', gap:12,
-                  padding:'13px 15px', textAlign:'left',
-                  background: selected ? `rgba(${sRgb},0.1)` : 'rgba(12,18,38,0.8)',
-                  border:`1px solid ${selected ? sColor : 'rgba(255,255,255,0.07)'}`,
-                  borderRadius:10, cursor: isLocked ? 'not-allowed' : 'pointer',
-                  fontFamily:'inherit', transition:'all 0.15s', opacity: isLocked ? 0.7 : 1,
-                }}>
-                  <span style={{ width:24, height:24, borderRadius:'50%', background: selected ? sColor : 'rgba(255,255,255,0.06)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color: selected ? '#fff' : '#475569', flexShrink:0 }}>
-                    {opt.label}
+            {/* ── VER FÓRMULA ──────────────────────────────────────────────────── */}
+            {pureFormula && !isFormShown && !showFConfirm && (
+              <button onClick={() => setShowFConfirm(true)} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 18px', background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.28)', borderRadius:10, cursor:'pointer', width:'100%', fontFamily:'inherit', gap:12 }}>
+                <span style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <span style={{ fontSize:17 }}>📐</span>
+                  <span>
+                    <span style={{ display:'block', fontSize:13, fontWeight:600, color:'#fbbf24' }}>¿Deseas ver la fórmula?</span>
+                    <span style={{ display:'block', fontSize:10, color:'#6e7681', marginTop:2 }}>Fórmula sin datos · Solo estructura matemática</span>
                   </span>
-                  <span style={{ fontSize:13, color: selected ? '#f1f5f9' : '#94a3b8', lineHeight:1.6 }}>{opt.text}</span>
-                </button>
-              )
-            })}
+                </span>
+                <span style={{ fontSize:11, fontWeight:700, color:'#f87171', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.3)', padding:'3px 10px', borderRadius:20, whiteSpace:'nowrap' as const }}>−0.20 pts</span>
+              </button>
+            )}
+
+            {/* Confirmación */}
+            {showFConfirm && (
+              <div style={{ background:'rgba(210,153,34,0.07)', border:'1px solid rgba(210,153,34,0.3)', borderRadius:10, padding:'16px 18px', display:'flex', flexDirection:'column', gap:12 }}>
+                <p style={{ fontSize:13, color:'#fcd34d', margin:0, lineHeight:1.6, fontFamily:'inherit' }}>
+                  ⚠ Ver la fórmula descontará <strong style={{ color:'#f87171' }}>−0.20 puntos</strong>. ¿Confirmas?
+                </p>
+                <div style={{ display:'flex', gap:10 }}>
+                  <button onClick={() => setShowFConfirm(false)} style={{ padding:'8px 20px', borderRadius:8, border:'1px solid #30363d', background:'transparent', color:'#8b949e', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>No, cancelar</button>
+                  <button onClick={confirmRevealFormula} style={{ padding:'8px 20px', borderRadius:8, border:'1px solid rgba(251,191,36,0.4)', background:'rgba(251,191,36,0.12)', color:'#fbbf24', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Sí, ver fórmula</button>
+                </div>
+              </div>
+            )}
+
+            {/* Fórmula revelada */}
+            {isFormShown && pureFormula && (
+              <div style={{ background:'rgba(251,191,36,0.05)', border:'1px solid rgba(251,191,36,0.28)', borderRadius:10, padding:'14px 18px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#fbbf24', letterSpacing:'.1em', textTransform:'uppercase' as const }}>📐 {pureFormula.label}</span>
+                  <span style={{ fontSize:10, fontWeight:600, color:'#f87171', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.3)', padding:'2px 8px', borderRadius:20 }}>−0.20 pts</span>
+                </div>
+                {pureFormula.isLatex
+                  ? <PureFormulaBox tex={pureFormula.tex} color="#fbbf24" />
+                  : <p style={{ fontSize:13, color:'#fcd34d', margin:0, lineHeight:1.7, fontStyle:'italic' }}>{pureFormula.tex}</p>
+                }
+                {pureFormula.vars && (
+                  <p style={{ fontSize:11, color:'#8b949e', margin:'8px 0 0', lineHeight:1.8, borderTop:'1px solid rgba(251,191,36,0.15)', paddingTop:8, fontFamily:'inherit' }}>{pureFormula.vars}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── BOTÓN IA SOCRÁTICA ────────────────────────────────────────────── */}
+            {!isLocked && (
+              <button
+                onClick={() => {
+                  if (remainingHelps > 0) {
+                    setShowHelp(true)
+                    setAvatarText('Analizando la pregunta con IA socrática...')
+                    setAvatarState('thinking')
+                  }
+                }}
+                style={{
+                  display:'flex', alignItems:'center', justifyContent:'space-between',
+                  padding:'14px 18px', background:'rgba(124,58,237,0.12)', border:'1px solid rgba(124,58,237,0.35)',
+                  borderRadius:10, cursor: remainingHelps > 0 ? 'pointer' : 'not-allowed',
+                  opacity: remainingHelps > 0 ? 1 : 0.35, width:'100%', fontFamily:'inherit', gap:12,
+                }}
+              >
+                <span style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <span style={{ fontSize:18 }}>🧠</span>
+                  <span>
+                    <span style={{ display:'block', fontSize:14, fontWeight:600, color:'#c4b5fd' }}>Activar ayuda socrática IA</span>
+                    <span style={{ display:'block', fontSize:11, color:'#6e7681', marginTop:2 }}>Pizarra · Audio acento peruano · Tutoría paso a paso</span>
+                  </span>
+                </span>
+                <span style={{ fontSize:12, color:'#a78bfa', background:'rgba(124,58,237,0.2)', border:'1px solid rgba(124,58,237,0.4)', padding:'4px 12px', borderRadius:20, whiteSpace:'nowrap' as const, fontWeight:600 }}>
+                  {remainingHelps > 0 ? `${remainingHelps} restantes` : 'Sin ayudas'}
+                </span>
+              </button>
+            )}
           </div>
 
-          {/* Ayuda IA */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:22 }}>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setIdx(i => Math.max(0, i-1))} disabled={idx===0}
-                style={{ padding:'8px 18px', background:'transparent', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, color:'#475569', cursor: idx===0 ? 'not-allowed' : 'pointer', fontFamily:'inherit', fontSize:12 }}>
-                ← Anterior
-              </button>
-              {idx < questions.length - 1 ? (
-                <button onClick={() => setIdx(i => i+1)}
-                  style={{ padding:'8px 18px', background:sColor, border:'none', borderRadius:8, color:'#fff', fontWeight:600, cursor:'pointer', fontFamily:'inherit', fontSize:12 }}>
-                  Siguiente →
-                </button>
-              ) : (
-                <button onClick={submitExam}
-                  style={{ padding:'8px 18px', background:'#16a34a', border:'none', borderRadius:8, color:'#fff', fontWeight:700, cursor:'pointer', fontFamily:'inherit', fontSize:12 }}>
-                  ✓ Finalizar examen
-                </button>
-              )}
+          {/* ── NAVEGACIÓN ───────────────────────────────────────────────────── */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+            <button onClick={() => setIdx(i => Math.max(0, i-1))} disabled={idx===0}
+              style={{ padding:'10px 18px', borderRadius:8, border:'1px solid #30363d', background:'transparent', color:'#8b949e', fontSize:13, cursor: idx===0 ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+              ← Anterior
+            </button>
+
+            <div style={{ display:'flex', gap:5, flexWrap:'wrap', justifyContent:'center', flex:1, maxHeight:60, overflow:'hidden' }}>
+              {questions.map((qq, i) => (
+                <button key={i} onClick={() => setIdx(i)} title={`Pregunta ${i+1}`} style={{
+                  width:11, height:11, borderRadius:'50%', border:'none', cursor:'pointer', padding:0, transition:'all .15s',
+                  background: i===idx ? sColor : answers[qq.id] ? '#3fb950' : locked.has(qq.id) ? '#f59e0b' : 'rgba(255,255,255,0.07)',
+                  transform: i===idx ? 'scale(1.35)' : 'scale(1)',
+                  boxShadow: i===idx ? `0 0 6px rgba(${sRgb},0.8)` : 'none',
+                }} />
+              ))}
             </div>
 
-            <button
-              onClick={() => { if (remainingHelps > 0 && !isLocked) { setShowHelp(true); setAvatarText('Analizando la pregunta...'); setAvatarState('thinking') } }}
-              disabled={remainingHelps === 0 || isLocked}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', background: remainingHelps>0&&!isLocked ? 'rgba(124,58,237,0.12)' : 'rgba(255,255,255,0.03)', border:`1px solid ${remainingHelps>0&&!isLocked ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius:8, color: remainingHelps>0&&!isLocked ? '#a78bfa' : '#334155', cursor: remainingHelps>0&&!isLocked ? 'pointer' : 'not-allowed', fontFamily:'inherit', fontSize:12, fontWeight:600 }}
-            >
-              🤖 Ayuda IA · {remainingHelps}/3
+            <button onClick={() => idx < questions.length-1 ? setIdx(i => i+1) : submitExam()}
+              style={{ padding:'10px 18px', borderRadius:8, border:`1px solid rgba(${sRgb},0.5)`, background:`rgba(${sRgb},0.15)`, color:sColor, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+              {idx < questions.length-1 ? 'Siguiente →' : '✓ Finalizar'}
             </button>
           </div>
-        </main>
+        </div>
 
-        {/* Avatar column */}
-        <aside style={{ width:260, flexShrink:0, background:'rgba(4,8,19,0.95)', borderLeft:'1px solid rgba(255,255,255,0.05)', padding:14, display:'flex', flexDirection:'column', gap:12, position:'sticky', top:52, height:'calc(100vh - 52px)', overflowY:'auto' }} className="pe-avatar-col">
+        {/* ── COLUMNA AVATAR ─────────────────────────────────────────────────── */}
+        <div style={{ flex:'0 0 340px', position:'sticky' as const, top:24, height:'calc(100vh - 140px)', minHeight:460 }} className="pe-avatar-col">
           <AvatarTutorIA
             text={avatarText}
             gender="male"
             autoPlay
-            label="Tutor TES-LA PRO"
+            label="Tutor TES-LA PRO · Perú"
             externalState={avatarState}
           />
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.05)', borderRadius:10, padding:10 }}>
-            <div style={{ fontSize:9, color:'#334155', marginBottom:6, fontWeight:600, letterSpacing:1 }}>TUTOR IA PERUANO</div>
-            <div style={{ fontSize:11, color:'#64748b', lineHeight:1.6 }}>
-              Presiona <strong style={{color:'#a78bfa'}}>Ayuda IA</strong> para que tu tutor te explique el tema paso a paso sin darte la respuesta.
-            </div>
-          </div>
-          <div style={{ background:'rgba(220,38,38,0.06)', border:'1px solid rgba(220,38,38,0.15)', borderRadius:10, padding:10 }}>
-            <div style={{ fontSize:9, color:'#dc2626', marginBottom:4, fontWeight:600 }}>🇵🇪 TES-LA PRO</div>
-            <div style={{ fontSize:10, color:'#475569' }}>Examen de Admisión · Sección {seccion}</div>
-            <div style={{ fontSize:10, color:'#334155', marginTop:4 }}>{answered} respondidas · {questions.length - answered} pendientes</div>
-          </div>
-        </aside>
+        </div>
       </div>
 
-      {/* AI Help Modal */}
+      {/* ── MODAL IA ──────────────────────────────────────────────────────────── */}
       {showHelp && (
         <AIHelpModal
           attemptId={attemptId}

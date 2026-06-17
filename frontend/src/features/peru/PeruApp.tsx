@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react'
 import PeruExamEngine from './PeruExamEngine'
 import PeruPaymentPage from './PeruPaymentPage'
-import { useScreenGuide } from '../audio/AudioGuide'
+import AvatarTutorIA from '../avatar/AvatarTutorIA'
+import { useScreenGuide, useAudioGuide } from '../audio/AudioGuide'
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -30,6 +31,7 @@ const SECCIONES_INFO: Record<SeccionCombo, { label: string; desc: string; materi
 
 export default function PeruApp({ user, onLogout }: Props) {
   useScreenGuide('home_pe', 1200)
+  const { speaking, enabled, toggleEnabled, stop } = useAudioGuide()
   const [view,        setView]        = useState<View>('home')
   const [examState,   setExamState]   = useState<ExamState | null>(null)
   const [loading,     setLoading]     = useState(false)
@@ -70,7 +72,7 @@ export default function PeruApp({ user, onLogout }: Props) {
   if (view === 'selector') {
     return (
       <div style={r.root}>
-        <NavBar user={user} onLogout={onLogout} onBack={() => setView('home')} />
+        <NavBar user={user} onLogout={onLogout} onBack={() => setView('home')} speaking={speaking} enabled={enabled} onAudio={() => speaking ? stop() : toggleEnabled()} />
         <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px' }}>
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
             <h2 style={{ fontSize: 26, fontWeight: 800, color: '#f1f5f9', marginBottom: 8 }}>
@@ -143,64 +145,82 @@ export default function PeruApp({ user, onLogout }: Props) {
 
   // ── HOME ─────────────────────────────────────────────────────────────────
   const seccionesStats = [
-    { sec: 'A', label: 'Letras', color: '#2563eb', materias: 7 },
-    { sec: 'B', label: 'Ciencias', color: '#16a34a', materias: 4 },
-    { sec: 'C', label: 'General', color: '#ca8a04', materias: 6 },
-    { sec: 'D', label: 'Específica', color: '#dc2626', materias: 5 },
+    { sec: 'A', label: 'Letras / Sociales',  color: '#2563eb', preguntas: 503 },
+    { sec: 'B', label: 'Ciencias / Matemát.', color: '#16a34a', preguntas: 273 },
+    { sec: 'C', label: 'Ciencias de Salud',  color: '#ca8a04', preguntas: 0 },
+    { sec: 'D', label: 'Agropecuaria',       color: '#dc2626', preguntas: 0 },
   ]
 
   return (
     <div style={r.root}>
-      <NavBar user={user} onLogout={onLogout} />
+      <NavBar user={user} onLogout={onLogout} speaking={speaking} enabled={enabled} onAudio={() => speaking ? stop() : toggleEnabled()} />
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '44px 20px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 20px', display: 'flex', gap: 28, alignItems: 'flex-start' }}>
 
-        {/* Bienvenida */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 20, padding: '4px 14px', fontSize: 11, color: '#fca5a5', marginBottom: 16 }}>
-            🇵🇪 Examen de Admisión · Perú · TES-LA PRO
+        {/* ── COLUMNA IZQUIERDA ────────────────────────────────────────── */}
+        <div style={{ flex: 1 }}>
+          {/* Bienvenida */}
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 20, padding: '4px 14px', fontSize: 11, color: '#fca5a5', marginBottom: 16 }}>
+              🇵🇪 Examen de Admisión · Perú · TES-LA PRO
+            </div>
+            <h1 style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', marginBottom: 10, letterSpacing: -0.5 }}>
+              ¡Hola, {user.full_name?.split(' ')[0]}! 👋
+            </h1>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.75, maxWidth: 500, marginBottom: 24 }}>
+              Prepárate para el examen de admisión UNT con IA socrática, pizarra digital, audio tutor peruano y diagrama de fórmulas.
+            </p>
+            <button onClick={() => setView('selector')} disabled={loading} style={r.bigBtn}>
+              🚀 Elegir Sección y Empezar Examen
+            </button>
+            {error && <div style={{ ...r.errorBox, marginTop: 12 }}>⚠ {error}</div>}
           </div>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', marginBottom: 10, letterSpacing: -0.5 }}>
-            ¡Hola, {user.full_name?.split(' ')[0]}! 👋
-          </h1>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.75, maxWidth: 500, margin: '0 auto 28px' }}>
-            Prepárate para el examen de admisión con IA y neurociencia.<br />
-            Selecciona tu sección y empieza a practicar.
-          </p>
-          <button onClick={() => setView('selector')} disabled={loading} style={r.bigBtn}>
-            🚀 Elegir Sección y Empezar Examen
-          </button>
-          {error && <div style={{ ...r.errorBox, display: 'inline-block', marginTop: 12 }}>⚠ {error}</div>}
-        </div>
 
-        {/* Distribución por secciones */}
-        <div style={r.statsCard}>
-          <div style={r.statsTitle}>BANCO DE PREGUNTAS POR SECCIÓN</div>
-          {seccionesStats.map(s => (
-            <div key={s.sec} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              <div style={{ ...r.secBadge, background: s.color, width: 28, height: 28, borderRadius: 8, fontSize: 11 }}>{s.sec}</div>
-              <div style={{ fontSize: 11, color: '#64748b', width: 110 }}>Sección {s.sec} · {s.label}</div>
-              <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.04)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${(s.materias / 8) * 100}%`, height: '100%', background: s.color, borderRadius: 3, opacity: 0.8 }} />
+          {/* Distribución por secciones */}
+          <div style={r.statsCard}>
+            <div style={r.statsTitle}>DISTRIBUCIÓN DEL EXAMEN — UNT</div>
+            {seccionesStats.map(s => (
+              <div key={s.sec} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <div style={{ ...r.secBadge, background: s.color, width: 28, height: 28, borderRadius: 8, fontSize: 11 }}>{s.sec}</div>
+                <div style={{ fontSize: 11, color: '#64748b', width: 140 }}>Sección {s.sec} · {s.label}</div>
+                <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.04)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${(s.preguntas / 503) * 100}%`, height: '100%', background: s.color, borderRadius: 3, opacity: 0.8 }} />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: s.color, width: 72, textAlign: 'right' as const }}>{s.preguntas > 0 ? `${s.preguntas} pregs.` : 'En carga'}</div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: s.color, width: 60, textAlign: 'right' }}>{s.materias} materias</div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Features */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12, background: 'rgba(12,18,38,0.8)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 16 }}>
+            {[
+              { label: 'Motor IA', val: 'Claude Sonnet', color: '#a78bfa' },
+              { label: 'Audio tutor', val: 'Acento peruano', color: '#34d399' },
+              { label: 'Fórmulas', val: 'Diagramas + LaTeX', color: '#fbbf24' },
+              { label: 'Pagos', val: 'Yape · Plin', color: '#fca5a5' },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#334155', marginBottom: 4, letterSpacing: 0.5 }}>{s.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: s.color }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Features */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12, background: 'rgba(12,18,38,0.8)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 16 }}>
-          {[
-            { label: 'Motor IA', val: 'Claude Sonnet', color: '#a78bfa' },
-            { label: 'Voz', val: 'Peruana · Masculina', color: '#34d399' },
-            { label: 'Secciones', val: 'A · B · C · D', color: '#fca5a5' },
-            { label: 'Pagos', val: 'Yape · Plin', color: '#fbbf24' },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: '#334155', marginBottom: 4, letterSpacing: 0.5 }}>{s.label}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: s.color }}>{s.val}</div>
+        {/* ── COLUMNA DERECHA: AVATAR ──────────────────────────────────── */}
+        <div style={{ flex: '0 0 320px', position: 'sticky' as const, top: 24 }}>
+          <AvatarTutorIA
+            text={`¡Bienvenido ${user.full_name?.split(' ')[0]}! Soy tu tutor virtual peruano. Cuando inicies el examen, estaré contigo en cada pregunta explicándote los conceptos paso a paso con inteligencia artificial. ¡Prepárate para ingresar a tu universidad!`}
+            gender="male"
+            autoPlay
+            label="Tutor TES-LA PRO · IA Perú"
+          />
+          <div style={{ marginTop: 12, background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 12, padding: '12px 16px' }}>
+            <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>🎙 AUDIO GUÍA</div>
+            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+              El tutor te explica cada pregunta con voz peruana. Usa el botón <strong style={{ color: '#fca5a5' }}>🔊</strong> del menú para activar/desactivar.
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
@@ -210,7 +230,10 @@ export default function PeruApp({ user, onLogout }: Props) {
 }
 
 // ── NavBar ────────────────────────────────────────────────────────────────────
-function NavBar({ user, onLogout, onBack }: { user: PeruUser; onLogout: () => void; onBack?: () => void }) {
+function NavBar({ user, onLogout, onBack, speaking, enabled, onAudio }: {
+  user: PeruUser; onLogout: () => void; onBack?: () => void
+  speaking?: boolean; enabled?: boolean; onAudio?: () => void
+}) {
   return (
     <nav style={r.nav}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -222,9 +245,19 @@ function NavBar({ user, onLogout, onBack }: { user: PeruUser; onLogout: () => vo
         <span style={{ fontSize: 10, color: '#dc2626', background: 'rgba(220,38,38,0.08)', padding: '2px 8px', borderRadius: 20, border: '1px solid rgba(220,38,38,0.15)' }}>v1.0</span>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        {onBack && (
-          <button onClick={onBack} style={r.navBtn}>← Inicio</button>
+        {onBack && <button onClick={onBack} style={r.navBtn}>← Inicio</button>}
+
+        {/* Botón audio */}
+        {onAudio && (
+          <button
+            onClick={onAudio}
+            title={speaking ? 'Detener audio' : enabled ? 'Audio activo — clic para desactivar' : 'Audio desactivado — clic para activar'}
+            style={{ width: 34, height: 34, borderRadius: '50%', background: speaking ? 'rgba(239,68,68,0.2)' : enabled ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${speaking ? 'rgba(239,68,68,0.4)' : enabled ? 'rgba(220,38,38,0.4)' : 'rgba(255,255,255,0.08)'}`, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {speaking ? '⏹' : enabled ? '🔊' : '🔇'}
+          </button>
         )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: '4px 12px 4px 6px' }}>
           <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fca5a5', fontWeight: 600 }}>
             {user.full_name?.charAt(0)?.toUpperCase()}
