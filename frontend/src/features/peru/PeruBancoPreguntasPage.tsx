@@ -1036,6 +1036,43 @@ function FormulaBox({ tex, isLatex, label, vars, color }: { tex: string; isLatex
   )
 }
 
+// ── Formatea explicacion del PDF en segmentos visuales ───────────────────────
+type Seg = { type: 'header' | 'step' | 'result' | 'body'; text: string; num?: number }
+function formatExplicacion(raw: string): Seg[] {
+  // 1. Limpiar caracteres basura del PDF
+  const cleaned = raw
+    .replace(/[■□▪▫☐☑☒� --]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  // 2. Dividir por saltos de línea existentes O por marcadores de sección conocidos
+  const SECTION_RE = /(?=\b(Dato[s]?:|Resolviendo:|Enunciado:|Solución:|Solucio[nó]n:|Tema:|Tenemos:|Entonces:|Por lo tanto:|∴|Respuesta:|Rpta\.?:))/gi
+  const parts = cleaned
+    .split(/\n+/)
+    .flatMap(line => line.split(SECTION_RE).filter(Boolean))
+    .flatMap(part => {
+      // Si sigue siendo muy largo (>200 chars) sin puntuación, dividir por ". " o " → "
+      if (part.length > 200)
+        return part.split(/(?<=\.)\s+(?=[A-ZÁÉÍÓÚ])|\s+(?=→)\s*/).filter(Boolean)
+      return [part]
+    })
+    .map(s => s.trim())
+    .filter(s => s.length > 1)
+
+  let stepCounter = 0
+  return parts.map((text): Seg => {
+    const isHeader = /^(Dato[s]?:|Resolviendo:|Enunciado:|Solución:|Solucio[nó]n:|Tema:|Tenemos:)/i.test(text)
+    const isResult = /^(Resultado:|Respuesta:|Rpta\.?:|Por lo tanto:|∴|Entonces:|Luego:)/i.test(text) || /respuesta.*=/.test(text.toLowerCase())
+    const isNumbered = /^\d+[.)]\s/.test(text)
+    if (isHeader) return { type: 'header', text }
+    if (isResult) return { type: 'result', text }
+    if (isNumbered) { stepCounter++; return { type: 'step', text: text.replace(/^\d+[.)]\s*/, ''), num: stepCounter } }
+    // Heurística: si contiene '=' o '→' con números, es un paso de cálculo
+    if (/[=→]\s*[-\d]/.test(text) && text.length < 180) { stepCounter++; return { type: 'step', text, num: stepCounter } }
+    return { type: 'body', text }
+  })
+}
+
 // ── QuestionCard ──────────────────────────────────────────────────────────────
 function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoading, played, showExplanation, onSpeak, onViewed }: {
   p: Pregunta; idx: number; materia: Materia
@@ -1130,22 +1167,26 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
           {p.explicacion ? (
             <div style={{ margin: '0 0 10px' }}>
-              {p.explicacion.split('\n').filter(l => l.trim()).map((line, li) => {
-                const clean = line.trim()
-                const isStep = /^(paso\s*\d|step\s*\d|\d+[.)]\s)/i.test(clean)
-                const isResult = /^(resultado|respuesta|por lo tanto|luego|entonces|∴)/i.test(clean)
-                return (
-                  <p key={li} style={{
-                    fontSize: 13,
-                    color: isStep ? '#fbbf24' : isResult ? '#3fb950' : '#c9d1d9',
-                    fontWeight: isStep || isResult ? 600 : 400,
-                    lineHeight: 1.75,
-                    margin: '0 0 6px',
-                    borderLeft: isStep ? '2px solid rgba(251,191,36,0.4)' : isResult ? '2px solid rgba(63,185,80,0.4)' : 'none',
-                    paddingLeft: (isStep || isResult) ? 8 : 0,
-                  }}>{clean}</p>
-                )
-              })}
+              {formatExplicacion(p.explicacion).map((seg, li) => (
+                <div key={li} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                  margin: '0 0 8px',
+                  background: seg.type === 'header' ? `${materia.color}12` : seg.type === 'result' ? 'rgba(63,185,80,0.08)' : 'transparent',
+                  border: seg.type === 'header' ? `1px solid ${materia.color}30` : seg.type === 'result' ? '1px solid rgba(63,185,80,0.25)' : 'none',
+                  borderRadius: 7, padding: seg.type === 'body' ? '0' : '6px 10px',
+                }}>
+                  {seg.type === 'step' && (
+                    <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: materia.color, color: '#0d1117', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{seg.num}</span>
+                  )}
+                  {seg.type === 'result' && <span style={{ fontSize: 15, flexShrink: 0 }}>✓</span>}
+                  {seg.type === 'header' && <span style={{ fontSize: 13, flexShrink: 0 }}>📌</span>}
+                  <p style={{
+                    fontSize: 13, lineHeight: 1.7, margin: 0,
+                    color: seg.type === 'header' ? materia.color : seg.type === 'result' ? '#3fb950' : '#c9d1d9',
+                    fontWeight: seg.type === 'body' ? 400 : 600,
+                  }}>{seg.text}</p>
+                </div>
+              ))}
             </div>
           ) : (
             <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.75, margin: '0 0 10px', fontStyle: 'italic' }}>
