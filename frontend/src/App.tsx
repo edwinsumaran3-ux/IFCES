@@ -1,6 +1,6 @@
 // frontend/src/App.tsx — con autenticacion + selector de país + audio guía
 import React, { useState, useEffect } from 'react'
-import { AudioGuideProvider } from './features/audio/AudioGuide'
+import { AudioGuideProvider, useAudioGuide } from './features/audio/AudioGuide'
 import CountrySelector from './features/country-selector/CountrySelector'
 import LoginPage from './features/auth/LoginPage'
 import ExamEngine from './features/exam/ExamEngine'
@@ -28,6 +28,7 @@ export default function App() {
 }
 
 function AppInner() {
+  const { play } = useAudioGuide()
   const [country,    setCountry]    = useState<Country>(null)
   const [user,       setUser]       = useState<User | null>(null)
   const [peruUser,   setPeruUser]   = useState<PeruUser | null>(null)
@@ -63,6 +64,18 @@ function AppInner() {
     setView('home')
     setExamState(null)
   }
+
+  // ── Colombia audio guide — MUST be before any conditional return (Rules of Hooks) ──
+  useEffect(() => {
+    if (!user || country !== 'CO') return
+    const guides: Record<string, string> = { home: 'home_co', banco: 'banco', teacher: 'admin' }
+    const key = `guide_played_co_${view}`
+    if (guides[view] && !sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      const t = setTimeout(() => play(guides[view]), 900)
+      return () => clearTimeout(t)
+    }
+  }, [view, user, country])
 
   const startExam = async () => {
     setLoading(true); setError('')

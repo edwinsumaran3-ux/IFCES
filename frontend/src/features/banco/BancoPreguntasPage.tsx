@@ -3,6 +3,7 @@
 //  Banco de Preguntas — Panel por Materia / Tema / Preguntas + Visual + Audio
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react';
+import { useScreenGuide } from '../audio/AudioGuide';
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
 import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
 import AvatarTutorIA from '../avatar/AvatarTutorIA';
@@ -69,6 +70,7 @@ const ACTIVE_PLANS = ['basic', 'plus', 'premium'];
 
 // =============================================================================
 export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
+  useScreenGuide('banco', 1000)
   const [view,           setView]           = useState<View>('materias');
   const [materias,       setMaterias]       = useState<Materia[]>([]);
   const [materia,        setMateria]        = useState<Materia | null>(null);
