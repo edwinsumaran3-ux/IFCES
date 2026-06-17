@@ -276,13 +276,27 @@ async def run_migrations():
         import json as _json, os as _os
         _json_path = _os.path.join(_os.path.dirname(__file__), "PERU", "preguntas_unt.json")
         if _os.path.exists(_json_path):
-            _count = (await conn.execute(text("SELECT COUNT(*) FROM peru_preguntas"))).scalar_one() if False else 0
+            # Reload if table is empty OR if old data has no explanations (corrupted parse)
+            _need_reload = False
             try:
                 _row = (await conn.execute(text("SELECT COUNT(*) AS n FROM peru_preguntas"))).fetchone()
                 _count = _row.n if _row else 0
+                if _count == 0:
+                    _need_reload = True
+                else:
+                    # Check if we have questions with explanations (new good data)
+                    _expl_row = (await conn.execute(text(
+                        "SELECT COUNT(*) AS n FROM peru_preguntas WHERE explicacion != '' AND LENGTH(explicacion) > 20"
+                    ))).fetchone()
+                    _expl_count = _expl_row.n if _expl_row else 0
+                    if _expl_count < 10:
+                        # Old bad data — truncate and reload
+                        await conn.execute(text("TRUNCATE TABLE peru_preguntas RESTART IDENTITY CASCADE"))
+                        print("[startup] Reloading Peru questions (old data had no explanations)")
+                        _need_reload = True
             except Exception:
-                _count = 0
-            if _count == 0:
+                _need_reload = True
+            if _need_reload:
                 with open(_json_path, encoding='utf-8') as _f:
                     _pregs = _json.load(_f)
                 _ins = 0
@@ -332,15 +346,21 @@ async def run_migrations():
             ('D','Comprensión de Textos','¿Cuál es el propósito principal de un texto argumentativo?','Narrar una historia','Describir un lugar','Convencer al lector','Dar instrucciones','C','El texto argumentativo busca persuadir o convencer al lector mediante razones y evidencias.'),
             ('D','Comprensión de Textos','¿Qué elemento NO pertenece a la estructura de un ensayo?','Introducción','Desarrollo','Personajes','Conclusión','C','Los personajes son propios de textos narrativos, no de ensayos académicos.'),
         ]
-        for (sec, mat, enun, a, b, c, d, resp, expl) in demo_preguntas:
-            try:
-                await conn.execute(text("""
-                    INSERT INTO peru_preguntas (seccion, materia, enunciado, opcion_a, opcion_b, opcion_c, opcion_d, respuesta, explicacion)
-                    VALUES (:sec, :mat, :enun, :a, :b, :c, :d, :resp, :expl)
-                    ON CONFLICT DO NOTHING
-                """), {"sec":sec,"mat":mat,"enun":enun,"a":a,"b":b,"c":c,"d":d,"resp":resp,"expl":expl})
-            except Exception:
-                pass
+        # Only insert demo questions if JSON didn't load (no real questions)
+        try:
+            _real_count = (await conn.execute(text("SELECT COUNT(*) FROM peru_preguntas"))).scalar_one()
+        except Exception:
+            _real_count = 0
+        if _real_count == 0:
+            for (sec, mat, enun, a, b, c, d, resp, expl) in demo_preguntas:
+                try:
+                    await conn.execute(text("""
+                        INSERT INTO peru_preguntas (seccion, materia, enunciado, opcion_a, opcion_b, opcion_c, opcion_d, respuesta, explicacion)
+                        VALUES (:sec, :mat, :enun, :a, :b, :c, :d, :resp, :expl)
+                        ON CONFLICT DO NOTHING
+                    """), {"sec":sec,"mat":mat,"enun":enun,"a":a,"b":b,"c":c,"d":d,"resp":resp,"expl":expl})
+                except Exception:
+                    pass
 
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS peru_intentos (
