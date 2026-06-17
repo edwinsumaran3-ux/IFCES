@@ -46,7 +46,7 @@ async def peru_login(body: LoginRequest, db=Depends(get_db)):
     email = body.email.lower().strip()
     try:
         user = (await db.execute(
-            text("SELECT * FROM users WHERE email=:email AND country='PE'"),
+            text("SELECT * FROM users WHERE email=:email AND (country='PE' OR role='admin')"),
             {"email": email}
         )).fetchone()
     except Exception as e:
