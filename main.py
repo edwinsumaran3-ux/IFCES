@@ -286,13 +286,13 @@ async def run_migrations():
                 else:
                     # Check if we have questions with explanations (new good data)
                     _expl_row = (await conn.execute(text(
-                        "SELECT COUNT(*) AS n FROM peru_preguntas WHERE explicacion != '' AND LENGTH(explicacion) > 20"
+                        "SELECT COUNT(*) AS n FROM peru_preguntas WHERE explicacion != '' AND LENGTH(explicacion) > 50"
                     ))).fetchone()
                     _expl_count = _expl_row.n if _expl_row else 0
-                    if _expl_count < 10:
-                        # Old bad data — truncate and reload
+                    # Reload if materias are wrong or explanations are missing (< 95% coverage)
+                    if _expl_count < max(10, int(_count * 0.95)):
                         await conn.execute(text("TRUNCATE TABLE peru_preguntas RESTART IDENTITY CASCADE"))
-                        print("[startup] Reloading Peru questions (old data had no explanations)")
+                        print(f"[startup] Reloading Peru questions ({_expl_count}/{_count} had explanations)")
                         _need_reload = True
             except Exception:
                 _need_reload = True
