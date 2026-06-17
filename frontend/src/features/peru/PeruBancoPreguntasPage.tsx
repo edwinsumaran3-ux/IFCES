@@ -1036,17 +1036,28 @@ function FormulaBox({ tex, isLatex, label, vars, color }: { tex: string; isLatex
   )
 }
 
+// ── Limpieza de enunciado ─────────────────────────────────────────────────────
+function cleanEnunciado(s: string): string {
+  return s.replace(/^[a-záéíóúüñ]{1,4}\s+(?=[A-ZÁÉÍÓÚ0-9¿])/u, '').trim()
+}
+
 // ── Formatea explicacion del PDF en segmentos visuales ───────────────────────
 type Seg = { type: 'header' | 'step' | 'result' | 'body'; text: string; num?: number }
 
 function isGarbledLine(s: string): boolean {
   const t = s.trim()
   if (t.length === 0) return true
+  if (/^\d{1,3}$/.test(t)) return true
   const words = t.split(/\s+/)
   const realWords = words.filter(w => /[a-záéíóúüñ]{3,}/i.test(w))
-  if (realWords.length === 0 && t.length < 50) return true
-  if (words.length <= 4 && realWords.length === 0 && /^[A-Z0-9\s+\-*/()[\]°%k]+$/i.test(t)) return true
+  if (realWords.length === 0 && t.length < 60) return true
   return false
+}
+
+function cleanSegText(text: string): string {
+  let t = text.replace(/\s+\d{1,3}\s*$/, '').trim()
+  t = t.replace(/^(Tema:\s*[^.]+)\..*$/i, '$1')
+  return t
 }
 
 function formatExplicacion(raw: string): Seg[] {
@@ -1067,9 +1078,10 @@ function formatExplicacion(raw: string): Seg[] {
         return part.split(/(?<=\.)\s+(?=[A-ZÁÉÍÓÚ])|\s+(?=→)\s*/).filter(Boolean)
       return [part]
     })
-    .map(s => s.trim())
-    .filter(s => s.length > 1)
+    .map(s => cleanSegText(s.trim()))
+    .filter(s => s.length > 2)
     .filter(s => !isGarbledLine(s))
+    .filter(s => !/^(Dato[s]?|Tenemos|Enunciado)\s*:\s*$/.test(s.trim()))
 
   let stepCounter = 0
   return parts.map((text): Seg => {
@@ -1111,7 +1123,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
         </div>
       </div>
 
-      <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{p.enunciado}</p>
+      <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{cleanEnunciado(p.enunciado)}</p>
 
       {/* Gráfico visual (diagrama canvas + chips de datos) — siempre visible */}
       <QuestionInlineVisual question={qvp} color={materia.color} />
