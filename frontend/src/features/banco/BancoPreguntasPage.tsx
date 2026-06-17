@@ -605,9 +605,9 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
       return 'La lectura crítica no busca que memorices el texto, sino que razones sobre él. Hay tres niveles de lectura: el literal, que es lo que el texto dice explícitamente; el inferencial, que es lo que se puede deducir de lo que dice; y el crítico, que evalúa por qué lo dice y qué pretende el autor. Para responder, primero identifica en qué nivel está la pregunta. Luego busca en el texto la evidencia directa. La opción correcta siempre puede justificarse con algo que dice o implica el texto. Las incorrectas suelen exagerar, contradecir o añadir información que el texto no da. Con esa lógica evalúa cada opción.';
     }
 
-    // ── INGLÉS ────────────────────────────────────────────────────────────────
+    // ── INGLÉS — explicación siempre en español ───────────────────────────────
     if (a.includes('inglés') || a.includes('ingles')) {
-      return 'Reading comprehension works by identifying what the text actually says, not what you think it should say. First, read the question carefully and identify the key words. Then scan the text to find where those key words or their synonyms appear. The correct answer paraphrases what the text says, using different words but the same meaning. Incorrect options usually distort the meaning, add information not in the text, or contradict what the text says. Apply that reasoning to each option and eliminate the ones that cannot be supported directly by the text.';
+      return 'Esta es una pregunta de Inglés. Te explico el tema en español: las preguntas de inglés evalúan comprensión de lectura, vocabulario en contexto y estructuras gramaticales básicas como los tiempos verbales. Para responder bien, lee la pregunta con cuidado e identifica las palabras clave. Luego busca en el texto donde aparecen esas palabras o sus sinónimos. La opción correcta parafrasea lo que dice el texto usando palabras diferentes pero con el mismo significado. Las incorrectas suelen distorsionar el significado, agregar información que no está en el texto o contradecir lo que dice. Elimina las que no puedas sustentar directamente con el texto.';
     }
 
     // ── SOCIALES ──────────────────────────────────────────────────────────────

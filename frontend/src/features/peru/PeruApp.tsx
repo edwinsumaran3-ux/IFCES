@@ -3,6 +3,7 @@
 // =============================================================================
 import React, { useState, useEffect } from 'react'
 import PeruExamEngine from './PeruExamEngine'
+import PeruBancoPreguntasPage from './PeruBancoPreguntasPage'
 import PeruPaymentPage from './PeruPaymentPage'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
 import { useScreenGuide, useAudioGuide } from '../audio/AudioGuide'
@@ -129,6 +130,16 @@ export default function PeruApp({ user, onLogout }: Props) {
     )
   }
 
+  // ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
+  if (view === 'banco') {
+    return (
+      <div style={r.root}>
+        <NavBar user={user} onLogout={onLogout} onBack={() => setView('home')} speaking={speaking} enabled={enabled} onAudio={() => speaking ? stop() : toggleEnabled()} />
+        <PeruBancoPreguntasPage user={user} onBack={() => setView('home')} />
+      </div>
+    )
+  }
+
   // ── EXAM ENGINE ──────────────────────────────────────────────────────────
   if (view === 'exam' && examState) {
     return (
@@ -170,9 +181,14 @@ export default function PeruApp({ user, onLogout }: Props) {
             <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.75, maxWidth: 500, marginBottom: 24 }}>
               Prepárate para el examen de admisión UNT con IA socrática, pizarra digital, audio tutor peruano y diagrama de fórmulas.
             </p>
-            <button onClick={() => setView('selector')} disabled={loading} style={r.bigBtn}>
-              🚀 Elegir Sección y Empezar Examen
-            </button>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+              <button onClick={() => setView('banco')} style={{ ...r.bigBtn, background: '#16a34a', border: '1px solid rgba(22,163,74,0.4)', fontSize: 15 }}>
+                📚 Banco de Preguntas Explicadas
+              </button>
+              <button onClick={() => setView('selector')} disabled={loading} style={{ ...r.bigBtn, background: 'transparent', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', fontSize: 13 }}>
+                🚀 Examen de Admisión
+              </button>
+            </div>
             {error && <div style={{ ...r.errorBox, marginTop: 12 }}>⚠ {error}</div>}
           </div>
 
