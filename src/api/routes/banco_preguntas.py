@@ -269,81 +269,137 @@ async def get_progress(student_id: str, db=Depends(get_db)):
     }
 
 
-# ── TTS: Google Cloud Neural2 (mismo sistema que exámenes) + fallback gTTS ───
-# Voces Neural2 — sonido natural, sin costo adicional (ya configurado en Railway)
-_NEURAL2_VOICES = {
-    "female":  {"language_code": "es-US", "name": "es-US-Neural2-A", "ssml_gender": "FEMALE"},
-    "male":    {"language_code": "es-US", "name": "es-US-Neural2-B", "ssml_gender": "MALE"},
-    "neutral": {"language_code": "es-US", "name": "es-US-Neural2-A", "ssml_gender": "FEMALE"},
+# ── TTS: Google Cloud TTS — voces por país y género ───────────────────────────
+# NO usar gTTS: siempre produce voz femenina robótica sin control de género.
+# Orden por locale: primero el acento del país, luego fallback Neural2 latino.
+_VOICES = {
+    # Perú
+    ("pe", "male"):   [
+        {"language_code": "es-PE", "name": "es-PE-Standard-B"},   # Hombre peruano
+        {"language_code": "es-US", "name": "es-US-Neural2-B"},    # Fallback Neural hombre
+        {"language_code": "es-US", "name": "es-US-Standard-B"},
+    ],
+    ("pe", "female"): [
+        {"language_code": "es-PE", "name": "es-PE-Standard-A"},
+        {"language_code": "es-US", "name": "es-US-Neural2-A"},
+    ],
+    # Colombia
+    ("co", "male"):   [
+        {"language_code": "es-CO", "name": "es-CO-Standard-B"},   # Hombre colombiano
+        {"language_code": "es-CO", "name": "es-CO-Wavenet-B"},    # Hombre colombiano Wavenet
+        {"language_code": "es-US", "name": "es-US-Neural2-B"},    # Fallback Neural hombre
+        {"language_code": "es-US", "name": "es-US-Standard-B"},
+    ],
+    ("co", "female"): [
+        {"language_code": "es-CO", "name": "es-CO-Standard-A"},
+        {"language_code": "es-CO", "name": "es-CO-Wavenet-A"},
+        {"language_code": "es-US", "name": "es-US-Neural2-A"},
+    ],
 }
+
+def _clean_tts_text(texto: str) -> str:
+    """Limpia artefactos del PDF para que el TTS suene natural."""
+    import unicodedata
+    t = texto
+    # Símbolos matemáticos → palabras
+    replacements = [
+        ('∴', ' por lo tanto, '), ('→', ', entonces, '), ('≈', ' aproximadamente '),
+        ('≠', ' diferente de '), ('≤', ' menor o igual a '), ('≥', ' mayor o igual a '),
+        ('×', ' por '), ('÷', ' dividido entre '), ('±', ' más o menos '),
+        ('°', ' grados'), ('∫', ' integral de '), ('√', ' raíz cuadrada de '),
+        ('∞', ' infinito'), ('∑', ' suma de '), ('α', ' alfa'), ('β', ' beta'),
+        ('γ', ' gamma'), ('δ', ' delta'), ('π', ' pi'), ('Δ', ' delta'),
+        ('²', ' al cuadrado'), ('³', ' al cubo'), ('½', ' un medio'),
+    ]
+    for sym, word in replacements:
+        t = t.replace(sym, word)
+    # Artefactos PDF de doble columna (letras sueltas al inicio de línea)
+    t = re.sub(r'\b(RE|Te|La|de|un|y|el|se|ma|co|ob|ste|dim|sto)\s+(?=[A-Z])', '', t)
+    # "Tema: Ecuaciones." → "El tema es Ecuaciones."
+    t = re.sub(r'Tema:\s*([^.]+)\.', r'El tema es \1.', t)
+    # "Verdadero" y "Falso" con pausa
+    t = re.sub(r'\bVerdadero\b', 'Verdadero.', t)
+    t = re.sub(r'\bFalso\b', 'Falso.', t)
+    # Números de página solos al final
+    t = re.sub(r'\s+\d{1,3}\s*$', '.', t)
+    # Múltiples espacios
+    t = re.sub(r'\s{2,}', ' ', t)
+    return t.strip()
+
 
 class TTSRequest(BaseModel):
     text:   str
-    gender: str = "neutral"   # "male" | "female" | "neutral"
+    gender: str = "male"    # "male" | "female"
+    locale: str = ""        # "pe" = Perú, "co" = Colombia, "" = neutro (es-US-Neural2)
 
 
 @router.post("/banco/tts")
 async def banco_tts(body: TTSRequest):
     """
-    Convierte texto a MP3 base64.
-    Prioridad 1: Google Cloud TTS Neural2 (es-US-Neural2-A/B) — voz natural.
-    Prioridad 2: gTTS — fallback si Google no responde.
+    Convierte texto a MP3 base64 con voz del país correspondiente.
+    Perú   → es-PE-Standard-B (hombre peruano)
+    Colombia → es-CO-Standard-B / Wavenet-B (hombre colombiano)
+    Fallback → es-US-Neural2-B (hombre neutro-latino).
+    Si Google falla devuelve audio vacío → frontend usa Web Speech.
+    NUNCA usa gTTS (voz femenina robótica, sin control de género).
     """
-    texto = re.sub(r'\s+', ' ', body.text.strip())
-    vp    = _NEURAL2_VOICES.get(body.gender, _NEURAL2_VOICES["neutral"])
+    texto  = _clean_tts_text(re.sub(r'\s+', ' ', body.text.strip()))
+    locale = (body.locale or "").lower().strip()
+    gender = (body.gender or "male").lower().strip()
+    # Si no viene locale (Colombia y otros), usar es-US-Neural2 (comportamiento original)
+    if (locale, gender) in _VOICES or (locale, "male") in _VOICES:
+        voices = _VOICES.get((locale, gender)) or _VOICES.get((locale, "male"))
+    else:
+        # Fallback: es-US-Neural2 (Colombia no envía locale)
+        voices = [
+            {"language_code": "es-US", "name": "es-US-Neural2-B" if gender == "male" else "es-US-Neural2-A"},
+            {"language_code": "es-US", "name": "es-US-Standard-B" if gender == "male" else "es-US-Standard-A"},
+        ]
 
-    # ── Intentar Google Cloud TTS Neural2 ────────────────────────────────────
     try:
         from google.cloud import texttospeech
 
-        # SSML con pausas naturales
+        # SSML expresivo con pausas naturales y tono más grave
         t = texto
-        t = re.sub(r'\.\s+', '. <break time="420ms"/> ', t)
-        t = re.sub(r'\?\s+', '? <break time="480ms"/> ', t)
-        t = re.sub(r'!\s+',  '! <break time="480ms"/> ', t)
-        t = re.sub(r',\s+',  ', <break time="180ms"/> ', t)
-        ssml = f'<speak><prosody rate="88%" pitch="-1st">{t}</prosody></speak>'
+        t = re.sub(r'([.!?])\s+', r'\1 <break time="450ms"/> ', t)
+        t = re.sub(r',\s+',        ', <break time="200ms"/> ', t)
+        t = t.replace('&', '&amp;').replace('<break', '<break')  # escape ampersands
+        ssml = (
+            '<speak>'
+            '<prosody rate="87%" pitch="-3st" volume="+2dB">'
+            f'{t}'
+            '</prosody>'
+            '</speak>'
+        )
 
         client = texttospeech.TextToSpeechClient()
         inp    = texttospeech.SynthesisInput(ssml=ssml)
-        voice  = texttospeech.VoiceSelectionParams(
-            language_code=vp["language_code"],
-            name=vp["name"],
-        )
-        cfg = texttospeech.AudioConfig(
+        cfg    = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3,
-            speaking_rate=0.90,
-            pitch=-1.0,
+            speaking_rate=0.88,
+            pitch=-3.0,   # Más grave → más masculino
         )
-        loop = asyncio.get_event_loop()
-        resp = await loop.run_in_executor(
-            None, lambda: client.synthesize_speech(input=inp, voice=voice, audio_config=cfg)
-        )
-        audio_b64 = base64.b64encode(resp.audio_content).decode("utf-8")
-        logger.info(f"[banco/tts] Neural2 OK — {len(texto)}ch — voz={vp['name']}")
-        return JSONResponse(content={"audio_b64": audio_b64, "engine": "neural2"}, headers=CORS_HEADERS)
+
+        for vp in voices:
+            try:
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=vp["language_code"],
+                    name=vp["name"],
+                )
+                loop = asyncio.get_event_loop()
+                resp = await loop.run_in_executor(
+                    None, lambda v=voice: client.synthesize_speech(input=inp, voice=v, audio_config=cfg)
+                )
+                audio_b64 = base64.b64encode(resp.audio_content).decode("utf-8")
+                logger.info(f"[banco/tts] OK voz={vp['name']} {len(texto)}ch")
+                return JSONResponse(content={"audio_b64": audio_b64, "engine": vp["name"]}, headers=CORS_HEADERS)
+            except Exception as e_voice:
+                logger.warning(f"[banco/tts] voz {vp['name']} falló: {e_voice}")
+                continue
 
     except Exception as e_google:
-        logger.warning(f"[banco/tts] Google TTS falló: {e_google}. Usando gTTS...")
+        logger.warning(f"[banco/tts] Google TTS no disponible: {e_google}")
 
-    # ── Fallback: gTTS ────────────────────────────────────────────────────────
-    try:
-        from gtts import gTTS
-        import io as _io
-
-        def _synth() -> bytes:
-            tts = gTTS(text=texto, lang='es', slow=False)
-            fp  = _io.BytesIO()
-            tts.write_to_fp(fp)
-            fp.seek(0)
-            return fp.read()
-
-        loop = asyncio.get_event_loop()
-        audio_bytes = await loop.run_in_executor(None, _synth)
-        audio_b64   = base64.b64encode(audio_bytes).decode("utf-8")
-        logger.info(f"[banco/tts] gTTS OK — {len(texto)}ch")
-        return JSONResponse(content={"audio_b64": audio_b64, "engine": "gtts"}, headers=CORS_HEADERS)
-
-    except Exception as e_gtts:
-        logger.error(f"[banco/tts] Ambos TTS fallaron: {e_gtts}")
-        return JSONResponse(content={"audio_b64": "", "error": str(e_gtts)}, headers=CORS_HEADERS)
+    # Sin audio — el frontend usa Web Speech API (hombre en el browser)
+    logger.info("[banco/tts] Devolviendo vacío → frontend usará Web Speech masculino")
+    return JSONResponse(content={"audio_b64": "", "engine": "browser"}, headers=CORS_HEADERS)

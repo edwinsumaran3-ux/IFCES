@@ -109,17 +109,50 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     setViewed(prev => new Set([...prev, id]))
   }
 
-  // ── Voz peruana ──────────────────────────────────────────────────────────────
+  // ── Limpieza de texto para TTS ───────────────────────────────────────────────
+  function cleanForSpeech(text: string): string {
+    const MATH: Record<string, string> = {
+      '∴': ' por lo tanto, ', '→': ', entonces, ', '≈': ' aproximadamente ',
+      '≠': ' diferente de ', '≤': ' menor o igual a ', '≥': ' mayor o igual a ',
+      '×': ' por ', '÷': ' dividido entre ', '±': ' más o menos ', '°': ' grados',
+      '∫': ' integral de ', '√': ' raíz cuadrada de ', '∞': ' infinito',
+      '∑': ' suma de ', 'α': ' alfa', 'β': ' beta', 'π': ' pi', 'Δ': ' delta',
+      '²': ' al cuadrado', '³': ' al cubo', '½': ' un medio', '¼': ' un cuarto',
+    }
+    let t = text
+    for (const [sym, word] of Object.entries(MATH)) t = t.split(sym).join(word)
+    t = t
+      .replace(/Tema:\s*([^.]+)\./gi, 'El tema es $1.')
+      .replace(/\b(RE|Te|dim|sto|ste|ma|co|ob|igu|res|bá|rec|las)\s+(?=[A-ZÁÉÍÓÚ])/g, ' ')
+      .replace(/\bVerdadero\b/g, 'Verdadero.')
+      .replace(/\bFalso\b/g, 'Falso.')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s+\d{1,3}\s*$/, '.')
+      .trim()
+    return t
+  }
+
+  // ── Descripción oral de fórmula ───────────────────────────────────────────────
+  function formulaToSpeech(pf: NonNullable<ReturnType<typeof getPureFormula>>): string {
+    const vars = pf.vars ? ` Donde: ${pf.vars}.` : ''
+    return `La fórmula que necesitas aquí es la de ${pf.label}.${vars}`
+  }
+
+  // ── Voz masculina peruana ─────────────────────────────────────────────────────
   function pickPeruvianVoice(): SpeechSynthesisVoice | null {
     const all = voicesRef.current.length ? voicesRef.current : (window.speechSynthesis?.getVoices() || [])
+    // Nombres conocidos de voces masculinas en español
+    const MALE_NAMES = ['raúl','raul','jorge','diego','carlos','miguel','pablo',
+                        'andres','juan','antonio','rodrigo','sergio','male','hombre','man','masculino']
     const score = (v: SpeechSynthesisVoice) => {
       let s = 0
-      const n = v.name.toLowerCase()
-      if (/es.pe/i.test(v.lang) || /peru/i.test(n)) s += 100
-      if (!v.localService) s += 20
-      if (/neural|natural/i.test(n)) s += 15
-      if (/^es/i.test(v.lang)) s += 4
-      if (/male|hombre|man/i.test(n)) s += 8
+      const n = v.name.toLowerCase(), lang = v.lang.toLowerCase()
+      if (lang === 'es-pe' || /peru/i.test(n)) s += 300
+      else if (lang.startsWith('es-')) s += 60
+      else if (lang.startsWith('es')) s += 40
+      if (!v.localService) s += 30
+      if (/neural|natural|enhanced|premium/i.test(n)) s += 25
+      if (MALE_NAMES.some(m => n.includes(m))) s += 200  // prioridad absoluta a voz masculina
       return s
     }
     const spanish = all.filter(v => /^es/i.test(v.lang))
@@ -137,8 +170,8 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       if (idx >= partes.length) { onAudioFinished(id); return }
       const utt   = new SpeechSynthesisUtterance(partes[idx])
       utt.lang    = 'es-PE'
-      utt.rate    = 0.91
-      utt.pitch   = 0.95
+      utt.rate    = 0.88     // Más lento = más claro
+      utt.pitch   = 0.80     // Más grave = más masculino
       utt.volume  = 1
       if (voz) utt.voice = voz
       utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id) }
@@ -418,14 +451,23 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     const pf  = getPureFormula(p.area, p.enunciado)
 
     const saludo = SALUDOS_PE[idx]
-    let explica: string
-    if (p.explicacion) {
-      explica = `Aquí está la resolución: ${p.explicacion}`
-    } else if (pf) {
-      explica = `Para resolver esta pregunta aplica ${pf.label}. ${buildPasoAPaso(p.area, p.enunciado)}`
+
+    // Intro del tema
+    const topicIntro = `Esta pregunta es de ${p.area || 'la materia'}${p.tema ? ', tema: ' + p.tema : ''}.`
+
+    // Descripción oral de la fórmula (si existe)
+    const formulaPart = pf ? formulaToSpeech(pf) + ' ' : ''
+
+    // Explicación limpia: primero la del PDF, si no hay → general por materia
+    let explicacionText: string
+    if (p.explicacion && p.explicacion.length > 40) {
+      explicacionText = cleanForSpeech(p.explicacion)
     } else {
-      explica = buildPasoAPaso(p.area, p.enunciado)
+      explicacionText = buildPasoAPaso(p.area, p.enunciado)
     }
+
+    const explica = `${topicIntro} ${formulaPart}${explicacionText}`
+
     const formulaLabel = pf ? `la fórmula de ${pf.label}` : `este concepto de ${p.area || 'la materia'}`
     const cierre = CIERRES_PE[iC](formulaLabel)
     return [saludo, explica, cierre]
@@ -442,7 +484,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       const res = await fetch(`${API}/banco/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: partes.join(' '), gender: 'male' }),
+        body: JSON.stringify({ text: partes.join(' '), gender: 'male', locale: 'pe' }),
       })
       if (res.ok) {
         const data = await res.json()
