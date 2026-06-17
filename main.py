@@ -270,6 +270,76 @@ async def run_migrations():
         except Exception:
             pass
 
+        # ── Load real Peru questions from JSON (UNT exam) ────────────────────
+        import json as _json, os as _os
+        _json_path = _os.path.join(_os.path.dirname(__file__), "PERU", "preguntas_unt.json")
+        if _os.path.exists(_json_path):
+            _count = (await conn.execute(text("SELECT COUNT(*) FROM peru_preguntas"))).scalar_one() if False else 0
+            try:
+                _row = (await conn.execute(text("SELECT COUNT(*) AS n FROM peru_preguntas"))).fetchone()
+                _count = _row.n if _row else 0
+            except Exception:
+                _count = 0
+            if _count == 0:
+                with open(_json_path, encoding='utf-8') as _f:
+                    _pregs = _json.load(_f)
+                _ins = 0
+                for _q in _pregs:
+                    try:
+                        await conn.execute(text("""
+                            INSERT INTO peru_preguntas
+                                (seccion, materia, enunciado, opcion_a, opcion_b, opcion_c, opcion_d, respuesta, explicacion)
+                            VALUES (:sec,:mat,:enun,:a,:b,:c,:d,:resp,:expl)
+                            ON CONFLICT DO NOTHING
+                        """), {"sec": _q.get("seccion","A"), "mat": _q.get("materia","General"),
+                               "enun": _q.get("enunciado",""), "a": _q.get("opcion_a",""),
+                               "b": _q.get("opcion_b",""), "c": _q.get("opcion_c",""),
+                               "d": _q.get("opcion_d",""), "resp": _q.get("respuesta","A"),
+                               "expl": _q.get("explicacion","")})
+                        _ins += 1
+                    except Exception:
+                        pass
+                print(f"[startup] Peru questions loaded: {_ins}")
+
+        # ── Demo questions (backup if no JSON) ───────────────────────────────
+        demo_preguntas = [
+            # ── SECCIÓN A ─────────────────────────────────────────────────────
+            ('A','Lenguaje','Lee el siguiente texto y responde: "El sol se ocultó tras las montañas andinas, tiñendo el cielo de rojo y naranja." ¿Qué figura literaria predomina en este texto?','Metáfora','Símil','Hipérbole','Imagen sensorial','D','La frase evoca una imagen visual del atardecer andino mediante una descripción sensorial directa.'),
+            ('A','Lenguaje','¿Cuál de las siguientes oraciones tiene un sujeto compuesto?','El niño juega en el parque.','María y José estudian juntos.','El perro ladra fuerte.','La lluvia cae sobre la ciudad.','B','Sujeto compuesto: dos o más núcleos en el sujeto. "María y José" son dos núcleos.'),
+            ('A','Literatura','¿Quién escribió "El Señor Presidente", novela que denuncia la dictadura?','Pablo Neruda','Gabriel García Márquez','Miguel Ángel Asturias','Julio Cortázar','C','Miguel Ángel Asturias, guatemalteco, Premio Nobel 1967, escribió "El Señor Presidente".'),
+            ('A','Historia del Perú','¿En qué año se proclamó la independencia del Perú?','1810','1821','1824','1826','B','José de San Martín proclamó la independencia del Perú el 28 de julio de 1821 en Lima.'),
+            ('A','Historia del Perú','¿Cuál fue la última gran batalla que consolidó la independencia sudamericana?','Batalla de Junín','Batalla de Ayacucho','Batalla de Boyacá','Batalla de Chacabuco','B','La Batalla de Ayacucho (1824) fue la batalla decisiva que puso fin al dominio español en Sudamérica.'),
+            ('A','Geografía','¿Cuál es la capital del Perú?','Cusco','Arequipa','Lima','Trujillo','C','Lima es la capital y ciudad más poblada de la República del Perú.'),
+            ('A','Filosofía','¿Quién formuló el imperativo categórico como principio ético universal?','Aristóteles','René Descartes','Immanuel Kant','John Locke','C','Immanuel Kant formuló el imperativo categórico: actúa solo según aquella máxima que puedas querer que sea ley universal.'),
+            # ── SECCIÓN B ─────────────────────────────────────────────────────
+            ('B','Matemática','Si f(x) = 2x² − 3x + 1, ¿cuánto vale f(2)?','1','3','5','7','B','f(2) = 2(4) − 3(2) + 1 = 8 − 6 + 1 = 3'),
+            ('B','Matemática','¿Cuál es el valor de log₂(64)?','4','5','6','7','C','2⁶ = 64, por lo tanto log₂(64) = 6'),
+            ('B','Física','Un objeto cae libremente desde el reposo. ¿Qué velocidad tiene después de 3 segundos? (g = 10 m/s²)','15 m/s','20 m/s','30 m/s','10 m/s','C','v = g·t = 10 × 3 = 30 m/s'),
+            ('B','Física','La Segunda Ley de Newton establece que la fuerza neta es igual a:','masa × velocidad','masa × aceleración','peso × tiempo','volumen × densidad','B','F = m·a (Fuerza = masa × aceleración), Segunda Ley de Newton.'),
+            ('B','Química','¿Cuál es el número atómico del oxígeno?','6','7','8','9','C','El oxígeno (O) tiene número atómico 8, con 8 protones en su núcleo.'),
+            ('B','Química','¿Qué tipo de enlace se forma entre el sodio y el cloro en el NaCl?','Covalente polar','Covalente apolar','Iónico','Metálico','C','El NaCl se forma por un enlace iónico: Na cede un electrón al Cl.'),
+            ('B','Biología','¿Cuál es la función principal de las mitocondrias?','Síntesis de proteínas','Producción de energía (ATP)','Digestión celular','Transporte de sustancias','B','Las mitocondrias producen ATP mediante la respiración celular aeróbica.'),
+            # ── SECCIÓN C ─────────────────────────────────────────────────────
+            ('C','Razonamiento Verbal','Complete la analogía: LIBRO : BIBLIOTECA :: CUADRO :','Museo','Galería','Arte','Pintor','B','Así como los libros se guardan en bibliotecas, los cuadros se exhiben en galerías.'),
+            ('C','Razonamiento Verbal','¿Cuál es el sinónimo de EFÍMERO?','Eterno','Transitorio','Profundo','Estable','B','Efímero = que dura poco tiempo = transitorio.'),
+            ('C','Razonamiento Matemático','Si el 30% de un número es 45, ¿cuál es el número?','100','135','150','180','C','x × 0.30 = 45 → x = 45/0.30 = 150'),
+            ('C','Razonamiento Matemático','¿Cuántos triángulos hay en una figura donde se trazan 3 diagonales en un hexágono regular?','6','8','12','24','A','Al trazar las diagonales principales de un hexágono regular se forman 6 triángulos equiláteros.'),
+            # ── SECCIÓN D ─────────────────────────────────────────────────────
+            ('D','Aptitud Académica','Un tren recorre 360 km en 3 horas. ¿A qué velocidad viaja?','100 km/h','110 km/h','120 km/h','130 km/h','C','v = d/t = 360/3 = 120 km/h'),
+            ('D','Aptitud Académica','Si Juan tiene 5 veces la edad de Ana, y entre los dos suman 24 años, ¿cuántos años tiene Juan?','15','18','20','25','C','J + A = 24 y J = 5A → 6A = 24 → A = 4 → J = 20'),
+            ('D','Comprensión de Textos','¿Cuál es el propósito principal de un texto argumentativo?','Narrar una historia','Describir un lugar','Convencer al lector','Dar instrucciones','C','El texto argumentativo busca persuadir o convencer al lector mediante razones y evidencias.'),
+            ('D','Comprensión de Textos','¿Qué elemento NO pertenece a la estructura de un ensayo?','Introducción','Desarrollo','Personajes','Conclusión','C','Los personajes son propios de textos narrativos, no de ensayos académicos.'),
+        ]
+        for (sec, mat, enun, a, b, c, d, resp, expl) in demo_preguntas:
+            try:
+                await conn.execute(text("""
+                    INSERT INTO peru_preguntas (seccion, materia, enunciado, opcion_a, opcion_b, opcion_c, opcion_d, respuesta, explicacion)
+                    VALUES (:sec, :mat, :enun, :a, :b, :c, :d, :resp, :expl)
+                    ON CONFLICT DO NOTHING
+                """), {"sec":sec,"mat":mat,"enun":enun,"a":a,"b":b,"c":c,"d":d,"resp":resp,"expl":expl})
+            except Exception:
+                pass
+
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS peru_intentos (
                 id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

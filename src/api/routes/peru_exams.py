@@ -62,7 +62,8 @@ async def start_exam(body: StartRequest, db=Depends(get_db)):
     )).fetchall()
 
     if not rows:
-        raise HTTPException(status_code=404, detail="No hay preguntas registradas para esta sección aún. El banco se cargará pronto.")
+        dur = DURACION_POR_SECCION.get(seccion, 3600)
+        return {"attempt_id": str(uuid.uuid4()), "seccion": seccion, "questions": [], "duration_secs": dur, "message": "Banco en carga"}
 
     questions = []
     for r in rows:
