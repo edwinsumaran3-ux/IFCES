@@ -474,113 +474,215 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     return 'Matemática'
   }
 
-  // ── Explicación conceptual del curso — NUNCA menciona la respuesta ────────────
+  // ── Explicación del MÉTODO paso a paso — sin nombrar el curso, sin datos del problema ──
   function buildPasoAPaso(area: string, enunciado: string): string {
     const ctx = (area + ' ' + enunciado).toLowerCase()
 
+    // ── INGLÉS ────────────────────────────────────────────────────────────────────
     if (/inglés|ingles|english|grammar|vocabulary|verb|tense|past|present|future/.test(ctx))
-      return `El inglés evalúa comprensión de textos y estructuras gramaticales. Identifica el tiempo verbal requerido: present simple, past simple o future. Para preguntas de vocabulario, busca el contexto de la oración. Descarta opciones que no encajen gramaticalmente con el enunciado.`
+      return `Primero lee el enunciado completo con calma para entender qué te piden. Si es una pregunta de vocabulario, busca las palabras claves que te rodean la palabra desconocida y deduce su significado por el contexto. Si es gramática, identifica qué tiempo verbal encaja lógicamente con el resto de la oración. Descarta las opciones que no concuerden gramaticalmente o que cambien el sentido del texto.`
 
+    // ── MATEMÁTICA ────────────────────────────────────────────────────────────────
     if (/matemát|matem/.test(ctx)) {
       const sub = detectSubcursoMat(ctx)
+
+      // Trigonometría
       if (/trigon/.test(sub.toLowerCase()))
-        return `La Trigonometría estudia las relaciones entre los ángulos y los lados de los triángulos rectángulos. Las razones trigonométricas fundamentales son tres: el seno de un ángulo es el cociente entre el cateto opuesto y la hipotenusa; el coseno es el cociente entre el cateto adyacente y la hipotenusa; y la tangente es el cociente entre el cateto opuesto y el cateto adyacente. Identifica qué ángulo y qué razón trigonométrica pide el problema y aplica directamente la fórmula correspondiente.`
-      if (/geometr.*triáng/.test(sub.toLowerCase()))
-        return `La Geometría de triángulos estudia las propiedades y relaciones de estas figuras. Para triángulos rectángulos aplica el Teorema de Pitágoras: el cuadrado de la hipotenusa es igual a la suma de los cuadrados de los catetos. Para el área de cualquier triángulo usa base por altura entre dos. Identifica qué tipo de triángulo tienes y qué medida te piden calcular.`
-      if (/geometr.*círculo|geometr.*circ/.test(sub.toLowerCase()))
-        return `La Geometría del círculo estudia esta figura perfectamente redonda. Las fórmulas clave son: área igual a pi por el radio al cuadrado, y circunferencia igual a dos por pi por el radio. Recuerda que el diámetro es el doble del radio. Identifica si te piden el área, la longitud de arco o la circunferencia completa.`
+        return `Empieza dibujando un triángulo rectángulo y ubica el ángulo que te mencionan. Recuerda las tres razones: el seno es el cateto opuesto dividido entre la hipotenusa; el coseno es el cateto adyacente dividido entre la hipotenusa; y la tangente es el cateto opuesto dividido entre el cateto adyacente. Identifica cuál de los tres lados te dan y cuál te piden, elige la razón que relaciona esos dos lados y despeja el valor desconocido.`
+
+      // Pitágoras / triángulos
+      if (/geometr.*triáng|pitágor|cateto|hipotenusa/.test(sub.toLowerCase() + ' ' + ctx))
+        return `Dibuja el triángulo y marca los lados que conoces. Si el triángulo es rectángulo, aplica el Teorema de Pitágoras: la hipotenusa al cuadrado es igual a la suma de los cuadrados de los dos catetos. Si te dan la hipotenusa y un cateto, resta el cuadrado del cateto al cuadrado de la hipotenusa y saca la raíz cuadrada. Para el área de cualquier triángulo, multiplica la base por la altura y divide entre dos.`
+
+      // Círculo
+      if (/geometr.*círculo|geometr.*circ|círculo|circunferencia/.test(sub.toLowerCase() + ' ' + ctx))
+        return `Identifica primero si te dan el radio o el diámetro. Recuerda que el diámetro es el doble del radio. Para calcular el área, eleva el radio al cuadrado y multiplica por pi. Para calcular la longitud de toda la circunferencia, multiplica el radio por dos y por pi. Si solo te piden un arco, calcula qué fracción del círculo completo representa el ángulo central y aplica esa fracción.`
+
+      // Geometría general (áreas y volúmenes)
       if (/geometr/.test(sub.toLowerCase()))
-        return `La Geometría estudia las formas, áreas, perímetros y volúmenes. Para áreas: rectángulo es base por altura; triángulo es base por altura entre dos; círculo es pi por radio al cuadrado. Para volúmenes: prisma rectangular es largo por ancho por alto. Identifica la figura y aplica la fórmula correspondiente.`
-      if (/estadíst/.test(sub.toLowerCase()))
-        return `La Estadística analiza conjuntos de datos para obtener información. La media o promedio es la suma de todos los datos dividida entre la cantidad de datos. La mediana es el valor central al ordenar los datos de menor a mayor. La moda es el dato que aparece con mayor frecuencia. Identifica cuál de estas medidas te está pidiendo el problema.`
-      if (/ecuación|álgebra.*ecuac/.test(sub.toLowerCase()))
-        return `El Álgebra de ecuaciones te permite encontrar el valor desconocido de una variable. Para resolver una ecuación aplica la propiedad de igualdad: todo lo que haces de un lado lo debes hacer también del otro. Suma o resta términos para dejar la variable sola, y luego divide o multiplica para despejarla completamente.`
-      if (/función/.test(sub.toLowerCase()))
-        return `Las Funciones matemáticas relacionan cada elemento del dominio con exactamente un elemento del rango. Para evaluar una función, sustituye el valor de x en la regla de correspondencia y realiza las operaciones. Para encontrar el dominio, identifica los valores de x que hacen válida la expresión.`
-      if (/logarit|potencia/.test(sub.toLowerCase()))
-        return `Los Logaritmos son el inverso de las potencias. El logaritmo en base b de un número N es el exponente al que hay que elevar b para obtener N. Recuerda las propiedades: logaritmo de un producto es suma de logaritmos; de un cociente es resta; y de una potencia es el exponente multiplicado por el logaritmo de la base.`
-      if (/aritmét/.test(sub.toLowerCase()))
-        return `La Aritmética trabaja con los números y sus operaciones. Para fracciones, busca el mínimo común múltiplo para sumar o restar. Para porcentajes, multiplica el total por el porcentaje expresado como decimal. Para el MCM o MCD, factoriza los números en primos y aplica las reglas de máximo y mínimo.`
-      return `La Matemática te pide identificar el concepto clave: puede ser una ecuación, una figura geométrica, una razón o una proporción. Lee el enunciado con cuidado, extrae los datos numéricos y las unidades, elige la fórmula correcta y resuelve paso a paso verificando el resultado.`
+        return `Identifica la figura geométrica: si es un rectángulo, el área es base por altura; si es un triángulo, es base por altura entre dos; si es un círculo, es pi por radio al cuadrado. Para volúmenes: el cubo es lado al cubo; el prisma rectangular es largo por ancho por alto; el cilindro es pi por radio al cuadrado por la altura. Asegúrate de trabajar siempre con las mismas unidades.`
+
+      // Estadística
+      if (/estadíst|media|mediana|moda|promedio/.test(sub.toLowerCase() + ' ' + ctx))
+        return `Si te piden el promedio o la media, suma todos los valores del conjunto y divide entre la cantidad total de datos. Si te piden la mediana, ordena los números de menor a mayor y toma el valor del centro; si son dos valores centrales, promédia los. Si te piden la moda, busca el número que aparece con mayor frecuencia en el conjunto.`
+
+      // Probabilidad
+      if (/probabilid/.test(ctx))
+        return `Escribe todos los resultados posibles del experimento y cuántos de ellos corresponden al evento que te preguntan. La probabilidad es el número de casos favorables dividido entre el número de casos totales posibles. Si el experimento tiene dos etapas independientes, multiplica las probabilidades de cada etapa. Si los eventos son mutuamente excluyentes, suma sus probabilidades.`
+
+      // Álgebra — Ecuaciones
+      if (/ecuación|sistema.*ecuac|desigualdad|inecuación|incógnita|despeja/.test(ctx))
+        return `Pasa todos los términos con la variable al lado izquierdo y los números al lado derecho, cambiando el signo cada vez que cruzas el signo igual. Si hay fracciones, multiplica toda la ecuación por el mínimo común denominador para eliminarlas. Al final, divide ambos lados por el coeficiente que acompaña a la variable para despejarla. Verifica sustituyendo tu respuesta en la ecuación original.`
+
+      // Álgebra — Funciones
+      if (/función|dominio|rango|f\(x\)|composición/.test(ctx))
+        return `Para evaluar una función en un punto, reemplaza la variable por el valor indicado y calcula la expresión. Para encontrar el dominio, busca los valores que hacen imposible la operación: si hay división, el denominador no puede ser cero; si hay raíz cuadrada, el interior no puede ser negativo. Para componer funciones, primero aplica la función interior y luego substituye ese resultado en la función exterior.`
+
+      // Logaritmos y potencias
+      if (/logarit|log\b|ln\b|exponencial|potencia/.test(ctx))
+        return `Recuerda que el logaritmo pregunta a qué exponente hay que elevar la base para obtener el número. Para simplificar, aplica las propiedades: el logaritmo de un producto es la suma de logaritmos; el de un cociente es la resta; y el de una potencia es el exponente multiplicado por el logaritmo. Para ecuaciones exponenciales, aplica logaritmo a ambos lados y despeja el exponente.`
+
+      // Polinomios
+      if (/polinomio|monomio|binomio|factor|producto notable|factoriz/.test(ctx))
+        return `Identifica si puedes aplicar un producto notable: diferencia de cuadrados, cuadrado de binomio o cubo de binomio. Si te piden factorizar, busca un factor común primero, luego intenta agrupar términos o usar la fórmula cuadrática si hay un trinomio de segundo grado. Para evaluar el polinomio en un valor, sustituye directamente o usa el esquema de Horner para simplificar el cálculo.`
+
+      // Aritmética / porcentajes / fracciones / sucesiones
+      if (/sucesión|progresión|serie/.test(ctx))
+        return `Identifica si la sucesión es aritmética o geométrica. En una sucesión aritmética la diferencia entre términos consecutivos es constante; el término general es el primer término más la diferencia por el número de paso. En una sucesión geométrica cada término se obtiene multiplicando el anterior por una razón constante; el término general es el primer término por la razón elevada al número de paso.`
+      if (/mcm|mcd|fracción|decimal|porcentaj/.test(ctx))
+        return `Para porcentajes, convierte el tanto por ciento a decimal dividiéndolo entre cien, y luego multiplica por el total. Para sumar o restar fracciones, busca el mínimo común múltiplo de los denominadores, convierte cada fracción y opera los numeradores. Para el MCM y MCD, descompón cada número en factores primos: el MCM toma los factores con el mayor exponente y el MCD toma los factores comunes con el menor exponente.`
+
+      return `Lee el enunciado y extrae los valores numéricos con sus unidades. Identifica qué operación o relación te piden establecer. Escribe la fórmula o la ecuación que corresponde a la situación, sustituye los datos y resuelve paso a paso. Antes de marcar tu respuesta, verifica que el resultado tenga sentido con el problema.`
     }
 
+    // ── FÍSICA ────────────────────────────────────────────────────────────────────
     if (/física/.test(ctx)) {
       if (/velocidad|aceleración|movimiento|tiempo|distancia|desplazamiento/.test(ctx))
-        return `Esta pregunta es de Cinemática, la rama de la Física que estudia el movimiento. Las ecuaciones fundamentales relacionan velocidad, aceleración, tiempo y distancia. La velocidad media es el desplazamiento entre el tiempo. Si hay aceleración constante, aplica las ecuaciones de movimiento uniformemente acelerado.`
+        return `Identifica qué magnitudes te dan y cuál te piden: posición, velocidad, aceleración o tiempo. Si el movimiento es uniforme, divide la distancia entre el tiempo para obtener la velocidad. Si hay aceleración constante, usa las ecuaciones de movimiento: la velocidad final es la inicial más la aceleración por el tiempo; la distancia es la velocidad inicial por el tiempo más la mitad de la aceleración por el tiempo al cuadrado.`
       if (/fuerza|newton|masa|aceleración/.test(ctx))
-        return `Esta pregunta aplica las Leyes de Newton. La Segunda Ley establece que la fuerza neta es igual a la masa multiplicada por la aceleración. La unidad de fuerza es el Newton. Identifica todas las fuerzas que actúan sobre el objeto y aplica la ley correspondiente.`
+        return `Dibuja el diagrama de fuerzas sobre el objeto. Aplica la Segunda Ley de Newton: la suma de todas las fuerzas es igual a la masa multiplicada por la aceleración. Si el objeto está en equilibrio, la suma de fuerzas es cero. Despeja la magnitud que te piden y asegúrate de que la respuesta esté en Newtons si es fuerza, o en metros por segundo al cuadrado si es aceleración.`
       if (/energía|trabajo|potencia|joule/.test(ctx))
-        return `Esta pregunta es de Energía y Trabajo. El trabajo es la fuerza por la distancia en la dirección del movimiento. La energía potencial gravitacional es masa por gravedad por altura. La energía cinética es un medio de la masa por la velocidad al cuadrado. La unidad de energía es el Joule.`
-      return `Esta pregunta de Física requiere identificar la magnitud física involucrada y sus unidades. Lee el enunciado, extrae los datos con sus unidades, elige la ley física o fórmula apropiada y verifica que las unidades del resultado sean correctas.`
+        return `Para la energía potencial gravitacional, multiplica la masa por la aceleración de la gravedad y por la altura. Para la energía cinética, multiplica la mitad de la masa por la velocidad al cuadrado. El trabajo es la fuerza aplicada multiplicada por la distancia en la dirección del movimiento. Si no hay fricción, la energía total se conserva: la pérdida de energía potencial se convierte en energía cinética y viceversa.`
+      return `Anota los datos del enunciado con sus unidades. Identifica la ley o principio físico que aplica: Newton, conservación de energía, ondas, termodinámica u óptica. Escribe la ecuación, sustituye los valores y resuelve. Verifica que las unidades del resultado sean correctas.`
     }
 
+    // ── QUÍMICA ───────────────────────────────────────────────────────────────────
     if (/química/.test(ctx)) {
       if (/tabla periódica|número atóm|protón|neutrón|electrón/.test(ctx))
-        return `Esta pregunta es sobre la Tabla Periódica. El número atómico Z indica la cantidad de protones y electrones. La masa atómica A es la suma de protones y neutrones. Los neutrones se calculan restando Z de A. Los elementos están ordenados por número atómico creciente en períodos y grupos.`
+        return `Recuerda que el número atómico Z indica cuántos protones tiene el átomo y, si es neutro, también cuántos electrones. La masa atómica A es la suma de protones y neutrones, por eso los neutrones se calculan restando Z de A. En la tabla periódica, cada fila es un período y cada columna es un grupo con propiedades similares.`
       if (/reacción|reactivo|producto|balancear|estequio/.test(ctx))
-        return `Esta pregunta es sobre Reacciones Químicas. Al balancear una ecuación química, el número de átomos de cada elemento debe ser igual antes y después de la flecha. Primero escribe los reactivos, luego los productos, y ajusta los coeficientes para que la masa se conserve.`
-      return `Esta pregunta de Química requiere identificar el concepto: tabla periódica, tipos de enlace, reacciones o nomenclatura. Recuerda que la Química estudia la materia, su composición y sus transformaciones.`
+        return `Para balancear una ecuación, escribe los reactivos a la izquierda y los productos a la derecha. Cuenta cuántos átomos de cada elemento hay en cada lado. Coloca coeficientes delante de las fórmulas para igualar los átomos de cada elemento sin modificar los subíndices. Empieza por los elementos que aparecen en menos compuestos y deja el oxígeno e hidrógeno para el final.`
+      return `Identifica si la pregunta es sobre nomenclatura, enlace, propiedades o reacciones. Lee cuidadosamente el enunciado, aplica las reglas o conceptos correspondientes y descarta las opciones que contradigan las leyes básicas de la química.`
     }
 
+    // ── BIOLOGÍA ─────────────────────────────────────────────────────────────────
     if (/biolog/.test(ctx))
-      return `Esta pregunta de Biología evalúa el conocimiento de los seres vivos y sus procesos. Los niveles de organización van desde la célula hasta el ecosistema. En genética, recuerda que el ADN porta la información hereditaria. La fotosíntesis convierte luz solar en energía química. Identifica el proceso o estructura que menciona el enunciado.`
+      return `Ubica en qué nivel de organización se sitúa la pregunta: célula, tejido, órgano, sistema u organismo. Si habla de genética, recuerda que el ADN porta la información y los genes determinan los caracteres hereditarios. Si habla de ecología, identifica las relaciones entre organismos y su ambiente. Lee cada opción y descarta las que contradigan los procesos biológicos mencionados en el enunciado.`
 
+    // ── LENGUAJE ─────────────────────────────────────────────────────────────────
     if (/lenguaje|comunicac/.test(ctx))
-      return `Esta pregunta de Lenguaje evalúa el uso correcto del español. Identifica si te preguntan sobre ortografía, morfología, sintaxis o semántica. Para oraciones, analiza el sujeto y el predicado. Para la tildación, aplica las reglas de palabras agudas, graves, esdrújulas y sobresdrújulas.`
+      return `Lee el enunciado e identifica si te preguntan sobre ortografía, morfología, sintaxis o semántica. Para la tildación, recuerda: las palabras agudas llevan tilde si terminan en n, s o vocal; las graves llevan tilde si terminan en consonante distinta de n o s; las esdrújulas siempre llevan tilde. Para la sintaxis, localiza el verbo principal de la oración y luego identifica el sujeto que concuerda con él en número y persona.`
 
+    // ── LITERATURA ───────────────────────────────────────────────────────────────
     if (/literatur/.test(ctx))
-      return `Esta pregunta de Literatura evalúa el conocimiento de obras, autores y movimientos literarios. Identifica la época: literatura prehispánica, colonial, romántica, modernista o contemporánea. Reconoce los géneros: narrativa, lírica y dramática. Autores peruanos clave: César Vallejo, José María Arguedas, Mario Vargas Llosa, Ricardo Palma.`
+      return `Identifica el género literario: narrativa si hay narrador y personajes, lírica si expresa sentimientos en verso, dramática si es diálogo para ser representado. Recuerda los autores peruanos clave: César Vallejo en poesía, José María Arguedas y Mario Vargas Llosa en narrativa, Ricardo Palma con las Tradiciones Peruanas. Relaciona el autor con su corriente y su época para responder correctamente.`
 
+    // ── HISTORIA ─────────────────────────────────────────────────────────────────
     if (/histor/.test(ctx))
-      return `Esta pregunta de Historia del Perú requiere ubicar el acontecimiento en su contexto temporal. Los períodos clave son: Culturas prehispánicas, Imperio Inca, Conquista española, Virreinato, Independencia, y República. Para cada hecho histórico identifica las causas, el desarrollo y las consecuencias.`
+      return `Ubica el hecho en su período histórico: culturas prehispánicas, Imperio Inca, Conquista española, Virreinato, Independencia o República del Perú. Para cada evento identifica quiénes fueron los protagonistas, cuándo ocurrió, cuáles fueron las causas principales y qué consecuencias tuvo. Descarta las opciones que mezclen hechos de épocas distintas o que atribuyan acciones a los actores equivocados.`
 
+    // ── FILOSOFÍA ────────────────────────────────────────────────────────────────
     if (/filosof/.test(ctx))
-      return `La Filosofía evalúa el razonamiento y el análisis de ideas. Los autores principales son Sócrates con el método socrático, Platón con la teoría de las ideas, Aristóteles con la lógica y la ética, Descartes con el racionalismo, Kant con el imperativo categórico. Identifica la corriente filosófica y el concepto central que plantea la pregunta.`
+      return `Identifica el autor o la corriente filosófica que menciona el enunciado. Recuerda las posturas principales: Sócrates usaba el diálogo para descubrir la verdad; Platón defendía el mundo de las ideas; Aristóteles partía de la observación; Descartes dudaba de todo para encontrar una certeza; Kant estableció el imperativo categórico como norma moral. Relaciona cada afirmación del enunciado con el pensador que la propone.`
 
+    // ── CIUDADANÍA ───────────────────────────────────────────────────────────────
     if (/ciudadan/.test(ctx))
-      return `Esta pregunta de Ciudadanía evalúa los derechos, deberes y la organización del Estado peruano. La Constitución de 1993 es la ley suprema. El Estado tiene tres poderes: Ejecutivo, Legislativo y Judicial. Los derechos fundamentales incluyen la vida, la libertad y la igualdad ante la ley.`
+      return `Recuerda que el Estado peruano se organiza en tres poderes: el Ejecutivo que gobierna, el Legislativo que hace las leyes y el Judicial que las aplica. La Constitución de 1993 es la norma suprema. Los derechos fundamentales —vida, libertad, igualdad— no pueden ser desconocidos por ninguna autoridad. Lee cada alternativa y elige la que sea coherente con esos principios constitucionales.`
 
+    // ── PSICOLOGÍA ───────────────────────────────────────────────────────────────
     if (/psicolog/.test(ctx))
-      return `La Psicología estudia la conducta y los procesos mentales. Sigmund Freud desarrolló el psicoanálisis con los conceptos de id, ego y superego. Jean Piaget explicó el desarrollo cognitivo por etapas. Abraham Maslow propuso la pirámide de necesidades. Lev Vygotsky destacó el papel social en el aprendizaje.`
+      return `Ubica el concepto que describe el enunciado y relaciona con el autor correspondiente. Freud explicaba la conducta por el inconsciente, el id, el ego y el superego. Piaget describió cuatro etapas del desarrollo cognitivo: sensoriomotora, preoperacional, operacional concreta y formal. Maslow ordenó las necesidades en una pirámide desde las fisiológicas hasta la autorrealización. Elige la opción que mejor describa el proceso o la etapa que se plantea.`
 
+    // ── ECONOMÍA ─────────────────────────────────────────────────────────────────
     if (/econom/.test(ctx))
-      return `La Economía estudia la producción, distribución y consumo de bienes. La Ley de la Demanda dice que a mayor precio, menor cantidad demandada. La Ley de la Oferta dice que a mayor precio, mayor cantidad ofrecida. El PBI mide el valor total de los bienes y servicios de un país. Identifica el concepto económico que plantea el enunciado.`
+      return `Identifica cuál principio económico aplica la situación: si habla de precios y cantidades en el mercado, piensa en la ley de oferta y demanda. Si habla del crecimiento de un país, relaciona con el PBI. Para calcular el costo, precio de venta o ganancia, parte de la fórmula básica: utilidad es precio de venta menos costo. Elige la opción que refleje correctamente esa relación económica.`
 
+    // ── DESARROLLO PERSONAL ──────────────────────────────────────────────────────
     if (/desarrollo personal/.test(ctx))
-      return `Desarrollo Personal evalúa el autoconocimiento, las habilidades sociales y el proyecto de vida. La autoestima es la valoración que tenemos de nosotros mismos. La asertividad es comunicarnos con respeto y firmeza. Identifica la habilidad social o el concepto psicopedagógico que describe el enunciado.`
+      return `Lee el caso o situación que describe el enunciado e identifica qué habilidad o proceso personal está en juego. Si habla de cómo alguien se siente consigo mismo, es autoestima. Si habla de expresar ideas sin agredir ni ceder, es asertividad. Si describe una etapa del crecimiento humano, ubícala en la línea niñez, adolescencia, adultez o vejez. Elige la opción que corresponda exactamente a la definición o al ejemplo presentado.`
 
-    return `Analiza el enunciado con atención. Identifica las palabras clave del concepto central. Recuerda los contenidos del curso, aplica el razonamiento adecuado y descarta las opciones que contradigan la lógica o los hechos. La opción correcta siempre es la más completa y precisa.`
+    return `Lee con cuidado el enunciado completo. Identifica la idea central y las palabras clave. Descarta las opciones que sean claramente incorrectas o que contradigan lo planteado. Entre las opciones restantes, elige la que responda de forma más precisa y completa lo que se pregunta.`
   }
 
-  // ── buildScript: explica el tema y la fórmula SIN revelar la respuesta ────────
+  // ── Detecta el subtema para cualquier materia ────────────────────────────────
+  function detectSubtema(area: string, enunciado: string): string {
+    const ctx = (area + ' ' + enunciado).toLowerCase()
+    const a = area.toLowerCase()
+    if (/matemát|matem/.test(a)) return detectSubcursoMat(ctx)
+    if (/física/.test(a)) {
+      if (/velocidad|aceleración|movimiento|tiempo|distancia|cinemát/.test(ctx)) return 'Cinemática'
+      if (/fuerza|newton|masa/.test(ctx)) return 'Dinámica — Leyes de Newton'
+      if (/energía|trabajo|potencia|joule/.test(ctx)) return 'Trabajo y Energía'
+      if (/onda|sonido|luz|óptica/.test(ctx)) return 'Ondas y Óptica'
+      return 'Física General'
+    }
+    if (/química/.test(a)) {
+      if (/tabla periódica|número atóm|protón|electrón/.test(ctx)) return 'Tabla Periódica'
+      if (/reacción|reactivo|balancear|estequio/.test(ctx)) return 'Reacciones Químicas'
+      if (/enlace|molecular|iónico|covalente/.test(ctx)) return 'Enlace Químico'
+      return 'Química General'
+    }
+    if (/biolog/.test(a)) {
+      if (/célula|mitosis|meiosis/.test(ctx)) return 'Citología'
+      if (/adn|gen|herencia|cromosoma/.test(ctx)) return 'Genética'
+      if (/ecosistema|ecolog|especie/.test(ctx)) return 'Ecología'
+      if (/fotosíntes|respiración celular/.test(ctx)) return 'Metabolismo'
+      return 'Biología General'
+    }
+    if (/lenguaje|comunicac/.test(a)) {
+      if (/tildación|ortografía|acento/.test(ctx)) return 'Ortografía y Tildación'
+      if (/sintaxis|oración|sujeto|predicado/.test(ctx)) return 'Sintaxis'
+      if (/semántica|significado|sinónimo/.test(ctx)) return 'Semántica'
+      return 'Comprensión Lectora'
+    }
+    if (/literatur/.test(a)) {
+      if (/vallejo|arguedas|palma|vargas llosa/.test(ctx)) return 'Literatura Peruana'
+      if (/cervantes|shakespeare|García Márquez/.test(ctx)) return 'Literatura Universal'
+      if (/género|narrativa|lírica|dramática/.test(ctx)) return 'Géneros Literarios'
+      return 'Literatura'
+    }
+    if (/histor/.test(a)) {
+      if (/inca|tawantisuyo|prehispánico/.test(ctx)) return 'Cultura Inca y Prehispánica'
+      if (/conquista|virreinato|colonia/.test(ctx)) return 'Conquista y Virreinato'
+      if (/independencia|república|siglo xix/.test(ctx)) return 'Independencia y República'
+      return 'Historia del Perú'
+    }
+    if (/filosof/.test(a)) {
+      if (/sócrates|platón|aristóteles|grecia/.test(ctx)) return 'Filosofía Griega'
+      if (/descartes|kant|racionalismo|empirismo/.test(ctx)) return 'Filosofía Moderna'
+      if (/lógica|silogismo|razonamiento/.test(ctx)) return 'Lógica'
+      return 'Filosofía'
+    }
+    if (/psicolog/.test(a)) {
+      if (/freud|inconsciente|psicoanálisis/.test(ctx)) return 'Psicoanálisis'
+      if (/piaget|vygotsky|desarrollo/.test(ctx)) return 'Psicología del Desarrollo'
+      if (/maslow|motivación|necesidades/.test(ctx)) return 'Motivación y Conducta'
+      return 'Psicología General'
+    }
+    if (/econom/.test(a)) {
+      if (/oferta|demanda|mercado|precio/.test(ctx)) return 'Oferta y Demanda'
+      if (/pbi|inflación|macroeconomía/.test(ctx)) return 'Macroeconomía'
+      return 'Economía'
+    }
+    if (/ciudadan/.test(a)) return 'Ciudadanía y Constitución'
+    if (/desarrollo personal/.test(a)) {
+      if (/autoestima|identidad/.test(ctx)) return 'Autoestima e Identidad'
+      if (/asertividad|comunicación|habilidades sociales/.test(ctx)) return 'Habilidades Sociales'
+      return 'Desarrollo Personal'
+    }
+    if (/inglés|ingles/.test(a)) {
+      if (/past|preterite/.test(ctx)) return 'Inglés — Past Tense'
+      if (/present.*simple|present.*continuous/.test(ctx)) return 'Inglés — Present Tense'
+      if (/vocabulary|reading/.test(ctx)) return 'Inglés — Reading Comprehension'
+      return 'Inglés'
+    }
+    return area || 'General'
+  }
+
+  // ── buildScript: nombra curso + subtema, luego explica el método ──────────────
   function buildScript(p: Pregunta): string[] {
     const idx = saludoCounter.current % SALUDOS_PE.length
     saludoCounter.current += 1
     const iC = (saludoCounter.current >> 2) % CIERRES_PE.length
-    const pf = getPureFormula(p.area, p.enunciado)
 
-    const saludo = SALUDOS_PE[idx]
-
-    // Identifica el subcurso específico para Matemática
-    const ctx = (p.area + ' ' + p.enunciado).toLowerCase()
-    let cursoNombre = p.area || 'la materia'
-    if (/matemát/.test(ctx)) cursoNombre = detectSubcursoMat(ctx)
-
-    const topicIntro = `Esta pregunta es de ${cursoNombre}.`
-
-    // Describe la fórmula CONCEPTUALMENTE (nombre y variables, sin datos del problema)
-    const formulaDesc = pf
-      ? `La fórmula que aplica aquí es la de ${pf.label}. ${pf.vars ? 'Donde ' + pf.vars + '.' : ''}`
-      : ''
-
-    // Explicación conceptual del curso — NUNCA usa p.explicacion (que contiene la respuesta)
-    const conceptExplain = buildPasoAPaso(p.area, p.enunciado)
-
-    const explica = [topicIntro, formulaDesc, conceptExplain].filter(Boolean).join(' ')
-
-    const formulaLabel = pf ? `la fórmula de ${pf.label}` : `los conceptos de ${cursoNombre}`
-    const cierre = CIERRES_PE[iC](formulaLabel)
-    return [saludo, explica, cierre]
+    const saludo   = SALUDOS_PE[idx]
+    const subtema  = detectSubtema(p.area, p.enunciado)
+    const intro    = `Curso: ${p.area || 'General'}. Tema: ${subtema}.`
+    const metodo   = buildPasoAPaso(p.area, p.enunciado)
+    const pf       = getPureFormula(p.area, p.enunciado)
+    const fLabel   = pf ? pf.label : subtema
+    const cierre   = CIERRES_PE[iC](fLabel)
+    return [saludo, intro + ' ' + metodo, cierre]
   }
 
   async function handleSpeak(p: Pregunta) {
