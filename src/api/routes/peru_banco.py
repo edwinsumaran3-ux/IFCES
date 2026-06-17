@@ -73,7 +73,9 @@ async def list_preguntas(
     rows = (await db.execute(text("""
         SELECT id::text, materia, enunciado,
                opcion_a, opcion_b, opcion_c, opcion_d,
-               respuesta, explicacion, seccion
+               respuesta, explicacion,
+               COALESCE(explicacion_ia, '') as explicacion_ia,
+               seccion
         FROM peru_preguntas
         WHERE materia = :mat
         ORDER BY id
@@ -101,6 +103,7 @@ async def list_preguntas(
             "opciones":   opciones,
             "respuesta":  r.respuesta or "A",
             "explicacion": r.explicacion or "",
+            "explicacion_ia": r.explicacion_ia or "",
             "dificultad": "MEDIA",
         })
 

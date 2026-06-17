@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useScreenGuide } from '../audio/AudioGuide'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
+import PizarraExplicacion from './PizarraExplicacion'
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
 
@@ -20,7 +21,7 @@ interface Opcion { label: string; text: string }
 interface Pregunta {
   id: string; codigo: string; area: string; tema: string; seccion: string
   enunciado: string; opciones: Opcion[]; respuesta: string
-  explicacion: string; dificultad: string
+  explicacion: string; explicacion_ia: string; dificultad: string
 }
 type View = 'materias' | 'preguntas'
 
@@ -1215,34 +1216,13 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
           <QuestionInlineVisual question={qvp} color={materia.color} />
           {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
-          {p.explicacion ? (
-            <div style={{ margin: '0 0 10px' }}>
-              {formatExplicacion(p.explicacion).map((seg, li) => (
-                <div key={li} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8,
-                  margin: '0 0 8px',
-                  background: seg.type === 'header' ? `${materia.color}12` : seg.type === 'result' ? 'rgba(63,185,80,0.08)' : 'transparent',
-                  border: seg.type === 'header' ? `1px solid ${materia.color}30` : seg.type === 'result' ? '1px solid rgba(63,185,80,0.25)' : 'none',
-                  borderRadius: 7, padding: seg.type === 'body' ? '0' : '6px 10px',
-                }}>
-                  {seg.type === 'step' && (
-                    <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: materia.color, color: '#0d1117', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{seg.num}</span>
-                  )}
-                  {seg.type === 'result' && <span style={{ fontSize: 15, flexShrink: 0 }}>✓</span>}
-                  {seg.type === 'header' && <span style={{ fontSize: 13, flexShrink: 0 }}>📌</span>}
-                  <p style={{
-                    fontSize: 13, lineHeight: 1.7, margin: 0,
-                    color: seg.type === 'header' ? materia.color : seg.type === 'result' ? '#3fb950' : '#c9d1d9',
-                    fontWeight: seg.type === 'body' ? 400 : 600,
-                  }}>{seg.text}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.75, margin: '0 0 10px', fontStyle: 'italic' }}>
-              💡 Escucha el audio para obtener la explicación completa del concepto de esta pregunta.
-            </p>
-          )}
+          <PizarraExplicacion
+            explicacion_ia={p.explicacion_ia || ''}
+            explicacion={p.explicacion || ''}
+            respuesta={p.respuesta}
+            opcion_resp={p.opciones.find(o => o.label === p.respuesta)?.text || ''}
+            color={materia.color}
+          />
 
           <div style={{ marginTop: 12, padding: '8px 12px', background: `${materia.color}08`, border: `1px solid ${materia.color}20`, borderRadius: 8, fontSize: 12, color: materia.color, fontStyle: 'italic' }}>
             🌟 ¡Muy bien! Repasa este procedimiento para que en el examen lo hagas en segundos.
