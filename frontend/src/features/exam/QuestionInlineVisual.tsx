@@ -19,7 +19,7 @@ type Kind =
   | 'commercial' | 'pythagoras' | 'circle' | 'statistics'
   | 'energy' | 'kinematics' | 'ohm' | 'force'
   | 'rectangle' | 'triangle_area' | 'percentage' | 'volume'
-  | 'trigonometry'
+  | 'trigonometry' | 'proportionality' | 'functions' | 'probability' | 'sequences'
   | 'chem' | 'periodic' | 'biology'
   | 'reading' | 'english' | 'social' | 'none';
 
@@ -45,6 +45,10 @@ function kind(area: string, stem: string): Kind {
   if (/descuento|cu[aá]nto paga|precio.*total|rebaja|iva.*precio|unidades.*precio/.test(t)) return 'commercial';
   if (/trigon|seno\b|coseno\b|tangente\b|\bsen\b|\bcos\b|\btan\b|razón trigon|identidad.*trigon|\d+°|[áa]ngulo.*°/.test(t)) return 'trigonometry';
   if (/pit[áa]gor|cateto|hipotenusa|tri[áa]ngulo.*rect/.test(t)) return 'pythagoras';
+  if (/proporcion|semejante|thales|segmento.*parallel|[AB][MN]\s*=\s*\d|\bBN\b|\bAM\b|\bMN\b/.test(t)) return 'proportionality';
+  if (/\bfunci[oó]n\b|\bf\(x\)|\bdominio\b|\brango\b|\bimagen\b.*funci|funci.*imagen|polinomio.*coef|coef.*polinomio|polinomio.*grado|grado.*polinomio|p\(x\)|q\(x\)|v\(x\)/.test(t)) return 'functions';
+  if (/probabilidad|evento.*aleatorio|espacio.*muestral|acertar|elegir.*azar|sacar.*bola|lanzar.*dado|lanzar.*moneda/.test(t)) return 'probability';
+  if (/sucesi[oó]n|progresi[oó]n|t[eé]rmino.*n[eé]simo|n[eé]simo.*t[eé]rmino|progres.*aritm|progres.*geom|suma.*t[eé]rminos|serie.*infinita/.test(t)) return 'sequences';
   if (/c[ií]rculo|circunferencia|radio\s*=|[aá]rea.*c[ií]rc/.test(t)) return 'circle';
   if (/\bmedia\b|\bmediana\b|\bmoda\b|\bpromedio\b|los datos son|puntajes.*son|promedio de los/.test(t)) return 'statistics';
 
@@ -107,6 +111,146 @@ function parseEnergy(stem: string) {
     v:        vM  ? parseFloat(vM[1].replace(',', '.'))  : null,
     isKinetic,
   };
+}
+
+// ── Canvas: proporcionalidad (Teorema de Thales) ─────────────────────────────
+function drawProportionality(cv: HTMLCanvasElement, color: string, nums: number[]) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const a = nums[0] || 36, b = nums[1] || 48, c = nums[2] || 3, d = nums[3] || 4;
+  // Líneas paralelas
+  const y1 = H * 0.28, y2 = H * 0.65;
+  const x1 = W * 0.1, x2 = W * 0.85;
+  ctx.strokeStyle = color + '50'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y2); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+  // Transversales
+  const tx1 = W * 0.25, tx2 = W * 0.7;
+  const topY = H * 0.08;
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(tx1, topY); ctx.lineTo(tx1 - 10, H - 20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tx2, topY); ctx.lineTo(tx2 + 10, H - 20); ctx.stroke();
+  // Etiquetas segmentos
+  ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 11px Courier New,monospace';
+  ctx.fillText(`${a}`, tx1 - 28, (y1 + topY) / 2 + 4);
+  ctx.fillText(`${b}`, tx1 - 32, (y2 + y1) / 2 + 4);
+  ctx.fillStyle = color;
+  ctx.fillText(`${c}`, tx2 + 14, (y1 + topY) / 2 + 4);
+  ctx.fillText('?', tx2 + 14, (y2 + y1) / 2 + 4);
+  // Fórmula
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px Segoe UI';
+  ctx.fillText('a/b = c/d  (Thales)', W * 0.28, H - 6);
+}
+
+// ── Canvas: función cuadrática / plano cartesiano ─────────────────────────────
+function drawFunctionGraph(cv: HTMLCanvasElement, color: string) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const ox = W * 0.15, oy = H * 0.78;
+  // Ejes
+  ctx.strokeStyle = '#6e7681'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(ox, H * 0.05); ctx.lineTo(ox, H * 0.92); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W * 0.05, oy); ctx.lineTo(W * 0.92, oy); ctx.stroke();
+  // Flechas
+  ctx.fillStyle = '#6e7681';
+  ctx.beginPath(); ctx.moveTo(ox, H * 0.03); ctx.lineTo(ox - 5, H * 0.1); ctx.lineTo(ox + 5, H * 0.1); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W * 0.94, oy); ctx.lineTo(W * 0.88, oy - 5); ctx.lineTo(W * 0.88, oy + 5); ctx.fill();
+  // Etiquetas ejes
+  ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 11px Segoe UI';
+  ctx.fillText('y', ox + 5, H * 0.08);
+  ctx.fillText('x', W * 0.9, oy - 5);
+  ctx.fillText('0', ox - 12, oy + 12);
+  // Parábola
+  ctx.strokeStyle = color; ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  const scX = (W * 0.75) / 6, scY = (H * 0.65) / 9;
+  for (let xi = -3; xi <= 3; xi += 0.1) {
+    const px = ox + (xi + 3) * scX;
+    const py = oy - (xi * xi) * scY;
+    xi === -3 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  // Punto vértice
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(ox + 3 * scX, oy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px Segoe UI';
+  ctx.fillText('f(x) = ax² + bx + c', ox + 8, H * 0.15);
+}
+
+// ── Canvas: probabilidad ──────────────────────────────────────────────────────
+function drawProbability(cv: HTMLCanvasElement, color: string, nums: number[]) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const favorable = nums[0] || 3, total = Math.max(nums[1] || 10, favorable + 1);
+  // Círculo universal
+  const cx = W * 0.38, cy = H * 0.5, R = Math.min(W, H) * 0.33;
+  ctx.fillStyle = '#1e2433'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = color + '60'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  // Sector favorable
+  const angle = (favorable / total) * Math.PI * 2;
+  ctx.fillStyle = color + '40';
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R * 0.95, -Math.PI / 2, -Math.PI / 2 + angle); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R * 0.95, -Math.PI / 2, -Math.PI / 2 + angle); ctx.closePath(); ctx.stroke();
+  // Etiquetas
+  ctx.fillStyle = '#e2e8f0'; ctx.font = 'bold 13px Segoe UI';
+  ctx.fillText(`${favorable}`, cx - 6, cy - 4);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px Segoe UI';
+  ctx.fillText(`de ${total}`, cx - 10, cy + 12);
+  // Fórmula
+  ctx.fillStyle = color; ctx.font = 'bold 12px Courier New,monospace';
+  ctx.fillText(`P = ${favorable}/${total}`, W * 0.62, H * 0.44);
+  ctx.fillStyle = '#6e7681'; ctx.font = '10px Segoe UI';
+  ctx.fillText('Casos favorables', W * 0.6, H * 0.58);
+  ctx.fillText('Total de casos', W * 0.6, H * 0.68);
+}
+
+// ── Canvas: sucesiones / progresiones ─────────────────────────────────────────
+function drawSequences(cv: HTMLCanvasElement, color: string, nums: number[]) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  // Detectar si es aritmética (diferencia constante) o geométrica (razón constante)
+  const terms = nums.length >= 3 ? nums.slice(0, 5) : [2, 5, 8, 11, 14];
+  const diff = terms.length >= 2 ? terms[1] - terms[0] : 3;
+  const isArith = terms.length >= 3 && Math.abs((terms[2] - terms[1]) - diff) < 0.01;
+  const boxW = Math.min(50, (W - 40) / (terms.length + 1));
+  const boxH = 30, startX = 20, startY = H * 0.35;
+  ctx.font = 'bold 11px Courier New,monospace';
+  terms.forEach((t, i) => {
+    const x = startX + i * (boxW + 8);
+    ctx.fillStyle = i === terms.length - 1 ? color + '30' : '#0d1117';
+    ctx.strokeStyle = i === terms.length - 1 ? color : color + '60';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(x, startY, boxW, boxH, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = i === terms.length - 1 ? color : '#e2e8f0';
+    const txt = String(Math.round(t));
+    const tw = ctx.measureText(txt).width;
+    ctx.fillText(txt, x + boxW / 2 - tw / 2, startY + 20);
+    if (i < terms.length - 1) {
+      ctx.fillStyle = '#475569'; ctx.font = '16px Segoe UI';
+      ctx.fillText('→', x + boxW + 1, startY + 20);
+      ctx.font = 'bold 11px Courier New,monospace';
+    }
+  });
+  // "..." y an
+  const lastX = startX + terms.length * (boxW + 8);
+  ctx.fillStyle = '#475569'; ctx.font = '16px Segoe UI';
+  ctx.fillText('... aₙ', lastX, startY + 20);
+  // Fórmula
+  ctx.fillStyle = color; ctx.font = 'bold 11px Courier New,monospace';
+  if (isArith) {
+    ctx.fillText(`d = ${diff > 0 ? '+' : ''}${diff}  (P. Aritmética)`, 20, startY + 55);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px Segoe UI';
+    ctx.fillText(`aₙ = a₁ + (n−1)·d`, 20, startY + 70);
+  } else {
+    ctx.fillText('Progresión  →  aₙ = a₁ · rⁿ⁻¹', 20, startY + 55);
+  }
 }
 
 // ── Canvas: triángulo rectángulo ──────────────────────────────────────────────
@@ -829,7 +973,8 @@ export default function QuestionInlineVisual({ question, color }: Props) {
 
   const hasCanvas = ['pythagoras', 'circle', 'statistics', 'kinematics', 'ohm',
                      'rectangle', 'triangle_area', 'energy',
-                     'force', 'volume', 'percentage', 'commercial', 'trigonometry'].includes(k);
+                     'force', 'volume', 'percentage', 'commercial', 'trigonometry',
+                     'proportionality', 'functions', 'probability', 'sequences'].includes(k);
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -845,8 +990,12 @@ export default function QuestionInlineVisual({ question, color }: Props) {
     if (k === 'force')         drawForce(cv, forceM, forceA, color);
     if (k === 'volume')        drawVolume(cv, volL, volW, volH, color);
     if (k === 'percentage')    drawPercentage(cv, pct, color);
-    if (k === 'commercial')    drawCommercial(cv, commPrice, commPct, color);
-    if (k === 'trigonometry')  drawTrigonometry(cv, trigAngle, color);
+    if (k === 'commercial')       drawCommercial(cv, commPrice, commPct, color);
+    if (k === 'trigonometry')     drawTrigonometry(cv, trigAngle, color);
+    if (k === 'proportionality')  drawProportionality(cv, color, n);
+    if (k === 'functions')        drawFunctionGraph(cv, color);
+    if (k === 'probability')      drawProbability(cv, color, n);
+    if (k === 'sequences')        drawSequences(cv, color, n);
   }, [k, question.id, color]);
 
   if (k === 'none') return null;
@@ -959,6 +1108,35 @@ export default function QuestionInlineVisual({ question, color }: Props) {
         { label: 'N⁰ neutrones', val: Z !== null && A !== null ? `${A - Z}` : '?' },
       ];
     }
+    if (k === 'proportionality') return [
+      { label: 'Segmento a', val: `${n[0] || '?'}` },
+      { label: 'Segmento b', val: `${n[1] || '?'}` },
+      { label: 'Segmento c', val: `${n[2] || '?'}` },
+      { label: 'Segmento d', val: '?' },
+    ];
+    if (k === 'functions') return [
+      { label: 'Tipo',     val: 'f(x)' },
+      { label: 'Dominio',  val: 'x ∈ ℝ' },
+      { label: 'Imagen',   val: '?' },
+    ];
+    if (k === 'probability') {
+      const fav = n[0] || 1, tot = n[1] || 6;
+      return [
+        { label: 'Favorables', val: `${fav}` },
+        { label: 'Total',      val: `${tot}` },
+        { label: 'P(E)',       val: `${fav}/${tot}` },
+      ];
+    }
+    if (k === 'sequences') {
+      const seqNums = n.slice(0, 4);
+      const d = seqNums.length >= 2 ? seqNums[1] - seqNums[0] : null;
+      return [
+        { label: 'a₁',  val: `${seqNums[0] || '?'}` },
+        { label: 'd',   val: d !== null ? `${d > 0 ? '+' : ''}${d}` : '?' },
+        { label: 'aₙ',  val: '?' },
+        { label: 'Sₙ',  val: '?' },
+      ];
+    }
     return [];
   })();
 
@@ -995,8 +1173,13 @@ export default function QuestionInlineVisual({ question, color }: Props) {
             {k === 'ohm'           && '⚡ CIRCUITO ELÉCTRICO'}
             {k === 'force'         && '🔴 DIAGRAMA DE FUERZAS — SEGUNDA LEY DE NEWTON'}
             {k === 'volume'        && '📦 DIAGRAMA — VOLUMEN DEL SÓLIDO'}
-            {k === 'percentage'    && '🥧 DIAGRAMA — PORCENTAJE'}
-            {k === 'commercial'    && '💰 DIAGRAMA — DESCUENTO COMERCIAL'}
+            {k === 'percentage'       && '🥧 DIAGRAMA — PORCENTAJE'}
+            {k === 'commercial'       && '💰 DIAGRAMA — DESCUENTO COMERCIAL'}
+            {k === 'trigonometry'     && '📐 TRIÁNGULO — RAZONES TRIGONOMÉTRICAS'}
+            {k === 'proportionality'  && '📏 DIAGRAMA — PROPORCIONALIDAD (THALES)'}
+            {k === 'functions'        && '📈 GRÁFICA — FUNCIÓN EN EL PLANO CARTESIANO'}
+            {k === 'probability'      && '🎲 DIAGRAMA — PROBABILIDAD'}
+            {k === 'sequences'        && '🔢 DIAGRAMA — SUCESIÓN / PROGRESIÓN'}
           </span>
           <div style={S.canvasWrap}>
             <canvas
