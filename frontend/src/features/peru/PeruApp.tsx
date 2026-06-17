@@ -6,7 +6,7 @@ import PeruExamEngine from './PeruExamEngine'
 import PeruBancoPreguntasPage from './PeruBancoPreguntasPage'
 import PeruPaymentPage from './PeruPaymentPage'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
-import { useScreenGuide, useAudioGuide } from '../audio/AudioGuide'
+import { useScreenGuide, useAudioGuide, useSpeaking } from '../audio/AudioGuide'
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -32,7 +32,8 @@ const SECCIONES_INFO: Record<SeccionCombo, { label: string; desc: string; materi
 
 export default function PeruApp({ user, onLogout }: Props) {
   useScreenGuide('home_pe', 1200)
-  const { speaking, enabled, toggleEnabled, stop } = useAudioGuide()
+  const { enabled, toggleEnabled, stop } = useAudioGuide()
+  const speaking = useSpeaking()
   const [view,        setView]        = useState<View>('home')
   const [examState,   setExamState]   = useState<ExamState | null>(null)
   const [loading,     setLoading]     = useState(false)
