@@ -116,6 +116,12 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
     })
   }, [])
 
+  // Sincronizar singleton con el play/enabled actual
+  useEffect(() => {
+    _screenGuideFn = play
+    _screenGuideEnabled = enabled
+  }, [play, enabled])
+
   // Load voices when available
   useEffect(() => {
     window.speechSynthesis?.getVoices()
@@ -184,20 +190,19 @@ function AudioFloatingBtn() {
   )
 }
 
+// ─── Singleton para useScreenGuide (evita useContext y re-renders) ────────────
+let _screenGuideFn: (screen: string) => void = () => {}
+let _screenGuideEnabled = true
+
 // ─── Hook: auto-play on screen mount ─────────────────────────────────────────
 export function useScreenGuide(screen: string, delay = 800) {
-  const { play, enabled } = useAudioGuide()
-  const playRef = useRef(play)
-  const enabledRef = useRef(enabled)
-  playRef.current = play
-  enabledRef.current = enabled
-
+  // NO usa useContext — lee del singleton para no suscribirse a cambios de contexto
   useEffect(() => {
-    if (!enabledRef.current) return
+    if (!_screenGuideEnabled) return
     const key = `guide_played_${screen}`
     if (sessionStorage.getItem(key)) return
     sessionStorage.setItem(key, '1')
-    const t = setTimeout(() => playRef.current(screen), delay)
+    const t = setTimeout(() => _screenGuideFn(screen), delay)
     return () => clearTimeout(t)
-  }, [])  // solo al montar — refs mantienen valores actualizados
+  }, [])
 }
