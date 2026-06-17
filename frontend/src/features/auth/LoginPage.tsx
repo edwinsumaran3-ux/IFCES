@@ -1,6 +1,5 @@
 // frontend/src/features/auth/LoginPage.tsx
 import React, { useState, useEffect } from 'react'
-import { useScreenGuide } from '../audio/AudioGuide'
 
 const BACKEND = 'https://ifces-production.up.railway.app'
 
@@ -16,7 +15,6 @@ const ROLES = [
 ]
 
 export default function LoginPage({ onLogin }: Props) {
-  useScreenGuide('login_co', 1500)
   const [tab,      setTab]      = useState<'login' | 'register'>('login')
   const [role,     setRole]     = useState('student')
   const [email,    setEmail]    = useState('')
