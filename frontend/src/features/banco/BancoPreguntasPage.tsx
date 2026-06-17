@@ -1059,8 +1059,16 @@ function FormulaBox({ tex, isLatex, label, vars, color }: {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current || !isLatex) return;
-    ref.current.innerHTML = `\\[${tex}\\]`;
-    try { MathJax.typesetPromise([ref.current]).catch(() => {}); } catch {}
+    const el = ref.current;
+    el.innerHTML = `\\[${tex}\\]`;
+    (async () => {
+      try {
+        if (typeof MathJax !== 'undefined') {
+          if ((MathJax as any).startup?.promise) await (MathJax as any).startup.promise;
+          await MathJax.typesetPromise([el]);
+        }
+      } catch { el.style.fontFamily = 'monospace'; el.innerHTML = tex; }
+    })();
   }, [tex, isLatex]);
 
   return (

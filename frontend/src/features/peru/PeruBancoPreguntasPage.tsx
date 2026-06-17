@@ -660,21 +660,88 @@ function MateriaCard({ m, onSelect }: { m: Materia; onSelect: (m: Materia) => vo
   )
 }
 
-// ── FormulaBox ────────────────────────────────────────────────────────────────
+// ── StrategySteps — muestra texto de estrategia como pasos visuales ──────────
+function StrategySteps({ text, color }: { text: string; color: string }) {
+  // Detectar si es lista de pasos separados por →
+  if (text.includes('→')) {
+    const steps = text.split('→').map(s => s.trim()).filter(Boolean)
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, justifyContent: 'center', padding: '6px 0' }}>
+        {steps.map((step, i) => (
+          <React.Fragment key={i}>
+            <div style={{ background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 8, padding: '5px 12px', fontSize: 12, color, fontWeight: 600, textAlign: 'center' }}>
+              {step}
+            </div>
+            {i < steps.length - 1 && (
+              <span style={{ color, fontSize: 16, fontWeight: 700 }}>→</span>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    )
+  }
+  // Detectar si es lista de conceptos separados por ·
+  if (text.includes('·')) {
+    const items = text.split('·').map(s => s.trim()).filter(Boolean)
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', padding: '6px 0' }}>
+        {items.map((item, i) => (
+          <div key={i} style={{ background: `${color}15`, border: `1px solid ${color}35`, borderRadius: 20, padding: '4px 12px', fontSize: 11, color, fontWeight: 600 }}>
+            {item}
+          </div>
+        ))}
+      </div>
+    )
+  }
+  // Texto simple
+  return (
+    <div style={{ fontSize: 13, color, textAlign: 'center', padding: '6px 0', lineHeight: 1.7 }}>{text}</div>
+  )
+}
+
+// ── FormulaBox — LaTeX como imagen real, estrategias como pasos visuales ──────
 function FormulaBox({ tex, isLatex, label, vars, color }: { tex: string; isLatex: boolean; label: string; vars?: string; color: string }) {
+  const [imgError, setImgError] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Para LaTeX: renderizar con MathJax (await startup para evitar fórmula vacía)
   useEffect(() => {
     if (!ref.current || !isLatex) return
-    ref.current.innerHTML = `\\[${tex}\\]`
-    try { MathJax.typesetPromise([ref.current]).catch(() => {}) } catch {}
+    const el = ref.current
+    el.innerHTML = `\\[${tex}\\]`
+    ;(async () => {
+      try {
+        if (typeof MathJax !== 'undefined') {
+          if ((MathJax as any).startup?.promise) await (MathJax as any).startup.promise
+          await MathJax.typesetPromise([el])
+        }
+      } catch {
+        el.style.fontFamily = 'monospace'
+        el.style.fontSize = '13px'
+        el.innerHTML = tex
+      }
+    })()
   }, [tex, isLatex])
+
   return (
     <div style={{ background: '#0d1117', border: `1px solid ${color}40`, borderRadius: 10, padding: '12px 16px', marginTop: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.08em', marginBottom: 6 }}>🧮 FÓRMULA — {label.toUpperCase()}</div>
-      {isLatex
-        ? <div ref={ref} style={{ color, fontSize: 15, textAlign: 'center', minHeight: 36 }} />
-        : <div style={{ fontSize: 13, color, fontFamily: 'monospace', textAlign: 'center', padding: '6px 0' }}>{tex}</div>
-      }
+      <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.08em', marginBottom: 8 }}>🧮 FÓRMULA — {label.toUpperCase()}</div>
+      {isLatex ? (
+        /* Imagen LaTeX via MathJax — fallback a image CDN si falla */
+        <>
+          <div ref={ref} style={{ color, fontSize: 15, textAlign: 'center', minHeight: 40 }} />
+          {imgError && (
+            <img
+              src={`https://math.vercel.app/?from=${encodeURIComponent(tex)}&color=white`}
+              alt={tex}
+              style={{ maxWidth: '100%', maxHeight: 60, display: 'block', margin: '0 auto' }}
+            />
+          )}
+        </>
+      ) : (
+        /* Estrategia visual — pasos con colores, no texto plano */
+        <StrategySteps text={tex} color={color} />
+      )}
       {vars && <div style={{ fontSize: 11, color: '#6e7681', marginTop: 8, lineHeight: 1.6 }}>{vars}</div>}
     </div>
   )
