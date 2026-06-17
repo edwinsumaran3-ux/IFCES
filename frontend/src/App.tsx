@@ -218,7 +218,7 @@ function AppInner() {
 
           <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,background:'rgba(12,18,38,0.8)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:14,padding:16 }}>
             {[
-              { label:'Banco de preguntas', val:'20,000+', color:'#38bdf8' },
+              { label:'Banco de preguntas', val:'40,000+', color:'#38bdf8' },
               { label:'Motor socrático',    val:'Claude Sonnet', color:'#a78bfa' },
               { label:'Voz pedagógica',     val:'Google TTS', color:'#34d399' },
               { label:'Ayudas IA/examen',   val:'5 máx.', color:'#fbbf24' },
