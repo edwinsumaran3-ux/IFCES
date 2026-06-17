@@ -73,6 +73,7 @@ async def list_preguntas(
     rows = (await db.execute(text("""
         SELECT id::text, materia, enunciado,
                opcion_a, opcion_b, opcion_c, opcion_d,
+               COALESCE(opcion_e, '') as opcion_e,
                respuesta, explicacion,
                COALESCE(explicacion_ia, '') as explicacion_ia,
                seccion
@@ -90,7 +91,7 @@ async def list_preguntas(
     preguntas = []
     for i, r in enumerate(rows):
         opciones = []
-        for lbl, txt in [("A", r.opcion_a), ("B", r.opcion_b), ("C", r.opcion_c), ("D", r.opcion_d)]:
+        for lbl, txt in [("A", r.opcion_a), ("B", r.opcion_b), ("C", r.opcion_c), ("D", r.opcion_d), ("E", r.opcion_e)]:
             if txt:
                 opciones.append({"label": lbl, "text": txt})
         preguntas.append({
