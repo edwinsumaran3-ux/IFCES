@@ -394,87 +394,191 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
   ]
 
   const CIERRES_PE = [
-    (f: string) => `¡Eso ${nombre}! Sigue practicando y recuerda: ${f}. ¡Tú estás hecho para entrar a la universidad!`,
-    (f: string) => `¡Bien ahí ${nombre}! Guarda esto siempre: ${f}. ¡Dale duro que el examen no te va a ganar!`,
-    (f: string) => `¡Qué crack! Grábate esto: ${f}. Vale oro en el examen. ¡Arriba Perú!`,
-    (f: string) => `¡Así se hace! ${f}. Síguela repasando. ¡Tú puedes con todo!`,
-    (f: string) => `¡Qué bacán ${nombre}! Eso es lo que necesitabas entender. ${f}. ¡Sigue así!`,
-    (f: string) => `¡Excelente ${nombre}! El concepto clave es: ${f}. ¡Con esta herramienta el examen no te para!`,
-    (f: string) => `¡Oe causita! ¿Grabaste esto? ${f}. ¡Eso es exactamente lo que el examen va a preguntar!`,
+    (f: string) => `¡Eso ${nombre}! Recuerda bien ${f}. Y si no te quedó claro, elige tu respuesta y te mostraré la solución resuelta paso a paso. ¡Tú puedes!`,
+    (f: string) => `¡Bien ahí ${nombre}! ${f} es tu herramienta de oro. Si necesitas ver cómo se resuelve exactamente, selecciona tu respuesta y aparecerá la resolución completa. ¡Dale que sí!`,
+    (f: string) => `¡Qué crack, ${nombre}! Grábate ${f}. Si no recuerdas cómo aplicarla, elige tu opción y te explico todo el procedimiento paso a paso. ¡El examen te espera!`,
+    (f: string) => `¡Así se hace! ${f} es la clave. Cuando elijas tu respuesta, verás la fórmula resuelta con todos los datos. ¡Repasa y sigue adelante!`,
+    (f: string) => `¡Qué bacán ${nombre}! Lo importante es ${f}. Si algo no quedó claro, selecciona tu respuesta y te aparecerá la explicación completa y detallada. ¡Vas muy bien!`,
+    (f: string) => `¡Excelente ${nombre}! El concepto es ${f}. No te preocupes si no recuerdas cómo se calcula; cuando marques tu opción te mostraré el desarrollo completo. ¡Sigue así!`,
+    (f: string) => `¡Oe causita! ¿Grabaste ${f}? Si quieres ver cómo se resuelve paso a paso con los datos del problema, elige tu respuesta y te aparece todo. ¡Eso es!`,
+    (f: string) => `¡Arriba ${nombre}! ${f} es lo que necesitas. Cuando selecciones tu respuesta, verás la resolución detallada. ¡Repasa, que el examen lo vas a reventar!`,
+    (f: string) => `¡Ánimo ${nombre}! Con ${f} estás listo. Si la explicación no fue suficiente, elige tu opción y te muestro la solución completa paso a paso. ¡Tú puedes con todo!`,
+    (f: string) => `¡Qué campeón, ${nombre}! Recuerda ${f}. Si no recuerdas la fórmula o quieres ver el desarrollo completo, selecciona tu respuesta. ¡Allí te lo explico todo!`,
+    (f: string) => `¡Bravo ${nombre}! ${f} nunca te abandona. Cuando marques tu opción, verás la resolución paso a paso con todos los datos. ¡Dale con todo!`,
+    (f: string) => `¡Hermano ${nombre}, tú puedes! ${f} es tu aliada. Si quieres reforzar, elige tu respuesta y aparece la explicación completa y detallada. ¡Eso es estudiar inteligente!`,
+    (f: string) => `¡Vamos ${nombre}! Aplica ${f} y lo logras. No te preocupes si algo no quedó claro; selecciona tu respuesta y te muestro el procedimiento completo. ¡El ingreso es tuyo!`,
+    (f: string) => `¡Sigue así ${nombre}! ${f} es fundamental. Si quieres ver cómo se aplica con números reales, elige tu opción y verás la resolución detallada. ¡Confío en ti!`,
+    (f: string) => `¡Eso mismo ${nombre}! ${f} marca la diferencia. Cuando elijas tu respuesta, aparecerá la explicación resuelta con cada paso. ¡El camino a la universidad está claro!`,
+    (f: string) => `¡Tremendo ${nombre}! Con ${f} ya tienes la base. Selecciona tu respuesta y te mostraré cómo se resuelve completo. ¡Estudia duro y el examen es tuyo!`,
+    (f: string) => `¡Qué nivel, ${nombre}! ${f} es exactamente lo que necesitas. Si algo se escapó, marca tu opción y te aparece el desarrollo completo. ¡Vas en la dirección correcta!`,
+    (f: string) => `¡Genial ${nombre}! Domina ${f} y ganas puntos seguros. Cuando elijas tu opción, verás la solución detallada. ¡Tu esfuerzo de hoy es tu victoria mañana!`,
+    (f: string) => `¡Adelante ${nombre}! ${f} es la herramienta. No dudes; elige tu respuesta y te muestro el paso a paso completo. ¡Cada pregunta que practicas te acerca más a la meta!`,
+    (f: string) => `¡Impresionante ${nombre}! Tienes claro ${f}. Cuando marques tu opción, verás la resolución completa con datos reales del problema. ¡Tú naciste para esto!`,
+    (f: string) => `¡Eso es ${nombre}! ${f} es tu as bajo la manga. Si quieres repasar el procedimiento, selecciona tu respuesta y te explico todo paso a paso. ¡El examen te teme!`,
+    (f: string) => `¡Qué disciplina, ${nombre}! Recuerda ${f}. Elige tu respuesta y verás cómo se resuelve completo. ¡Cada minuto que estudias suma puntos en la UNT!`,
+    (f: string) => `¡Ánimo campeón! ${f} ya lo tienes. Si la explicación fue rápida y quieres el detalle, marca tu opción y aparece la resolución completa. ¡Tú puedes!`,
+    (f: string) => `¡Fuerte ${nombre}! ${f} es la clave del éxito. Cuando elijas tu respuesta, verás el desarrollo completo con cada operación. ¡El ingreso a la universidad es tuyo!`,
+    (f: string) => `¡Crack total ${nombre}! ${f} está grabado en tu mente. Selecciona tu respuesta y aparecerá la explicación paso a paso. ¡Así se estudia para entrar!`,
+    (f: string) => `¡Oe ${nombre}! Ya sabes ${f}. Cuando marques tu opción, verás la solución resuelta con los datos reales. ¡Nada te detiene, ${nombre}!`,
+    (f: string) => `¡Brillante ${nombre}! Con ${f} no hay pregunta que se resista. Selecciona tu respuesta y te muestro el procedimiento detallado. ¡Tú llegas a la universidad!`,
+    (f: string) => `¡Firme ${nombre}! ${f} siempre funciona. Si necesitas ver cómo se aplica exactamente, elige tu opción y aparece la resolución completa. ¡Tú puedes con todo!`,
+    (f: string) => `¡Duro ahí ${nombre}! ${f} es tu fórmula ganadora. Cuando elijas tu respuesta, verás todo resuelto paso a paso. ¡El sacrificio de hoy es el triunfo de mañana!`,
+    (f: string) => `¡Qué talento ${nombre}! ${f} ya es tuya. Si quieres repasar el cálculo completo, selecciona tu respuesta y aparece la explicación detallada. ¡Sigue adelante!`,
+    (f: string) => `¡Increíble ${nombre}! Recuerda siempre ${f}. Cuando marques tu opción, verás cómo se resuelve paso a paso con los datos del enunciado. ¡El examen no te gana!`,
+    (f: string) => `¡Eso ${nombre}, a estudiar! ${f} es la base. Elige tu respuesta y verás la solución completa resuelta. ¡Cada pregunta practicada es un punto más en la UNT!`,
+    (f: string) => `¡Que bueno, ${nombre}! Ya tienes ${f}. Si algo no quedó del todo claro, marca tu opción y te mostraré el procedimiento completo. ¡Confía en ti!`,
+    (f: string) => `¡Qué dedicación ${nombre}! ${f} es poderosa. Selecciona tu respuesta y aparecerá la resolución detallada. ¡Eres capaz de lograr el ingreso!`,
+    (f: string) => `¡A tope ${nombre}! ${f} está de tu lado. Cuando elijas tu opción, verás todo el desarrollo. ¡Así que anímate, elige y aprende al máximo!`,
+    (f: string) => `¡Sigue fuerte ${nombre}! ${f} te abre las puertas de la universidad. Marca tu respuesta y verás la explicación completa y detallada. ¡Tú puedes lograrlo!`,
+    (f: string) => `¡Qué potencial ${nombre}! Con ${f} dominas el tema. Elige tu respuesta y aparecerá la resolución paso a paso. ¡El esfuerzo siempre vale la pena!`,
+    (f: string) => `¡Sensacional ${nombre}! ${f} ya la dominas. Si quieres reforzar el procedimiento, selecciona tu opción y te explico todo completo. ¡El examen es tuyo!`,
+    (f: string) => `¡Arriba Perú y arriba ${nombre}! ${f} es la clave. Cuando marques tu respuesta, verás el desarrollo completo con cada paso y operación. ¡Dale!`,
+    (f: string) => `¡Espectacular ${nombre}! Tienes ${f} en la cabeza. Selecciona tu respuesta y te mostraré la solución detallada. ¡Estudiar así es lo que lleva al éxito!`,
+    (f: string) => `¡Bien por ti ${nombre}! ${f} es fundamental en el examen. Elige tu opción y verás cómo se resuelve completo el problema. ¡No te rindas nunca!`,
+    (f: string) => `¡Qué valor ${nombre}! Ya entendiste ${f}. Cuando elijas tu respuesta, aparecerá la resolución completa. ¡Tú tienes el nivel para ingresar a la universidad!`,
+    (f: string) => `¡Con todo ${nombre}! ${f} es lo que marca diferencia. Selecciona tu opción y verás la explicación paso a paso. ¡Estudia, confía y triunfa!`,
+    (f: string) => `¡Orgulloso de ti ${nombre}! ${f} ya la tienes. Marca tu respuesta y te explico el procedimiento completo. ¡El ingreso a la UNT está cada vez más cerca!`,
+    (f: string) => `¡Resistente ${nombre}! ${f} nunca falla. Si quieres ver el cálculo detallado, elige tu opción y aparece la resolución completa. ¡Tú eres capaz de lograrlo!`,
+    (f: string) => `¡Qué fuerza ${nombre}! Grabaste ${f} en tu mente. Cuando marques tu respuesta, verás todo resuelto paso a paso. ¡El esfuerzo de hoy es el ingreso de mañana!`,
+    (f: string) => `¡Champion ${nombre}! ${f} está lista para usarla en el examen. Selecciona tu respuesta y verás la solución resuelta. ¡Tú tienes lo que se necesita!`,
+    (f: string) => `¡Qué orgullo ${nombre}! ${f} ya es parte de ti. Elige tu opción y te muestro la resolución detallada paso a paso. ¡Nada te puede parar!`,
+    (f: string) => `¡A seguir ${nombre}! ${f} es tu mejor aliada. Cuando elijas tu respuesta, verás el procedimiento completo resuelto. ¡El camino al éxito está en cada pregunta que practicas!`,
+    (f: string) => `¡Tú puedes ${nombre}! ${f} ya la dominaste. Selecciona tu respuesta y aparecerá la explicación completa con cada paso. ¡Sigue así que el ingreso está cerca!`,
+    (f: string) => `¡Lo lograste ${nombre}! Con ${f} ya tienes la herramienta. Marca tu opción y verás cómo se resuelve todo paso a paso. ¡El examen UNT no te va a ganar!`,
   ]
 
-  // ── Explicación por tema cuando no hay fórmula ───────────────────────────────
+  // ── Detecta subcurso de Matemática ───────────────────────────────────────────
+  function detectSubcursoMat(ctx: string): string {
+    if (/trigon|seno\b|coseno\b|tangente\b|\bsen\b|\bcos\b|\btan\b|razón trigon|identidad trigon/.test(ctx))
+      return 'Trigonometría'
+    if (/logarit|log\b|ln\b|exponencial|potencia.*base|antilogarit/.test(ctx))
+      return 'Álgebra — Logaritmos y Potencias'
+    if (/función|dominio|rango|gráfica.*función|imagen.*función|f\(x\)|composición/.test(ctx))
+      return 'Álgebra — Funciones'
+    if (/ecuación|sistema.*ecuac|desigualdad|inecuación|variable|incógnita|despeja/.test(ctx))
+      return 'Álgebra — Ecuaciones'
+    if (/polinomio|monomio|binomio|factor|producto notable|factoriz|simplific.*algebr/.test(ctx))
+      return 'Álgebra — Polinomios'
+    if (/pitágor|cateto|hipotenusa|triángulo.*rect|triángulo.*isosc|triángulo.*equil/.test(ctx))
+      return 'Geometría — Triángulos'
+    if (/círculo|circunferencia|radio\b|diámetro|arco|sector|área.*círc/.test(ctx))
+      return 'Geometría — Círculo y Circunferencia'
+    if (/área|perímetro|volumen|rectángulo|cuadrado|prisma|cilindro|cono|esfera|pirámide/.test(ctx))
+      return 'Geometría — Áreas y Volúmenes'
+    if (/media\b|mediana\b|moda\b|promedio|estadíst|datos\b|muestra|varianza|desviación/.test(ctx))
+      return 'Estadística y Probabilidad'
+    if (/mcm|mcd|divisib|múltiplo|divisor|primo\b|compuesto\b|fracción|fraccionario|decimal|porcentaj/.test(ctx))
+      return 'Aritmética'
+    if (/sucesión|progresión|serie|término/.test(ctx))
+      return 'Aritmética — Sucesiones'
+    return 'Matemática'
+  }
+
+  // ── Explicación conceptual del curso — NUNCA menciona la respuesta ────────────
   function buildPasoAPaso(area: string, enunciado: string): string {
     const ctx = (area + ' ' + enunciado).toLowerCase()
 
-    // Inglés: siempre en español, explica el tema
-    if (/inglés|ingles|english|grammar|vocabulary|verb|tense|past|present|future|reading comprehension/.test(ctx))
-      return `Esta es una pregunta de Inglés. Te explico el tema en español: el inglés evalúa tu capacidad de comprender textos, identificar la idea principal, entender el vocabulario en contexto y reconocer estructuras gramaticales básicas como los tiempos verbales. Para responder bien, identifica la pregunta exacta que se hace, busca las palabras clave en el texto o enunciado y descarta las opciones que no tengan relación directa con lo que se pregunta.`
+    if (/inglés|ingles|english|grammar|vocabulary|verb|tense|past|present|future/.test(ctx))
+      return `El inglés evalúa comprensión de textos y estructuras gramaticales. Identifica el tiempo verbal requerido: present simple, past simple o future. Para preguntas de vocabulario, busca el contexto de la oración. Descarta opciones que no encajen gramaticalmente con el enunciado.`
 
-    if (/matemát|matem|álgebra|geometr|aritmét|trigon|cálculo|ecuación|función|estadíst/.test(ctx))
-      return `Esta es una pregunta de Matemática. Identifica qué tipo de operación o concepto se pide: puede ser álgebra, geometría, aritmética o estadística. Aplica la fórmula o procedimiento correspondiente paso a paso. Verifica que tu resultado sea consistente con las opciones y que las unidades sean correctas.`
+    if (/matemát|matem/.test(ctx)) {
+      const sub = detectSubcursoMat(ctx)
+      if (/trigon/.test(sub.toLowerCase()))
+        return `La Trigonometría estudia las relaciones entre los ángulos y los lados de los triángulos rectángulos. Las razones trigonométricas fundamentales son tres: el seno de un ángulo es el cociente entre el cateto opuesto y la hipotenusa; el coseno es el cociente entre el cateto adyacente y la hipotenusa; y la tangente es el cociente entre el cateto opuesto y el cateto adyacente. Identifica qué ángulo y qué razón trigonométrica pide el problema y aplica directamente la fórmula correspondiente.`
+      if (/geometr.*triáng/.test(sub.toLowerCase()))
+        return `La Geometría de triángulos estudia las propiedades y relaciones de estas figuras. Para triángulos rectángulos aplica el Teorema de Pitágoras: el cuadrado de la hipotenusa es igual a la suma de los cuadrados de los catetos. Para el área de cualquier triángulo usa base por altura entre dos. Identifica qué tipo de triángulo tienes y qué medida te piden calcular.`
+      if (/geometr.*círculo|geometr.*circ/.test(sub.toLowerCase()))
+        return `La Geometría del círculo estudia esta figura perfectamente redonda. Las fórmulas clave son: área igual a pi por el radio al cuadrado, y circunferencia igual a dos por pi por el radio. Recuerda que el diámetro es el doble del radio. Identifica si te piden el área, la longitud de arco o la circunferencia completa.`
+      if (/geometr/.test(sub.toLowerCase()))
+        return `La Geometría estudia las formas, áreas, perímetros y volúmenes. Para áreas: rectángulo es base por altura; triángulo es base por altura entre dos; círculo es pi por radio al cuadrado. Para volúmenes: prisma rectangular es largo por ancho por alto. Identifica la figura y aplica la fórmula correspondiente.`
+      if (/estadíst/.test(sub.toLowerCase()))
+        return `La Estadística analiza conjuntos de datos para obtener información. La media o promedio es la suma de todos los datos dividida entre la cantidad de datos. La mediana es el valor central al ordenar los datos de menor a mayor. La moda es el dato que aparece con mayor frecuencia. Identifica cuál de estas medidas te está pidiendo el problema.`
+      if (/ecuación|álgebra.*ecuac/.test(sub.toLowerCase()))
+        return `El Álgebra de ecuaciones te permite encontrar el valor desconocido de una variable. Para resolver una ecuación aplica la propiedad de igualdad: todo lo que haces de un lado lo debes hacer también del otro. Suma o resta términos para dejar la variable sola, y luego divide o multiplica para despejarla completamente.`
+      if (/función/.test(sub.toLowerCase()))
+        return `Las Funciones matemáticas relacionan cada elemento del dominio con exactamente un elemento del rango. Para evaluar una función, sustituye el valor de x en la regla de correspondencia y realiza las operaciones. Para encontrar el dominio, identifica los valores de x que hacen válida la expresión.`
+      if (/logarit|potencia/.test(sub.toLowerCase()))
+        return `Los Logaritmos son el inverso de las potencias. El logaritmo en base b de un número N es el exponente al que hay que elevar b para obtener N. Recuerda las propiedades: logaritmo de un producto es suma de logaritmos; de un cociente es resta; y de una potencia es el exponente multiplicado por el logaritmo de la base.`
+      if (/aritmét/.test(sub.toLowerCase()))
+        return `La Aritmética trabaja con los números y sus operaciones. Para fracciones, busca el mínimo común múltiplo para sumar o restar. Para porcentajes, multiplica el total por el porcentaje expresado como decimal. Para el MCM o MCD, factoriza los números en primos y aplica las reglas de máximo y mínimo.`
+      return `La Matemática te pide identificar el concepto clave: puede ser una ecuación, una figura geométrica, una razón o una proporción. Lee el enunciado con cuidado, extrae los datos numéricos y las unidades, elige la fórmula correcta y resuelve paso a paso verificando el resultado.`
+    }
 
-    if (/física|movimiento|velocidad|aceleración|fuerza|energía|trabajo|potencia|onda|calor|temperatura|electric|magnét/.test(ctx))
-      return `Esta pregunta evalúa un concepto de Física. Identifica las magnitudes que intervienen y sus unidades. Aplica las leyes físicas: Newton, conservación de energía, termodinámica, óptica o electromagnetismo según el caso. Siempre verifica las unidades en tu respuesta final.`
+    if (/física/.test(ctx)) {
+      if (/velocidad|aceleración|movimiento|tiempo|distancia|desplazamiento/.test(ctx))
+        return `Esta pregunta es de Cinemática, la rama de la Física que estudia el movimiento. Las ecuaciones fundamentales relacionan velocidad, aceleración, tiempo y distancia. La velocidad media es el desplazamiento entre el tiempo. Si hay aceleración constante, aplica las ecuaciones de movimiento uniformemente acelerado.`
+      if (/fuerza|newton|masa|aceleración/.test(ctx))
+        return `Esta pregunta aplica las Leyes de Newton. La Segunda Ley establece que la fuerza neta es igual a la masa multiplicada por la aceleración. La unidad de fuerza es el Newton. Identifica todas las fuerzas que actúan sobre el objeto y aplica la ley correspondiente.`
+      if (/energía|trabajo|potencia|joule/.test(ctx))
+        return `Esta pregunta es de Energía y Trabajo. El trabajo es la fuerza por la distancia en la dirección del movimiento. La energía potencial gravitacional es masa por gravedad por altura. La energía cinética es un medio de la masa por la velocidad al cuadrado. La unidad de energía es el Joule.`
+      return `Esta pregunta de Física requiere identificar la magnitud física involucrada y sus unidades. Lee el enunciado, extrae los datos con sus unidades, elige la ley física o fórmula apropiada y verifica que las unidades del resultado sean correctas.`
+    }
 
-    if (/química|elemento|compuesto|reacción|molécula|átomo|tabla periódica|enlace|ácido|base|estequi|mol|concentración/.test(ctx))
-      return `En Química, identifica el tema central: nomenclatura, reacciones, estequiometría, tabla periódica o propiedades. Analiza los datos y aplica el concepto específico. En reacciones, recuerda balancear y conservar la masa.`
+    if (/química/.test(ctx)) {
+      if (/tabla periódica|número atóm|protón|neutrón|electrón/.test(ctx))
+        return `Esta pregunta es sobre la Tabla Periódica. El número atómico Z indica la cantidad de protones y electrones. La masa atómica A es la suma de protones y neutrones. Los neutrones se calculan restando Z de A. Los elementos están ordenados por número atómico creciente en períodos y grupos.`
+      if (/reacción|reactivo|producto|balancear|estequio/.test(ctx))
+        return `Esta pregunta es sobre Reacciones Químicas. Al balancear una ecuación química, el número de átomos de cada elemento debe ser igual antes y después de la flecha. Primero escribe los reactivos, luego los productos, y ajusta los coeficientes para que la masa se conserve.`
+      return `Esta pregunta de Química requiere identificar el concepto: tabla periódica, tipos de enlace, reacciones o nomenclatura. Recuerda que la Química estudia la materia, su composición y sus transformaciones.`
+    }
 
-    if (/biolog|célula|gen|adn|herencia|ecolog|evolución|fotosíntesis|respiración celular|mitosis|meiosis|ecosistema|proteína/.test(ctx))
-      return `Esta pregunta de Biología evalúa procesos vitales. Identifica el tema: célula, genética, ecología, fisiología o evolución. Relaciona el enunciado con los sistemas biológicos y sus procesos. La biología molecular y la ecología son temas frecuentes en la UNT.`
+    if (/biolog/.test(ctx))
+      return `Esta pregunta de Biología evalúa el conocimiento de los seres vivos y sus procesos. Los niveles de organización van desde la célula hasta el ecosistema. En genética, recuerda que el ADN porta la información hereditaria. La fotosíntesis convierte luz solar en energía química. Identifica el proceso o estructura que menciona el enunciado.`
 
-    if (/comunicac|lenguaje|literatura|comprensión|texto|lectura|sintaxis|semántica|ortografía|narrador|género literario|autor peruano/.test(ctx))
-      return `Esta pregunta de Comunicación o Literatura evalúa comprensión lectora o conocimiento literario. Lee el enunciado con atención, identifica el tema central y las ideas principales. En literatura, recuerda los géneros literarios y autores peruanos como Vallejo, Vargas Llosa y Ricardo Palma.`
+    if (/lenguaje|comunicac/.test(ctx))
+      return `Esta pregunta de Lenguaje evalúa el uso correcto del español. Identifica si te preguntan sobre ortografía, morfología, sintaxis o semántica. Para oraciones, analiza el sujeto y el predicado. Para la tildación, aplica las reglas de palabras agudas, graves, esdrújulas y sobresdrújulas.`
 
-    if (/histor|incas|colonia|república|independencia|guerra|civilización|época|siglo|revolución|virreinato|conquista/.test(ctx))
-      return `Esta pregunta de Historia requiere ubicar el hecho en su contexto temporal y espacial. Identifica el período: prehispánico, conquista, virreinato, independencia o república. Relaciona los hechos con sus causas y consecuencias. Perú tiene una historia rica que va desde los incas hasta la actualidad.`
+    if (/literatur/.test(ctx))
+      return `Esta pregunta de Literatura evalúa el conocimiento de obras, autores y movimientos literarios. Identifica la época: literatura prehispánica, colonial, romántica, modernista o contemporánea. Reconoce los géneros: narrativa, lírica y dramática. Autores peruanos clave: César Vallejo, José María Arguedas, Mario Vargas Llosa, Ricardo Palma.`
 
-    if (/geografí|geograf|región|clima|relieve|hidrografía|población|recursos naturales|costa|sierra|selva|territorio|amazonas/.test(ctx))
-      return `En Geografía, analiza el espacio geográfico que se menciona. El Perú tiene tres regiones naturales: costa, sierra y selva. Cada una tiene características propias de clima, flora, fauna y actividades económicas. Relaciona los datos del enunciado con las características del territorio peruano o mundial.`
+    if (/histor/.test(ctx))
+      return `Esta pregunta de Historia del Perú requiere ubicar el acontecimiento en su contexto temporal. Los períodos clave son: Culturas prehispánicas, Imperio Inca, Conquista española, Virreinato, Independencia, y República. Para cada hecho histórico identifica las causas, el desarrollo y las consecuencias.`
 
-    if (/filosof|platón|aristóteles|sócrates|kant|descartes|epistemolog|ética|metafísica|lógica|razonamiento|silogismo/.test(ctx))
-      return `La Filosofía evalúa tu capacidad de razonamiento y análisis de ideas. Identifica el autor, la corriente filosófica y el problema planteado. Las corrientes principales son racionalismo, empirismo, idealismo y existencialismo. Para lógica formal, identifica si el argumento es deductivo o inductivo.`
+    if (/filosof/.test(ctx))
+      return `La Filosofía evalúa el razonamiento y el análisis de ideas. Los autores principales son Sócrates con el método socrático, Platón con la teoría de las ideas, Aristóteles con la lógica y la ética, Descartes con el racionalismo, Kant con el imperativo categórico. Identifica la corriente filosófica y el concepto central que plantea la pregunta.`
 
-    if (/ciudadan|cívica|constitución|derechos|deberes|democracia|estado|poder judicial|ejecutivo|legislativo|gobierno/.test(ctx))
-      return `Esta pregunta de Ciudadanía evalúa derechos fundamentales, deberes e instituciones del Estado peruano. Relaciona el enunciado con la Constitución Política del Perú, los tres poderes del Estado y los valores democráticos.`
+    if (/ciudadan/.test(ctx))
+      return `Esta pregunta de Ciudadanía evalúa los derechos, deberes y la organización del Estado peruano. La Constitución de 1993 es la ley suprema. El Estado tiene tres poderes: Ejecutivo, Legislativo y Judicial. Los derechos fundamentales incluyen la vida, la libertad y la igualdad ante la ley.`
 
-    if (/psicolog|conducta|comportamiento|aprendizaje|memoria|personalidad|emoción|motivación|desarrollo|freud|piaget/.test(ctx))
-      return `En Psicología, identifica el proceso mental o la etapa del desarrollo que se describe. Relaciona con Freud en psicoanálisis, Piaget en desarrollo cognitivo, Vygotsky en aprendizaje social y Maslow en motivación.`
+    if (/psicolog/.test(ctx))
+      return `La Psicología estudia la conducta y los procesos mentales. Sigmund Freud desarrolló el psicoanálisis con los conceptos de id, ego y superego. Jean Piaget explicó el desarrollo cognitivo por etapas. Abraham Maslow propuso la pirámide de necesidades. Lev Vygotsky destacó el papel social en el aprendizaje.`
 
-    if (/econom|mercado|oferta|demanda|producción|inflación|pbi|presupuesto|empresa|comercio|importac|exportac/.test(ctx))
-      return `Esta pregunta de Economía evalúa oferta, demanda, producción o política económica. Identifica los agentes: familias, empresas, Estado y sector externo. Aplica los principios básicos al caso planteado.`
+    if (/econom/.test(ctx))
+      return `La Economía estudia la producción, distribución y consumo de bienes. La Ley de la Demanda dice que a mayor precio, menor cantidad demandada. La Ley de la Oferta dice que a mayor precio, mayor cantidad ofrecida. El PBI mide el valor total de los bienes y servicios de un país. Identifica el concepto económico que plantea el enunciado.`
 
-    if (/desarrollo personal|autoestima|identidad|proyecto de vida|habilidades sociales|valores|adolescencia/.test(ctx))
-      return `Desarrollo Personal evalúa autoconocimiento, habilidades sociales y proyecto de vida. Reflexiona sobre la identidad personal, las etapas del desarrollo humano y los valores que guían la conducta. La autoestima y la asertividad son temas frecuentes.`
+    if (/desarrollo personal/.test(ctx))
+      return `Desarrollo Personal evalúa el autoconocimiento, las habilidades sociales y el proyecto de vida. La autoestima es la valoración que tenemos de nosotros mismos. La asertividad es comunicarnos con respeto y firmeza. Identifica la habilidad social o el concepto psicopedagógico que describe el enunciado.`
 
-    return `Analiza bien el enunciado. Identifica las palabras clave que indican el concepto central que se evalúa. Recuerda los contenidos del curso y aplica el razonamiento adecuado. Descarta las opciones que contradigan la lógica o los hechos estudiados. La opción correcta siempre es la más completa y precisa según los fundamentos del tema.`
+    return `Analiza el enunciado con atención. Identifica las palabras clave del concepto central. Recuerda los contenidos del curso, aplica el razonamiento adecuado y descarta las opciones que contradigan la lógica o los hechos. La opción correcta siempre es la más completa y precisa.`
   }
 
+  // ── buildScript: explica el tema y la fórmula SIN revelar la respuesta ────────
   function buildScript(p: Pregunta): string[] {
     const idx = saludoCounter.current % SALUDOS_PE.length
     saludoCounter.current += 1
-    const iC  = (saludoCounter.current >> 2) % CIERRES_PE.length
-    const pf  = getPureFormula(p.area, p.enunciado)
+    const iC = (saludoCounter.current >> 2) % CIERRES_PE.length
+    const pf = getPureFormula(p.area, p.enunciado)
 
     const saludo = SALUDOS_PE[idx]
 
-    // Intro del tema
-    const topicIntro = `Esta pregunta es de ${p.area || 'la materia'}${p.tema ? ', tema: ' + p.tema : ''}.`
+    // Identifica el subcurso específico para Matemática
+    const ctx = (p.area + ' ' + p.enunciado).toLowerCase()
+    let cursoNombre = p.area || 'la materia'
+    if (/matemát/.test(ctx)) cursoNombre = detectSubcursoMat(ctx)
 
-    // Descripción oral de la fórmula (si existe)
-    const formulaPart = pf ? formulaToSpeech(pf) + ' ' : ''
+    const topicIntro = `Esta pregunta es de ${cursoNombre}.`
 
-    // Explicación limpia: primero la del PDF, si no hay → general por materia
-    let explicacionText: string
-    if (p.explicacion && p.explicacion.length > 40) {
-      explicacionText = cleanForSpeech(p.explicacion)
-    } else {
-      explicacionText = buildPasoAPaso(p.area, p.enunciado)
-    }
+    // Describe la fórmula CONCEPTUALMENTE (nombre y variables, sin datos del problema)
+    const formulaDesc = pf
+      ? `La fórmula que aplica aquí es la de ${pf.label}. ${pf.vars ? 'Donde ' + pf.vars + '.' : ''}`
+      : ''
 
-    const explica = `${topicIntro} ${formulaPart}${explicacionText}`
+    // Explicación conceptual del curso — NUNCA usa p.explicacion (que contiene la respuesta)
+    const conceptExplain = buildPasoAPaso(p.area, p.enunciado)
 
-    const formulaLabel = pf ? `la fórmula de ${pf.label}` : `este concepto de ${p.area || 'la materia'}`
+    const explica = [topicIntro, formulaDesc, conceptExplain].filter(Boolean).join(' ')
+
+    const formulaLabel = pf ? `la fórmula de ${pf.label}` : `los conceptos de ${cursoNombre}`
     const cierre = CIERRES_PE[iC](formulaLabel)
     return [saludo, explica, cierre]
   }
@@ -754,6 +858,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
   onSpeak: (p: Pregunta) => void; onViewed: () => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
+  const [showSolution, setShowSolution] = useState(false)
   const pf       = getPureFormula(p.area, p.enunciado)
   const answered = selected !== null
   const isRight  = selected === p.respuesta
@@ -806,11 +911,11 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
         <div style={{ padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 12, fontWeight: 600, background: isRight ? 'rgba(63,185,80,0.08)' : 'rgba(248,81,73,0.08)', border: `1px solid ${isRight ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)'}`, color: isRight ? '#3fb950' : '#f87171' }}>
           {isRight
             ? '¡Excelente! Respondiste correctamente. ¡Tú puedes con todo!'
-            : `No te rindas, la opción ${p.respuesta} es la correcta. Abajo tienes la explicación completa.`}
+            : `No te rindas — la opción correcta es la ${p.respuesta}. Haz clic en "Ver respuesta" para ver el desarrollo completo.`}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
         {!played ? (
           <button onClick={() => onSpeak(p)} disabled={speaking || audioLoading}
             style={{ padding: '6px 14px', background: (speaking || audioLoading) ? 'rgba(52,211,153,0.12)' : 'transparent', border: `1px solid ${(speaking || audioLoading) ? 'rgba(52,211,153,0.5)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 8, color: '#34d399', fontSize: 11, cursor: (speaking || audioLoading) ? 'wait' : 'pointer' }}>
@@ -819,11 +924,19 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
         ) : (
           <span style={{ padding: '6px 14px', fontSize: 11, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8 }}>✓ Audio reproducido</span>
         )}
+
+        {answered && !showSolution && (
+          <button
+            onClick={() => setShowSolution(true)}
+            style={{ padding: '6px 16px', background: `${materia.color}18`, border: `1px solid ${materia.color}60`, borderRadius: 8, color: materia.color, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s' }}>
+            📖 Ver respuesta paso a paso
+          </button>
+        )}
       </div>
 
-      {answered && (
+      {answered && showSolution && (
         <div style={{ marginTop: 14, background: 'rgba(12,18,38,0.95)', border: `1px solid ${materia.color}30`, borderLeft: `3px solid ${materia.color}`, borderRadius: 10, padding: '14px 16px', animation: 'fadeIn 0.5s ease' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, letterSpacing: '.08em', marginBottom: 10 }}>📋 RESOLUCIÓN COMPLETA</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, letterSpacing: '.08em', marginBottom: 10 }}>📋 RESOLUCIÓN COMPLETA — PASO A PASO</div>
 
           <div style={{ background: 'rgba(63,185,80,0.08)', border: '1px solid rgba(63,185,80,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#3fb950', fontWeight: 600 }}>
             ✓ Respuesta correcta — Opción {p.respuesta}:{' '}
@@ -856,7 +969,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
           )}
 
           <div style={{ marginTop: 12, padding: '8px 12px', background: `${materia.color}08`, border: `1px solid ${materia.color}20`, borderRadius: 8, fontSize: 12, color: materia.color, fontStyle: 'italic' }}>
-            🌟 ¡Tú puedes! Sigue practicando esta pregunta y en el examen la vas a dominar.
+            🌟 ¡Muy bien! Repasa este procedimiento para que en el examen lo hagas en segundos.
           </div>
         </div>
       )}

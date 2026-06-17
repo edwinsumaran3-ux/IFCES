@@ -19,6 +19,7 @@ type Kind =
   | 'commercial' | 'pythagoras' | 'circle' | 'statistics'
   | 'energy' | 'kinematics' | 'ohm' | 'force'
   | 'rectangle' | 'triangle_area' | 'percentage' | 'volume'
+  | 'trigonometry'
   | 'chem' | 'periodic' | 'biology'
   | 'reading' | 'english' | 'social' | 'none';
 
@@ -42,6 +43,7 @@ function kind(area: string, stem: string): Kind {
 
   // ── Tipos existentes ──────────────────────────────────────────────────────
   if (/descuento|cu[aá]nto paga|precio.*total|rebaja|iva.*precio|unidades.*precio/.test(t)) return 'commercial';
+  if (/trigon|seno\b|coseno\b|tangente\b|\bsen\b|\bcos\b|\btan\b|razón trigon|identidad.*trigon|\d+°|[áa]ngulo.*°/.test(t)) return 'trigonometry';
   if (/pit[áa]gor|cateto|hipotenusa|tri[áa]ngulo.*rect/.test(t)) return 'pythagoras';
   if (/c[ií]rculo|circunferencia|radio\s*=|[aá]rea.*c[ií]rc/.test(t)) return 'circle';
   if (/\bmedia\b|\bmediana\b|\bmoda\b|\bpromedio\b|los datos son|puntajes.*son|promedio de los/.test(t)) return 'statistics';
@@ -130,6 +132,63 @@ function drawTriangle(cv: HTMLCanvasElement, a: number, b: number, color: string
   ctx.fillText(`a=${a}`, ox + b * sc + 6, oy - a * sc / 2 + 4);
   ctx.fillStyle = '#f85149'; ctx.font = 'bold 11px Courier New,monospace';
   ctx.fillText('c=?', ox + b * sc / 2 - 36, oy - a * sc / 2 - 6);
+}
+
+// ── Canvas: triángulo trigonométrico ──────────────────────────────────────────
+function drawTrigonometry(cv: HTMLCanvasElement, angleDeg: number, color: string) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Normaliza el ángulo a algo razonable para dibujar
+  const theta = Math.min(Math.max(angleDeg, 20), 70) * Math.PI / 180;
+  const hyp = Math.min(W, H) * 0.55;
+  const adj = Math.cos(theta) * hyp;
+  const opp = Math.sin(theta) * hyp;
+
+  const ox = 45, oy = H - 36;
+  const Bx = ox + adj, By = oy;
+  const Cx = ox + adj, Cy = oy - opp;
+
+  // Fondo del triángulo
+  ctx.fillStyle = color + '12';
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.closePath(); ctx.fill();
+
+  // Ángulo recto en B
+  const rs = 10; ctx.strokeStyle = color + '80'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(Bx - rs, By); ctx.lineTo(Bx - rs, By - rs); ctx.lineTo(Bx, By - rs); ctx.stroke();
+
+  // Triángulo
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.closePath(); ctx.stroke();
+
+  // Arco del ángulo θ
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(ox, oy, 24, -theta, 0); ctx.stroke();
+
+  // Etiquetas de ángulo
+  ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 12px Courier New,monospace'; ctx.textAlign = 'left';
+  ctx.fillText(`θ=${angleDeg}°`, ox + 28, oy - 4);
+
+  // Etiquetas de lados
+  ctx.fillStyle = '#e6edf3'; ctx.font = '10px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('cateto opuesto', Bx + 20, (oy + Cy) / 2);
+  ctx.fillText('cateto adyacente', (ox + Bx) / 2, oy + 14);
+
+  ctx.fillStyle = color; ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('hipotenusa', (ox + Cx) / 2 - 12, (oy + Cy) / 2 - 10);
+
+  // Fórmulas sen/cos/tan en la esquina
+  ctx.fillStyle = '#94a3b8'; ctx.font = '9px Courier New,monospace'; ctx.textAlign = 'left';
+  ctx.fillText('sen θ = op / hip', W - 108, 18);
+  ctx.fillText('cos θ = ad / hip', W - 108, 30);
+  ctx.fillText('tan θ = op / ad',  W - 108, 42);
+
+  // Vértices
+  ctx.fillStyle = '#e6edf3'; ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('A', ox - 10, oy + 5);
+  ctx.fillText('B', Bx + 8, By + 5);
+  ctx.fillText('C', Cx + 8, Cy - 4);
 }
 
 // ── Canvas: rectángulo ────────────────────────────────────────────────────────
@@ -537,6 +596,30 @@ export function getPureFormula(area: string, stem: string): PureFormula | null {
         vars: 'm = masa (kg)  ·  g = aceleración gravitacional (m/s²)  ·  h = altura sobre el nivel de referencia (m)  →  resultado en Joules (J)',
       };
 
+    case 'trigonometry': {
+      const trig = (area + ' ' + stem).toLowerCase();
+      if (/tangente|\btan\b/.test(trig))
+        return {
+          tex: '\\tan\\theta = \\dfrac{\\text{opuesto}}{\\text{adyacente}}',
+          isLatex: true,
+          label: 'Tangente',
+          vars: 'θ = ángulo  ·  opuesto = lado frente al ángulo  ·  adyacente = lado junto al ángulo',
+        };
+      if (/coseno|\bcos\b/.test(trig))
+        return {
+          tex: '\\cos\\theta = \\dfrac{\\text{adyacente}}{\\text{hipotenusa}}',
+          isLatex: true,
+          label: 'Coseno',
+          vars: 'θ = ángulo  ·  adyacente = cateto junto al ángulo  ·  hipotenusa = lado opuesto al ángulo recto',
+        };
+      return {
+        tex: '\\sin\\theta = \\dfrac{\\text{opuesto}}{\\text{hipotenusa}} \\qquad \\cos\\theta = \\dfrac{\\text{adyacente}}{\\text{hipotenusa}} \\qquad \\tan\\theta = \\dfrac{\\text{opuesto}}{\\text{adyacente}}',
+        isLatex: true,
+        label: 'Razones trigonométricas',
+        vars: 'θ = ángulo  ·  opuesto = cateto frente al ángulo  ·  adyacente = cateto junto al ángulo  ·  hipotenusa = lado más largo',
+      };
+    }
+
     case 'pythagoras':
       return {
         tex: 'c = \\sqrt{a^2 + b^2}',
@@ -740,9 +823,13 @@ export default function QuestionInlineVisual({ question, color }: Props) {
   const commPrice = n.filter(x => x >= 100)[0] ?? 50000;
   const commPct   = pct > 0 ? pct : (n.find(x => x > 0 && x <= 100) ?? 20);
 
+  // Trigonometry params
+  const trigAngleM = question.stem.match(/(\d+)\s*°/);
+  const trigAngle  = trigAngleM ? parseInt(trigAngleM[1]) : 37;
+
   const hasCanvas = ['pythagoras', 'circle', 'statistics', 'kinematics', 'ohm',
                      'rectangle', 'triangle_area', 'energy',
-                     'force', 'volume', 'percentage', 'commercial'].includes(k);
+                     'force', 'volume', 'percentage', 'commercial', 'trigonometry'].includes(k);
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -759,6 +846,7 @@ export default function QuestionInlineVisual({ question, color }: Props) {
     if (k === 'volume')        drawVolume(cv, volL, volW, volH, color);
     if (k === 'percentage')    drawPercentage(cv, pct, color);
     if (k === 'commercial')    drawCommercial(cv, commPrice, commPct, color);
+    if (k === 'trigonometry')  drawTrigonometry(cv, trigAngle, color);
   }, [k, question.id, color]);
 
   if (k === 'none') return null;
@@ -798,6 +886,12 @@ export default function QuestionInlineVisual({ question, color }: Props) {
       { label: 'Base b',   val: `${trBase}` },
       { label: 'Altura h', val: `${trAlt}` },
       { label: 'Área A',   val: '?' },
+    ];
+    if (k === 'trigonometry') return [
+      { label: 'Ángulo θ',   val: `${trigAngle}°` },
+      { label: 'sen θ',      val: `op / hip` },
+      { label: 'cos θ',      val: `ad / hip` },
+      { label: 'tan θ',      val: `op / ad` },
     ];
     if (k === 'circle') return [
       { label: 'Radio r',   val: `${r}` },
