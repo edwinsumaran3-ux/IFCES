@@ -65,6 +65,18 @@ function AppInner() {
     setExamState(null)
   }
 
+  // ── Colombia audio guide — MUST be before any conditional return (Rules of Hooks) ──
+  useEffect(() => {
+    if (!user || country !== 'CO') return
+    const guides: Record<string, string> = { home: 'home_co', banco: 'banco', teacher: 'admin' }
+    const key = `guide_played_co_${view}`
+    if (guides[view] && !sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      const t = setTimeout(() => play(guides[view]), 900)
+      return () => clearTimeout(t)
+    }
+  }, [view, user, country])
+
   const startExam = async () => {
     setLoading(true); setError('')
     try {
@@ -102,18 +114,6 @@ function AppInner() {
     )
     return <PeruApp user={peruUser} onLogout={logout} />
   }
-
-  // ── Colombia home screen audio guide (hook must be before any return) ────
-  useEffect(() => {
-    if (!user || country !== 'CO') return
-    const guides: Record<string, string> = { home: 'home_co', banco: 'banco', teacher: 'admin' }
-    const key = `guide_played_co_${view}`
-    if (guides[view] && !sessionStorage.getItem(key)) {
-      sessionStorage.setItem(key, '1')
-      const t = setTimeout(() => play(guides[view]), 900)
-      return () => clearTimeout(t)
-    }
-  }, [view, user, country])
 
   // ── COLOMBIA branch ───────────────────────────────────────────────────────
   if (!user) return <LoginPage onLogin={(u, _t) => { setUser(u) }} />
