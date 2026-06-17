@@ -36,27 +36,31 @@ const GUIDES: Record<string, string> = {
   payment_pe: "Selecciona tu plan TES-LA PRO. Puedes pagar con Yape, Plin, o en efectivo en cualquier agente BCP. Después de enviar tu voucher, verificamos el pago en pocas horas.",
 }
 
-// ─── Context ─────────────────────────────────────────────────────────────────
+// ─── Sistema de eventos para speaking (no usa estado de contexto) ─────────────
+// Esto evita que setSpeaking re-renderice TODOS los consumidores de contexto.
+type SpeakingListener = (s: boolean) => void
+const _speakingListeners = new Set<SpeakingListener>()
+function _notifySpeaking(s: boolean) { _speakingListeners.forEach(fn => fn(s)) }
+
+// ─── Context — SIN speaking para evitar re-renders en cadena ─────────────────
 interface AudioCtx {
   play: (screen: string) => void
   playWelcome: () => void
   stop: () => void
-  speaking: boolean
   enabled: boolean
   toggleEnabled: () => void
 }
 
 const Ctx = createContext<AudioCtx>({
   play: () => {}, playWelcome: () => {}, stop: () => {},
-  speaking: false, enabled: true, toggleEnabled: () => {}
+  enabled: true, toggleEnabled: () => {}
 })
 
 export const useAudioGuide = () => useContext(Ctx)
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AudioGuideProvider({ children, locale = 'es' }: { children: React.ReactNode; locale?: string }) {
-  const [speaking,  setSpeaking]  = useState(false)
-  const [enabled,   setEnabled]   = useState(() => {
+  const [enabled, setEnabled] = useState(() => {
     try { return localStorage.getItem('audio_guide_enabled') !== 'false' } catch { return true }
   })
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -64,7 +68,6 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
   const getVoice = useCallback(() => {
     if (!window.speechSynthesis) return null
     const voices = window.speechSynthesis.getVoices()
-    // Prefer matching locale
     const prefs = [
       voices.find(v => v.lang.startsWith(locale) && !v.localService),
       voices.find(v => v.lang.startsWith(locale)),
@@ -83,16 +86,17 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
     u.volume = 1
     const voice = getVoice()
     if (voice) u.voice = voice
-    u.onstart = () => setSpeaking(true)
-    u.onend   = () => setSpeaking(false)
-    u.onerror = () => setSpeaking(false)
+    // Notifica a los listeners (solo AudioFloatingBtn) sin re-renderizar el contexto
+    u.onstart = () => _notifySpeaking(true)
+    u.onend   = () => _notifySpeaking(false)
+    u.onerror = () => _notifySpeaking(false)
     utterRef.current = u
     window.speechSynthesis.speak(u)
   }, [enabled, locale, getVoice])
 
   const stop = useCallback(() => {
     window.speechSynthesis?.cancel()
-    setSpeaking(false)
+    _notifySpeaking(false)
   }, [])
 
   const play = useCallback((screen: string) => {
@@ -102,27 +106,25 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
 
   const playWelcome = useCallback(() => {
     const idx  = Math.floor(Math.random() * WELCOMES.length)
-    const text = WELCOMES[idx]
-    // After welcome, play country guide after 1.5s pause
-    speak(text)
+    speak(WELCOMES[idx])
   }, [speak])
 
   const toggleEnabled = useCallback(() => {
     setEnabled(e => {
       const next = !e
       try { localStorage.setItem('audio_guide_enabled', String(next)) } catch {}
-      if (!next) window.speechSynthesis?.cancel()
+      if (!next) { window.speechSynthesis?.cancel(); _notifySpeaking(false) }
       return next
     })
   }, [])
 
-  // Sincronizar singleton con el play/enabled actual
+  // Sincronizar singleton para useScreenGuide
   useEffect(() => {
     _screenGuideFn = play
     _screenGuideEnabled = enabled
   }, [play, enabled])
 
-  // Load voices when available
+  // Cargar voces
   useEffect(() => {
     window.speechSynthesis?.getVoices()
     if (window.speechSynthesis) {
@@ -131,8 +133,8 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
   }, [])
 
   const ctxValue = useMemo(
-    () => ({ play, playWelcome, stop, speaking, enabled, toggleEnabled }),
-    [play, playWelcome, stop, speaking, enabled, toggleEnabled]
+    () => ({ play, playWelcome, stop, enabled, toggleEnabled }),
+    [play, playWelcome, stop, enabled, toggleEnabled]
   )
 
   return (
@@ -143,14 +145,21 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
   )
 }
 
-// ─── Floating Button ──────────────────────────────────────────────────────────
+// ─── Floating Button — usa listener local, NO useContext para speaking ────────
 function AudioFloatingBtn() {
-  const { speaking, enabled, toggleEnabled, stop } = useAudioGuide()
-  const [visible, setVisible] = useState(false)
+  const { enabled, toggleEnabled, stop } = useAudioGuide()
+  const [visible,  setVisible]  = useState(false)
+  const [speaking, setSpeaking] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 1200)
     return () => clearTimeout(t)
+  }, [])
+
+  // Escucha eventos de speaking sin pasar por el contexto
+  useEffect(() => {
+    _speakingListeners.add(setSpeaking)
+    return () => { _speakingListeners.delete(setSpeaking) }
   }, [])
 
   if (!visible) return null
@@ -190,13 +199,22 @@ function AudioFloatingBtn() {
   )
 }
 
-// ─── Singleton para useScreenGuide (evita useContext y re-renders) ────────────
+// ─── Hook público para leer speaking sin causar re-renders en el contexto ─────
+export function useSpeaking() {
+  const [speaking, setSpeaking] = useState(false)
+  useEffect(() => {
+    _speakingListeners.add(setSpeaking)
+    return () => { _speakingListeners.delete(setSpeaking) }
+  }, [])
+  return speaking
+}
+
+// ─── Singleton para useScreenGuide ────────────────────────────────────────────
 let _screenGuideFn: (screen: string) => void = () => {}
 let _screenGuideEnabled = true
 
-// ─── Hook: auto-play on screen mount ─────────────────────────────────────────
+// ─── Hook: auto-play al montar — NO usa useContext ───────────────────────────
 export function useScreenGuide(screen: string, delay = 800) {
-  // NO usa useContext — lee del singleton para no suscribirse a cambios de contexto
   useEffect(() => {
     if (!_screenGuideEnabled) return
     const key = `guide_played_${screen}`

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AIHelpModal from '../ai-help/AIHelpModal'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
-import { useScreenGuide, useAudioGuide } from '../audio/AudioGuide'
+import { useScreenGuide, useAudioGuide, useSpeaking } from '../audio/AudioGuide'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
@@ -42,7 +42,8 @@ function PureFormulaBox({ tex, color }: { tex: string; color: string }) {
 
 export default function PeruExamEngine({ attemptId, studentId, questions, durationSecs, seccion, onExit }: Props) {
   useScreenGuide('exam', 1400)
-  const { speaking, enabled, toggleEnabled, stop } = useAudioGuide()
+  const { enabled, toggleEnabled, stop } = useAudioGuide()
+  const speaking = useSpeaking()
 
   const [idx,            setIdx]            = useState(0)
   const [answers,        setAnswers]        = useState<Record<string, string>>({})
