@@ -1111,6 +1111,15 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
   const qvp = { id: p.id, stem: p.enunciado, area: p.area, points: 1, difficulty: p.dificultad, options: p.opciones }
 
+  // Para preguntas cortas (sin contexto del PDF), extraer "Del enunciado:" de la resolución
+  const isContinuation = /problema anterior|anterior pregunta/i.test(p.explicacion || '')
+  const problemData = (() => {
+    if ((p.enunciado.length >= 100) || !p.explicacion) return ''
+    const m = p.explicacion.match(/Del enunciado[:\s]*([\s\S]+?)(?=\nResolviendo|\nTenemos|\nDato|\n[A-ZÁÉÍÓÚ][a-záéíóúüñ]|Respuesta|$)/i)
+    if (!m) return ''
+    return m[1].replace(/[■□▪▫☐☑☒]/g, '').replace(/\s{2,}/g, ' ').trim().substring(0, 350)
+  })()
+
   return (
     <div style={{ background: 'rgba(12,18,38,0.8)', border: `1px solid ${isViewed ? materia.color + '40' : 'rgba(255,255,255,0.07)'}`, borderLeft: `3px solid ${isViewed ? materia.color + '80' : 'transparent'}`, borderRadius: 12, padding: '18px 20px', marginBottom: 12, transition: 'border-color 0.2s' }}>
 
@@ -1122,6 +1131,19 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
           <span style={{ fontSize: 9, color: SECCION_COLORS[p.seccion] || '#475569', background: `${SECCION_COLORS[p.seccion] || '#475569'}15`, border: `1px solid ${SECCION_COLORS[p.seccion] || '#475569'}30`, borderRadius: 8, padding: '1px 6px' }}>Sección {p.seccion}</span>
         </div>
       </div>
+
+      {/* Contexto del problema (para preguntas en serie del PDF) */}
+      {isContinuation && (
+        <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 11, color: '#fbbf24' }}>
+          ⚠️ Esta pregunta es continuación de la anterior — revisa los datos de la pregunta anterior.
+        </div>
+      )}
+      {problemData && !isContinuation && (
+        <div style={{ background: `${materia.color}10`, border: `1px solid ${materia.color}30`, borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, marginBottom: 6 }}>📊 DATOS DEL PROBLEMA</div>
+          <pre style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{problemData}</pre>
+        </div>
+      )}
 
       <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{cleanEnunciado(p.enunciado)}</p>
 
