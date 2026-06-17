@@ -36,7 +36,7 @@ function kind(area: string, stem: string): Kind {
   if ((/per[ií]metro|rect[áa]ngul[oa]|lote.*mide|mide.*largo|largo.*ancho|ancho.*largo|cuadrado.*lado/).test(t)
       && !/tri[áa]ngulo|cateto|hipotenusa|pit[áa]gor/.test(t)) return 'rectangle';
 
-  if (/qu[eé].*porcentaje|representan.*del.*total|tanto.*por.*ciento/.test(t)) return 'percentage';
+  if (/\bporcentaje\b|qu[eé].*porcentaje|representan.*del.*total|tanto.*por.*ciento/.test(t)) return 'percentage';
 
   if (/volumen.*(?:caja|piscina|depósito|prisma|cubo|cilindro)|(?:caja|prisma).*volumen/.test(t)) return 'volume';
 
@@ -44,7 +44,7 @@ function kind(area: string, stem: string): Kind {
   if (/descuento|cu[aá]nto paga|precio.*total|rebaja|iva.*precio|unidades.*precio/.test(t)) return 'commercial';
   if (/pit[áa]gor|cateto|hipotenusa|tri[áa]ngulo.*rect/.test(t)) return 'pythagoras';
   if (/c[ií]rculo|circunferencia|radio\s*=|[aá]rea.*c[ií]rc/.test(t)) return 'circle';
-  if (/\bmedia\b|\bmediana\b|\bmoda\b|los datos son|puntajes.*son|promedio de los/.test(t)) return 'statistics';
+  if (/\bmedia\b|\bmediana\b|\bmoda\b|\bpromedio\b|los datos son|puntajes.*son|promedio de los/.test(t)) return 'statistics';
 
   // Cinemática: solo palabras que indican movimiento parabólico/libre (sin g=10 solo)
   if (/velocidad.*inicial|lanza.*(?:arriba|verticalmente|horizontalmente)|tiro.*parab|proyectil|ca[ií]da.*libre|altura.*m[aá]xima.*vel|vel.*inicial.*m\/s/.test(t)) return 'kinematics';
@@ -57,6 +57,15 @@ function kind(area: string, stem: string): Kind {
   if (area.toLowerCase().includes('lectura') || /fragmento|p[aá]rrafo/.test(t)) return 'reading';
   if (area.toLowerCase().includes('ingl') || /\benglish\b|grammar/.test(t)) return 'english';
   if (area.toLowerCase().includes('social') || /constituci[oó]n|historia.*siglo/.test(t)) return 'social';
+
+  // ── Área-based fallbacks (Peru & variants) ───────────────────────────────
+  {
+    const al = area.toLowerCase();
+    if (/lenguaje|literatur|comunicac/.test(al)) return 'reading';
+    if (/histor|ciudadan|filosof|psicolog|econom|desarrollo/.test(al)) return 'social';
+    if (/qu[ií]m/.test(al)) return 'chem';
+    if (/biolog/.test(al)) return 'biology';
+  }
   return 'none';
 }
 
@@ -647,14 +656,30 @@ export function getPureFormula(area: string, stem: string): PureFormula | null {
         vars: 'CO₂ = dióxido de carbono  ·  H₂O = agua  ·  luz = energía solar  →  C₆H₁₂O₆ = glucosa  ·  O₂ = oxígeno liberado',
       };
 
-    case 'reading':
+    case 'reading': {
+      const tl = (area + ' ' + stem).toLowerCase();
+      if (/literatur/.test(tl))
+        return { tex: 'Género · Narrador · Figura retórica · Corriente literaria · Autor', isLatex: false, label: 'Estrategia · Literatura' };
+      if (/lenguaje/.test(tl))
+        return { tex: 'Tipo de oración → Función del lenguaje → Norma ortográfica', isLatex: false, label: 'Estrategia · Lenguaje' };
       return { tex: 'Idea principal → Argumento de apoyo → Conclusión del autor', isLatex: false, label: 'Estrategia · Lectura crítica' };
+    }
 
     case 'english':
       return { tex: 'Read full context · Eliminate impossible options · Check grammar', isLatex: false, label: 'Strategy · English' };
 
-    case 'social':
+    case 'social': {
+      const tl = (area + ' ' + stem).toLowerCase();
+      if (/psicolog/.test(tl))
+        return { tex: 'Freud → Psicoanálisis  ·  Piaget → Desarrollo cognitivo  ·  Maslow → Motivación', isLatex: false, label: 'Estrategia · Psicología' };
+      if (/filosof/.test(tl))
+        return { tex: 'Autor → Corriente → Concepto central → Época histórica', isLatex: false, label: 'Estrategia · Filosofía' };
+      if (/econom/.test(tl))
+        return { tex: 'Oferta ↑ → Precio ↓  ·  Demanda ↑ → Precio ↑  ·  PBI = C + I + G + (X−M)', isLatex: false, label: 'Estrategia · Economía' };
+      if (/ciudadan/.test(tl))
+        return { tex: 'Constitución → Poderes del Estado → Derechos fundamentales', isLatex: false, label: 'Estrategia · Ciudadanía' };
       return { tex: 'Ubica: Época · Lugar · Actores · Causa → Consecuencia', isLatex: false, label: 'Estrategia · Sociales' };
+    }
 
     default: {
       const a = area.toLowerCase();
@@ -894,12 +919,30 @@ export default function QuestionInlineVisual({ question, color }: Props) {
       {['reading', 'english', 'social', 'biology', 'chem', 'periodic'].includes(k) && (
         <div style={{ ...S.infoBox, borderColor: color + '40', background: color + '08' }}>
           <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '.06em', textTransform: 'uppercase' as const }}>
-            {k === 'reading'  && '📖 Lectura crítica — Lee el texto completo antes de elegir'}
+            {k === 'reading'  && (
+              /literatur/.test(t)
+                ? '📚 Literatura — Identifica: género literario · narrador · figura retórica · corriente literaria'
+                : /lenguaje/.test(t)
+                  ? '📝 Lenguaje — Identifica: tipo de oración · función del lenguaje · recurso lingüístico · norma ortográfica'
+                  : '📖 Lectura crítica — Lee el texto completo antes de elegir'
+            )}
             {k === 'english'  && '🌐 English — Try each option in the sentence before choosing'}
-            {k === 'social'   && '🗺️ Sociales — Ubica: época · lugar · actores · consecuencia'}
+            {k === 'social'   && (
+              /psicolog/.test(t)
+                ? '🧠 Psicología — Relaciona con la teoría: Freud · Piaget · Vygotsky · Maslow · Watson'
+                : /filosof/.test(t)
+                  ? '🏛️ Filosofía — Identifica: autor · corriente filosófica (racionalismo/empirismo/idealismo) · concepto central'
+                  : /econom/.test(t)
+                    ? '💹 Economía — Identifica: agentes económicos · ley de oferta y demanda · política fiscal o monetaria'
+                    : /ciudadan/.test(t)
+                      ? '⚖️ Ciudadanía — Relaciona con la Constitución Política del Perú y los poderes del Estado'
+                      : /histor/.test(t)
+                        ? '🏛️ Historia — Ubica: período histórico · actores · causas → consecuencias del hecho'
+                        : '🗺️ Sociales — Ubica: época · lugar · actores · causa → consecuencia'
+            )}
             {k === 'biology'  && '🌿 Biología — Identifica nivel: célula → tejido → órgano → sistema'}
-            {k === 'chem'     && '⚗️ Química — Antes de → : Reactivos  |  Después de → : Productos'}
-            {k === 'periodic' && '🧪 Tabla periódica — Z = protones = e⁻  |  Período = nº de capas'}
+            {k === 'chem'     && '⚗️ Química — Antes de → : Reactivos  |  Después de → : Productos  |  Balancea átomos'}
+            {k === 'periodic' && '🧪 Tabla periódica — Z = protones = e⁻  |  N⁰ = A − Z  |  Período = nº de capas'}
           </span>
         </div>
       )}

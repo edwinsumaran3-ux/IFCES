@@ -764,7 +764,24 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
           </div>
 
           {p.explicacion ? (
-            <p style={{ fontSize: 13, color: '#c9d1d9', lineHeight: 1.75, margin: '0 0 10px' }}>{p.explicacion}</p>
+            <div style={{ margin: '0 0 10px' }}>
+              {p.explicacion.split('\n').filter(l => l.trim()).map((line, li) => {
+                const clean = line.trim()
+                const isStep = /^(paso\s*\d|step\s*\d|\d+[.)]\s)/i.test(clean)
+                const isResult = /^(resultado|respuesta|por lo tanto|luego|entonces|∴)/i.test(clean)
+                return (
+                  <p key={li} style={{
+                    fontSize: 13,
+                    color: isStep ? '#fbbf24' : isResult ? '#3fb950' : '#c9d1d9',
+                    fontWeight: isStep || isResult ? 600 : 400,
+                    lineHeight: 1.75,
+                    margin: '0 0 6px',
+                    borderLeft: isStep ? '2px solid rgba(251,191,36,0.4)' : isResult ? '2px solid rgba(63,185,80,0.4)' : 'none',
+                    paddingLeft: (isStep || isResult) ? 8 : 0,
+                  }}>{clean}</p>
+                )
+              })}
+            </div>
           ) : (
             <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.75, margin: '0 0 10px', fontStyle: 'italic' }}>
               💡 Escucha el audio para obtener la explicación completa del concepto de esta pregunta.
