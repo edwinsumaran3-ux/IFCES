@@ -475,123 +475,206 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
   }
 
   // ── Explicación del MÉTODO paso a paso — sin nombrar el curso, sin datos del problema ──
+  // ── Analiza el enunciado: qué tienes, qué te falta y la fórmula ──────────────
   function buildPasoAPaso(area: string, enunciado: string): string {
-    const ctx = (area + ' ' + enunciado).toLowerCase()
+    const e   = enunciado.toLowerCase()
+    const ctx = (area + ' ' + e).toLowerCase()
 
-    // ── INGLÉS ────────────────────────────────────────────────────────────────────
-    if (/inglés|ingles|english|grammar|vocabulary|verb|tense|past|present|future/.test(ctx))
-      return `Primero lee el enunciado completo con calma para entender qué te piden. Si es una pregunta de vocabulario, busca las palabras claves que te rodean la palabra desconocida y deduce su significado por el contexto. Si es gramática, identifica qué tiempo verbal encaja lógicamente con el resto de la oración. Descarta las opciones que no concuerden gramaticalmente o que cambien el sentido del texto.`
+    // ── TRIGONOMETRÍA ────────────────────────────────────────────────────────────
+    if (/trigon|seno\b|coseno\b|tangente\b|\bsen\b|\bcos\b|\btan\b/.test(ctx)) {
+      const hAng = /[aá]ngulo|°|\bθ\b/.test(e)
+      const hHip = /hipotenusa/.test(e)
+      const hCOp = /cateto.{0,20}opuest|opuest.{0,20}cateto/.test(e)
+      const hCAd = /cateto.{0,20}adyac|adyac.{0,20}cateto/.test(e)
+      const pSen = /seno|sen\b/.test(e)
+      const pCos = /coseno|cos\b/.test(e)
+      const pTan = /tangente|tan\b/.test(e)
 
-    // ── MATEMÁTICA ────────────────────────────────────────────────────────────────
-    if (/matemát|matem/.test(ctx)) {
-      const sub = detectSubcursoMat(ctx)
+      const t  = [hAng && 'el ángulo', hHip && 'la hipotenusa', hCOp && 'el cateto opuesto', hCAd && 'el cateto adyacente'].filter(Boolean) as string[]
+      const tStr = t.length ? t.map(x => `Tienes ${x}.`).join(' ') : 'Tienes datos del triángulo.'
 
-      // Trigonometría
-      if (/trigon/.test(sub.toLowerCase()))
-        return `Empieza dibujando un triángulo rectángulo y ubica el ángulo que te mencionan. Recuerda las tres razones: el seno es el cateto opuesto dividido entre la hipotenusa; el coseno es el cateto adyacente dividido entre la hipotenusa; y la tangente es el cateto opuesto dividido entre el cateto adyacente. Identifica cuál de los tres lados te dan y cuál te piden, elige la razón que relaciona esos dos lados y despeja el valor desconocido.`
-
-      // Pitágoras / triángulos
-      if (/geometr.*triáng|pitágor|cateto|hipotenusa/.test(sub.toLowerCase() + ' ' + ctx))
-        return `Dibuja el triángulo y marca los lados que conoces. Si el triángulo es rectángulo, aplica el Teorema de Pitágoras: la hipotenusa al cuadrado es igual a la suma de los cuadrados de los dos catetos. Si te dan la hipotenusa y un cateto, resta el cuadrado del cateto al cuadrado de la hipotenusa y saca la raíz cuadrada. Para el área de cualquier triángulo, multiplica la base por la altura y divide entre dos.`
-
-      // Círculo
-      if (/geometr.*círculo|geometr.*circ|círculo|circunferencia/.test(sub.toLowerCase() + ' ' + ctx))
-        return `Identifica primero si te dan el radio o el diámetro. Recuerda que el diámetro es el doble del radio. Para calcular el área, eleva el radio al cuadrado y multiplica por pi. Para calcular la longitud de toda la circunferencia, multiplica el radio por dos y por pi. Si solo te piden un arco, calcula qué fracción del círculo completo representa el ángulo central y aplica esa fracción.`
-
-      // Geometría general (áreas y volúmenes)
-      if (/geometr/.test(sub.toLowerCase()))
-        return `Identifica la figura geométrica: si es un rectángulo, el área es base por altura; si es un triángulo, es base por altura entre dos; si es un círculo, es pi por radio al cuadrado. Para volúmenes: el cubo es lado al cubo; el prisma rectangular es largo por ancho por alto; el cilindro es pi por radio al cuadrado por la altura. Asegúrate de trabajar siempre con las mismas unidades.`
-
-      // Estadística
-      if (/estadíst|media|mediana|moda|promedio/.test(sub.toLowerCase() + ' ' + ctx))
-        return `Si te piden el promedio o la media, suma todos los valores del conjunto y divide entre la cantidad total de datos. Si te piden la mediana, ordena los números de menor a mayor y toma el valor del centro; si son dos valores centrales, promédia los. Si te piden la moda, busca el número que aparece con mayor frecuencia en el conjunto.`
-
-      // Probabilidad
-      if (/probabilid/.test(ctx))
-        return `Escribe todos los resultados posibles del experimento y cuántos de ellos corresponden al evento que te preguntan. La probabilidad es el número de casos favorables dividido entre el número de casos totales posibles. Si el experimento tiene dos etapas independientes, multiplica las probabilidades de cada etapa. Si los eventos son mutuamente excluyentes, suma sus probabilidades.`
-
-      // Álgebra — Ecuaciones
-      if (/ecuación|sistema.*ecuac|desigualdad|inecuación|incógnita|despeja/.test(ctx))
-        return `Pasa todos los términos con la variable al lado izquierdo y los números al lado derecho, cambiando el signo cada vez que cruzas el signo igual. Si hay fracciones, multiplica toda la ecuación por el mínimo común denominador para eliminarlas. Al final, divide ambos lados por el coeficiente que acompaña a la variable para despejarla. Verifica sustituyendo tu respuesta en la ecuación original.`
-
-      // Álgebra — Funciones
-      if (/función|dominio|rango|f\(x\)|composición/.test(ctx))
-        return `Para evaluar una función en un punto, reemplaza la variable por el valor indicado y calcula la expresión. Para encontrar el dominio, busca los valores que hacen imposible la operación: si hay división, el denominador no puede ser cero; si hay raíz cuadrada, el interior no puede ser negativo. Para componer funciones, primero aplica la función interior y luego substituye ese resultado en la función exterior.`
-
-      // Logaritmos y potencias
-      if (/logarit|log\b|ln\b|exponencial|potencia/.test(ctx))
-        return `Recuerda que el logaritmo pregunta a qué exponente hay que elevar la base para obtener el número. Para simplificar, aplica las propiedades: el logaritmo de un producto es la suma de logaritmos; el de un cociente es la resta; y el de una potencia es el exponente multiplicado por el logaritmo. Para ecuaciones exponenciales, aplica logaritmo a ambos lados y despeja el exponente.`
-
-      // Polinomios
-      if (/polinomio|monomio|binomio|factor|producto notable|factoriz/.test(ctx))
-        return `Identifica si puedes aplicar un producto notable: diferencia de cuadrados, cuadrado de binomio o cubo de binomio. Si te piden factorizar, busca un factor común primero, luego intenta agrupar términos o usar la fórmula cuadrática si hay un trinomio de segundo grado. Para evaluar el polinomio en un valor, sustituye directamente o usa el esquema de Horner para simplificar el cálculo.`
-
-      // Aritmética / porcentajes / fracciones / sucesiones
-      if (/sucesión|progresión|serie/.test(ctx))
-        return `Identifica si la sucesión es aritmética o geométrica. En una sucesión aritmética la diferencia entre términos consecutivos es constante; el término general es el primer término más la diferencia por el número de paso. En una sucesión geométrica cada término se obtiene multiplicando el anterior por una razón constante; el término general es el primer término por la razón elevada al número de paso.`
-      if (/mcm|mcd|fracción|decimal|porcentaj/.test(ctx))
-        return `Para porcentajes, convierte el tanto por ciento a decimal dividiéndolo entre cien, y luego multiplica por el total. Para sumar o restar fracciones, busca el mínimo común múltiplo de los denominadores, convierte cada fracción y opera los numeradores. Para el MCM y MCD, descompón cada número en factores primos: el MCM toma los factores con el mayor exponente y el MCD toma los factores comunes con el menor exponente.`
-
-      return `Lee el enunciado y extrae los valores numéricos con sus unidades. Identifica qué operación o relación te piden establecer. Escribe la fórmula o la ecuación que corresponde a la situación, sustituye los datos y resuelve paso a paso. Antes de marcar tu respuesta, verifica que el resultado tenga sentido con el problema.`
+      if (pSen || (hAng && hHip && !hCOp))
+        return `${tStr} No tienes el cateto opuesto, eso es lo que hay que hallar. La fórmula es: seno del ángulo igual al cateto opuesto dividido entre la hipotenusa. Despeja el cateto opuesto multiplicando la hipotenusa por el seno del ángulo.`
+      if (pCos || (hAng && hHip && !hCAd))
+        return `${tStr} No tienes el cateto adyacente, eso es lo que hay que hallar. La fórmula es: coseno del ángulo igual al cateto adyacente dividido entre la hipotenusa. Despeja el cateto adyacente multiplicando la hipotenusa por el coseno del ángulo.`
+      if (pTan || (hCOp && hCAd && !hAng))
+        return `${tStr} No tienes la tangente o el ángulo, eso es lo que hay que hallar. La fórmula es: tangente del ángulo igual al cateto opuesto dividido entre el cateto adyacente.`
+      return `${tStr} No tienes la razón trigonométrica pedida. Identifica qué dos elementos conoces y elige la razón que los relaciona: seno usa opuesto e hipotenusa; coseno usa adyacente e hipotenusa; tangente usa opuesto y adyacente.`
     }
 
-    // ── FÍSICA ────────────────────────────────────────────────────────────────────
-    if (/física/.test(ctx)) {
-      if (/velocidad|aceleración|movimiento|tiempo|distancia|desplazamiento/.test(ctx))
-        return `Identifica qué magnitudes te dan y cuál te piden: posición, velocidad, aceleración o tiempo. Si el movimiento es uniforme, divide la distancia entre el tiempo para obtener la velocidad. Si hay aceleración constante, usa las ecuaciones de movimiento: la velocidad final es la inicial más la aceleración por el tiempo; la distancia es la velocidad inicial por el tiempo más la mitad de la aceleración por el tiempo al cuadrado.`
-      if (/fuerza|newton|masa|aceleración/.test(ctx))
-        return `Dibuja el diagrama de fuerzas sobre el objeto. Aplica la Segunda Ley de Newton: la suma de todas las fuerzas es igual a la masa multiplicada por la aceleración. Si el objeto está en equilibrio, la suma de fuerzas es cero. Despeja la magnitud que te piden y asegúrate de que la respuesta esté en Newtons si es fuerza, o en metros por segundo al cuadrado si es aceleración.`
-      if (/energía|trabajo|potencia|joule/.test(ctx))
-        return `Para la energía potencial gravitacional, multiplica la masa por la aceleración de la gravedad y por la altura. Para la energía cinética, multiplica la mitad de la masa por la velocidad al cuadrado. El trabajo es la fuerza aplicada multiplicada por la distancia en la dirección del movimiento. Si no hay fricción, la energía total se conserva: la pérdida de energía potencial se convierte en energía cinética y viceversa.`
-      return `Anota los datos del enunciado con sus unidades. Identifica la ley o principio físico que aplica: Newton, conservación de energía, ondas, termodinámica u óptica. Escribe la ecuación, sustituye los valores y resuelve. Verifica que las unidades del resultado sean correctas.`
+    // ── PITÁGORAS ────────────────────────────────────────────────────────────────
+    if (/pit[aá]gor|cateto|hipotenusa/.test(ctx)) {
+      const hHip = /hipotenusa/.test(e)
+      const hCat = /cateto\b/.test(e)
+      const pHip = /halla|determin|calcul/.test(e) && /hipotenusa/.test(e)
+      const tStr = [hHip && 'la hipotenusa', hCat && 'los catetos'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes las medidas del triángulo rectángulo.'
+      if (!hHip || pHip)
+        return `${tStr} No tienes la hipotenusa, eso es lo que hay que hallar. La fórmula es: hipotenusa al cuadrado igual a la suma de los cuadrados de los dos catetos. Eleva cada cateto al cuadrado, suma ambos y saca la raíz cuadrada.`
+      return `${tStr} No tienes el cateto desconocido, eso es lo que hay que hallar. La fórmula es: cateto desconocido al cuadrado igual a la hipotenusa al cuadrado menos el cateto conocido al cuadrado. Saca la raíz cuadrada del resultado.`
     }
 
-    // ── QUÍMICA ───────────────────────────────────────────────────────────────────
-    if (/química/.test(ctx)) {
-      if (/tabla periódica|número atóm|protón|neutrón|electrón/.test(ctx))
-        return `Recuerda que el número atómico Z indica cuántos protones tiene el átomo y, si es neutro, también cuántos electrones. La masa atómica A es la suma de protones y neutrones, por eso los neutrones se calculan restando Z de A. En la tabla periódica, cada fila es un período y cada columna es un grupo con propiedades similares.`
-      if (/reacción|reactivo|producto|balancear|estequio/.test(ctx))
-        return `Para balancear una ecuación, escribe los reactivos a la izquierda y los productos a la derecha. Cuenta cuántos átomos de cada elemento hay en cada lado. Coloca coeficientes delante de las fórmulas para igualar los átomos de cada elemento sin modificar los subíndices. Empieza por los elementos que aparecen en menos compuestos y deja el oxígeno e hidrógeno para el final.`
-      return `Identifica si la pregunta es sobre nomenclatura, enlace, propiedades o reacciones. Lee cuidadosamente el enunciado, aplica las reglas o conceptos correspondientes y descarta las opciones que contradigan las leyes básicas de la química.`
+    // ── ÁREA / PERÍMETRO ─────────────────────────────────────────────────────────
+    if (/[aá]rea|per[ií]metro/.test(ctx) && !/c[ií]rculo|circunfer/.test(ctx)) {
+      const hBase = /base/.test(e), hAltura = /altura/.test(e), hLado = /lado|largo|ancho/.test(e)
+      const pArea = /[aá]rea/.test(e) && /halla|calcul|determin/.test(e)
+      const pPer  = /per[ií]metro/.test(e)
+      const tStr  = [hBase && 'la base', hAltura && 'la altura', hLado && 'las medidas de los lados'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes las dimensiones de la figura.'
+      if (pArea)
+        return `${tStr} No tienes el área, eso es lo que hay que calcular. Para el triángulo la fórmula es: área igual a base por altura dividido entre dos. Para el rectángulo: área igual a base por altura.`
+      if (pPer)
+        return `${tStr} No tienes el perímetro, eso es lo que hay que calcular. La fórmula del perímetro es la suma de todos los lados de la figura.`
+      return `${tStr} Identifica si te piden el área o el perímetro y aplica la fórmula correspondiente.`
     }
 
-    // ── BIOLOGÍA ─────────────────────────────────────────────────────────────────
-    if (/biolog/.test(ctx))
-      return `Ubica en qué nivel de organización se sitúa la pregunta: célula, tejido, órgano, sistema u organismo. Si habla de genética, recuerda que el ADN porta la información y los genes determinan los caracteres hereditarios. Si habla de ecología, identifica las relaciones entre organismos y su ambiente. Lee cada opción y descarta las que contradigan los procesos biológicos mencionados en el enunciado.`
+    // ── CÍRCULO ──────────────────────────────────────────────────────────────────
+    if (/c[ií]rculo|circunfer|radio\b|di[aá]metro/.test(ctx)) {
+      const hR = /radio/.test(e), hD = /di[aá]metro/.test(e)
+      const pA = /[aá]rea/.test(e), pC = /circunfer|longitud/.test(e)
+      const tStr = [hR && 'el radio', hD && 'el diámetro'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes datos del círculo.'
+      if (pA) return `${tStr} No tienes el área, eso es lo que hay que hallar. La fórmula es: área igual a pi por el radio al cuadrado. Si te dan el diámetro, el radio es la mitad.`
+      if (pC) return `${tStr} No tienes la longitud de la circunferencia, eso es lo que hay que hallar. La fórmula es: circunferencia igual a dos por pi por el radio.`
+      return `${tStr} Identifica si te piden el área o la circunferencia y aplica la fórmula correspondiente.`
+    }
 
-    // ── LENGUAJE ─────────────────────────────────────────────────────────────────
-    if (/lenguaje|comunicac/.test(ctx))
-      return `Lee el enunciado e identifica si te preguntan sobre ortografía, morfología, sintaxis o semántica. Para la tildación, recuerda: las palabras agudas llevan tilde si terminan en n, s o vocal; las graves llevan tilde si terminan en consonante distinta de n o s; las esdrújulas siempre llevan tilde. Para la sintaxis, localiza el verbo principal de la oración y luego identifica el sujeto que concuerda con él en número y persona.`
+    // ── ESTADÍSTICA / PROMEDIO ───────────────────────────────────────────────────
+    if (/media\b|mediana\b|moda\b|promedio|conjunto de datos|datos.*son/.test(ctx)) {
+      const pMed  = /media\b|promedio/.test(e)
+      const pMdn  = /mediana/.test(e)
+      const pMod  = /moda\b/.test(e)
+      if (pMed) return `Tienes el conjunto de datos y la cantidad de elementos. No tienes la media, eso es lo que hay que calcular. La fórmula es: media igual a la suma de todos los datos dividida entre la cantidad total de datos.`
+      if (pMdn) return `Tienes el conjunto de datos. No tienes la mediana, eso es lo que hay que hallar. Ordena todos los datos de menor a mayor y toma el valor central; si hay dos centrales, promédia los.`
+      if (pMod) return `Tienes el conjunto de datos. No tienes la moda, eso es lo que hay que identificar. La moda es el dato que aparece con mayor frecuencia en el conjunto.`
+      return `Tienes el conjunto de datos. Identifica si te piden la media, la mediana o la moda y aplica el procedimiento correspondiente.`
+    }
 
-    // ── LITERATURA ───────────────────────────────────────────────────────────────
-    if (/literatur/.test(ctx))
-      return `Identifica el género literario: narrativa si hay narrador y personajes, lírica si expresa sentimientos en verso, dramática si es diálogo para ser representado. Recuerda los autores peruanos clave: César Vallejo en poesía, José María Arguedas y Mario Vargas Llosa en narrativa, Ricardo Palma con las Tradiciones Peruanas. Relaciona el autor con su corriente y su época para responder correctamente.`
+    // ── PROBABILIDAD ─────────────────────────────────────────────────────────────
+    if (/probabilid|favorable|azar|aleator|acertar|al azar/.test(ctx)) {
+      const hTotal = /total|posibles|espacio|alternativas/.test(e)
+      const hFav   = /favorable|exitoso|acertar|correcto/.test(e)
+      const tStr   = [hTotal && 'el total de casos posibles', hFav && 'los casos favorables'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes los datos del experimento aleatorio.'
+      return `${tStr} No tienes la probabilidad, eso es lo que hay que calcular. La fórmula es: probabilidad igual a casos favorables dividido entre el total de casos posibles. Si son dos eventos independientes que ocurren juntos, multiplica sus probabilidades individuales.`
+    }
+
+    // ── PORCENTAJE ───────────────────────────────────────────────────────────────
+    if (/porcentaje|descuento|rebaja|\bpor ciento\b|\b%\b/.test(ctx)) {
+      const hT = /total|precio|monto|cantidad/.test(e)
+      const hP = /%|por ciento|porcentaje/.test(e)
+      const tStr = [hT && 'el valor total o precio base', hP && 'el porcentaje'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes los datos del porcentaje.'
+      return `${tStr} No tienes el valor resultante, eso es lo que hay que calcular. La fórmula es: parte igual al total multiplicado por el porcentaje en decimal. Para convertir el porcentaje a decimal, divídelo entre cien.`
+    }
+
+    // ── ECUACIONES ───────────────────────────────────────────────────────────────
+    if (/ecuaci[oó]n|inc[oó]gnita|variable\b|despeja|halla x|valor de x/.test(ctx)) {
+      const tStr = /ecuaci[oó]n/.test(e) ? 'Tienes la ecuación planteada.' : 'Tienes la relación entre los datos.'
+      return `${tStr} No tienes el valor de la incógnita, eso es lo que hay que encontrar. La fórmula es: pasa todos los términos con la variable a un lado y los números al otro lado; luego divide ambos lados entre el coeficiente de la variable para despejarla.`
+    }
+
+    // ── FUNCIONES ────────────────────────────────────────────────────────────────
+    if (/funci[oó]n|f\(x\)|dominio|rango\b/.test(ctx)) {
+      const pDom = /dominio/.test(e), pImg = /imagen|rango|valor de f/.test(e)
+      const tStr = /f\(x\)|g\(x\)/.test(e) ? 'Tienes la función definida.' : 'Tienes la regla de correspondencia.'
+      if (pDom) return `${tStr} No tienes el dominio, eso es lo que hay que determinar. El dominio son todos los valores de x para los que la función tiene sentido: el denominador no puede ser cero y el interior de una raíz cuadrada no puede ser negativo.`
+      if (pImg) return `${tStr} No tienes el valor de la función en ese punto. Sustituye el valor de x en la expresión y realiza las operaciones paso a paso.`
+      return `${tStr} Identifica si te piden evaluar la función, el dominio o la imagen, y aplica el procedimiento correcto.`
+    }
+
+    // ── LOGARITMOS ───────────────────────────────────────────────────────────────
+    if (/logarit|log\b|ln\b/.test(ctx)) {
+      return `Tienes la expresión logarítmica con base y argumento. No tienes el valor simplificado, eso es lo que hay que hallar. La fórmula base es: logaritmo de un número N en base b pregunta a qué potencia hay que elevar b para obtener N. Aplica las propiedades: logaritmo de un producto es suma; de un cociente es resta; de una potencia el exponente baja como multiplicador.`
+    }
+
+    // ── POLINOMIOS ───────────────────────────────────────────────────────────────
+    if (/polinomio|ra[ií]ces|monomio|binomio|factoriz|ra[ií]z del polinomio/.test(ctx)) {
+      const pRaices = /ra[ií]z|ra[ií]ces/.test(e)
+      const tStr    = /p\(x\)|polinomio/.test(e) ? 'Tienes el polinomio.' : 'Tienes la expresión algebraica.'
+      if (pRaices) return `${tStr} No tienes las raíces, eso es lo que hay que encontrar. Un número es raíz del polinomio si al sustituirlo la expresión da cero. Factoriza o aplica el teorema del factor para encontrarlas.`
+      return `${tStr} Identifica qué te piden: simplificar, factorizar, evaluar o encontrar raíces; y aplica las propiedades algebraicas correspondientes.`
+    }
+
+    // ── SUCESIONES ───────────────────────────────────────────────────────────────
+    if (/sucesi[oó]n|progresi[oó]n|t[eé]rmino.*[aé]simo/.test(ctx)) {
+      return `Tienes varios términos de la sucesión. No tienes el término que te piden, eso es lo que hay que encontrar. Determina si es aritmética: la diferencia entre términos consecutivos es constante; o geométrica: la razón entre términos consecutivos es constante. Luego aplica la fórmula del término general.`
+    }
+
+    // ── FÍSICA — CINEMÁTICA ──────────────────────────────────────────────────────
+    if (/velocidad|aceleraci[oó]n|desplazamiento|tiempo\b|distancia recorrid/.test(ctx) && /física/.test(ctx)) {
+      const hV = /velocidad/.test(e), hA = /aceleraci[oó]n/.test(e), hT = /tiempo/.test(e), hD = /distancia|desplazamiento/.test(e)
+      const tStr = [hV && 'la velocidad', hA && 'la aceleración', hT && 'el tiempo', hD && 'la distancia'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes datos del movimiento.'
+      const nT   = !hV ? 'la velocidad final' : !hD ? 'la distancia recorrida' : 'el dato pedido'
+      return `${tStr} No tienes ${nT}, eso es lo que hay que hallar. Para la velocidad final: velocidad inicial más aceleración por tiempo. Para la distancia: velocidad inicial por tiempo más la mitad de la aceleración por el tiempo al cuadrado.`
+    }
+
+    // ── FÍSICA — NEWTON ──────────────────────────────────────────────────────────
+    if (/fuerza|segunda ley|masa.*aceleraci|aceleraci.*masa/.test(ctx) && /física/.test(ctx)) {
+      const hF = /fuerza/.test(e), hM = /masa|kg/.test(e), hA = /aceleraci[oó]n/.test(e)
+      const tStr = [hM && 'la masa', hA && 'la aceleración', hF && 'la fuerza'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes datos de las fuerzas.'
+      const nT   = !hF ? 'la fuerza neta' : !hA ? 'la aceleración' : 'la masa'
+      return `${tStr} No tienes ${nT}, eso es lo que hay que hallar. La fórmula es: fuerza igual a masa por aceleración. Despeja la magnitud que te falta.`
+    }
+
+    // ── FÍSICA — ENERGÍA ─────────────────────────────────────────────────────────
+    if (/energ[ií]a|joule|potencial.*grav|cin[eé]tica/.test(ctx)) {
+      const hM = /masa|kg/.test(e), hH = /altura|metro/.test(e), hV = /velocidad/.test(e)
+      const esCin = /cin[eé]tica|velocidad/.test(e)
+      const tStr  = [hM && 'la masa', esCin ? (hV && 'la velocidad') : (hH && 'la altura')].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes los datos del sistema.'
+      if (esCin) return `${tStr} No tienes la energía cinética, eso es lo que hay que hallar. La fórmula es: energía cinética igual a la mitad de la masa por la velocidad al cuadrado.`
+      return `${tStr} No tienes la energía potencial gravitacional, eso es lo que hay que hallar. La fórmula es: energía potencial igual a masa por la aceleración de la gravedad por la altura.`
+    }
+
+    // ── QUÍMICA — TABLA PERIÓDICA ─────────────────────────────────────────────────
+    if (/número at[oó]m|prot[oó]n|neutr[oó]n|electr[oó]n|tabla peri[oó]d/.test(ctx)) {
+      const hZ = /número at[oó]m|\bz\b/.test(e), hA = /masa at[oó]m|\bmas[ae]\b/.test(e)
+      const tStr = [hZ && 'el número atómico Z', hA && 'la masa atómica A'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes los datos del átomo.'
+      if (/neutr[oó]n/.test(e)) return `${tStr} No tienes el número de neutrones, eso es lo que hay que hallar. La fórmula es: neutrones igual a masa atómica menos número atómico.`
+      if (/electr[oó]n/.test(e)) return `${tStr} No tienes el número de electrones. Para un átomo neutro, los electrones son iguales al número atómico Z.`
+      return `${tStr} Recuerda: protones igualan a Z; electrones igualan a Z en átomo neutro; neutrones igual a masa atómica menos Z.`
+    }
+
+    // ── QUÍMICA — REACCIONES ─────────────────────────────────────────────────────
+    if (/reacci[oó]n|reactivo|producto|balancear|estequio/.test(ctx)) {
+      return `Tienes la ecuación química con reactivos y productos. No tienes los coeficientes que la balancean, eso es lo que hay que determinar. Iguala el número de átomos de cada elemento a ambos lados colocando coeficientes; empieza por los metales, luego los no metales, y ajusta el hidrógeno y el oxígeno al final.`
+    }
+
+    // ── INGLÉS ───────────────────────────────────────────────────────────────────
+    if (/ingl[eé]s|english|grammar|vocabulary|verb|tense/.test(ctx))
+      return `Tienes el texto o la oración con un espacio en blanco o una pregunta de comprensión. No tienes la opción correcta, eso es lo que debes identificar. Lee todo el contexto, determina el tiempo verbal o el significado que encaja, y descarta las opciones que rompan la lógica gramatical o el sentido del texto.`
+
+    // ── MATEMÁTICA genérica ──────────────────────────────────────────────────────
+    if (/matemát|matem/.test(ctx))
+      return `Tienes los datos numéricos del problema. Identifica qué magnitud o valor te piden encontrar; eso es lo que no tienes. Elige la fórmula o relación que conecta los datos que tienes con lo que te falta, sustituye los valores y despeja la incógnita paso a paso.`
 
     // ── HISTORIA ─────────────────────────────────────────────────────────────────
     if (/histor/.test(ctx))
-      return `Ubica el hecho en su período histórico: culturas prehispánicas, Imperio Inca, Conquista española, Virreinato, Independencia o República del Perú. Para cada evento identifica quiénes fueron los protagonistas, cuándo ocurrió, cuáles fueron las causas principales y qué consecuencias tuvo. Descarta las opciones que mezclen hechos de épocas distintas o que atribuyan acciones a los actores equivocados.`
+      return `Tienes los datos del hecho histórico. Lo que debes identificar es cuál opción lo describe, explica o ubica correctamente en su período. Recuerda los protagonistas, las causas y las consecuencias del evento; descarta las opciones que mezclen épocas o atribuyan hechos a actores equivocados.`
 
-    // ── FILOSOFÍA ────────────────────────────────────────────────────────────────
-    if (/filosof/.test(ctx))
-      return `Identifica el autor o la corriente filosófica que menciona el enunciado. Recuerda las posturas principales: Sócrates usaba el diálogo para descubrir la verdad; Platón defendía el mundo de las ideas; Aristóteles partía de la observación; Descartes dudaba de todo para encontrar una certeza; Kant estableció el imperativo categórico como norma moral. Relaciona cada afirmación del enunciado con el pensador que la propone.`
+    // ── LITERATURA ───────────────────────────────────────────────────────────────
+    if (/literatur/.test(ctx))
+      return `Tienes la referencia a una obra, autor o movimiento literario. Lo que debes identificar es la relación correcta entre ellos. Asocia el autor con su género, su época y sus obras más representativas; descarta las opciones que confundan autores o corrientes.`
+
+    // ── FILOSOFÍA / PSICOLOGÍA ───────────────────────────────────────────────────
+    if (/filosof|psicolog/.test(ctx))
+      return `Tienes la descripción de un concepto, corriente o caso. Lo que debes identificar es el autor o la teoría que corresponde exactamente a esa descripción. Compara cada opción con la definición del enunciado y elige la que coincida con precisión.`
+
+    // ── LENGUAJE ─────────────────────────────────────────────────────────────────
+    if (/lenguaje|comunicac/.test(ctx))
+      return `Tienes el texto o la oración. Lo que debes encontrar es la respuesta al concepto preguntado. Identifica si es ortografía, sintaxis, semántica o comprensión lectora y aplica la regla o principio correspondiente.`
 
     // ── CIUDADANÍA ───────────────────────────────────────────────────────────────
-    if (/ciudadan/.test(ctx))
-      return `Recuerda que el Estado peruano se organiza en tres poderes: el Ejecutivo que gobierna, el Legislativo que hace las leyes y el Judicial que las aplica. La Constitución de 1993 es la norma suprema. Los derechos fundamentales —vida, libertad, igualdad— no pueden ser desconocidos por ninguna autoridad. Lee cada alternativa y elige la que sea coherente con esos principios constitucionales.`
-
-    // ── PSICOLOGÍA ───────────────────────────────────────────────────────────────
-    if (/psicolog/.test(ctx))
-      return `Ubica el concepto que describe el enunciado y relaciona con el autor correspondiente. Freud explicaba la conducta por el inconsciente, el id, el ego y el superego. Piaget describió cuatro etapas del desarrollo cognitivo: sensoriomotora, preoperacional, operacional concreta y formal. Maslow ordenó las necesidades en una pirámide desde las fisiológicas hasta la autorrealización. Elige la opción que mejor describa el proceso o la etapa que se plantea.`
+    if (/ciudadan|constituci/.test(ctx))
+      return `Tienes los datos de la situación o el artículo legal. Lo que debes identificar es cuál derecho, deber o principio constitucional aplica. Recuerda los tres poderes del Estado y los derechos fundamentales de la Constitución de 1993; elige la opción que sea coherente con esos principios.`
 
     // ── ECONOMÍA ─────────────────────────────────────────────────────────────────
-    if (/econom/.test(ctx))
-      return `Identifica cuál principio económico aplica la situación: si habla de precios y cantidades en el mercado, piensa en la ley de oferta y demanda. Si habla del crecimiento de un país, relaciona con el PBI. Para calcular el costo, precio de venta o ganancia, parte de la fórmula básica: utilidad es precio de venta menos costo. Elige la opción que refleje correctamente esa relación económica.`
+    if (/econom/.test(ctx)) {
+      const hP = /precio|costo|monto/.test(e), hC = /cantidad|unidades/.test(e)
+      const tStr = [hP && 'el precio o costo', hC && 'la cantidad'].filter(Boolean).map(x => `Tienes ${x}.`).join(' ') || 'Tienes los datos económicos del problema.'
+      return `${tStr} Lo que debes determinar es cuál relación económica aplica: oferta, demanda, costo de producción o indicador macroeconómico. Elige la opción que refleje ese principio correctamente.`
+    }
 
     // ── DESARROLLO PERSONAL ──────────────────────────────────────────────────────
     if (/desarrollo personal/.test(ctx))
-      return `Lee el caso o situación que describe el enunciado e identifica qué habilidad o proceso personal está en juego. Si habla de cómo alguien se siente consigo mismo, es autoestima. Si habla de expresar ideas sin agredir ni ceder, es asertividad. Si describe una etapa del crecimiento humano, ubícala en la línea niñez, adolescencia, adultez o vejez. Elige la opción que corresponda exactamente a la definición o al ejemplo presentado.`
+      return `Tienes la descripción de una situación o conducta. Lo que debes identificar es el concepto o habilidad personal que corresponde. Si habla de valoración propia, es autoestima. Si habla de comunicar sin agredir ni ceder, es asertividad. Elige la opción que coincida exactamente con la situación descrita.`
 
-    return `Lee con cuidado el enunciado completo. Identifica la idea central y las palabras clave. Descarta las opciones que sean claramente incorrectas o que contradigan lo planteado. Entre las opciones restantes, elige la que responda de forma más precisa y completa lo que se pregunta.`
+    return `Tienes los datos del enunciado. Lo que debes encontrar es la respuesta correcta. Lee con cuidado, identifica las palabras clave, aplica el concepto que corresponde y descarta las opciones que contradigan lo que se plantea.`
   }
 
   // ── Detecta el subtema para cualquier materia ────────────────────────────────
