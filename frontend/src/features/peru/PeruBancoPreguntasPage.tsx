@@ -141,18 +141,24 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
   // ── Voz masculina peruana ─────────────────────────────────────────────────────
   function pickPeruvianVoice(): SpeechSynthesisVoice | null {
     const all = voicesRef.current.length ? voicesRef.current : (window.speechSynthesis?.getVoices() || [])
-    // Nombres conocidos de voces masculinas en español
-    const MALE_NAMES = ['raúl','raul','jorge','diego','carlos','miguel','pablo',
-                        'andres','juan','antonio','rodrigo','sergio','male','hombre','man','masculino']
+    const MALE_NAMES   = ['raúl','raul','jorge','diego','carlos','miguel','pablo',
+                          'andres','juan','antonio','rodrigo','sergio','male','hombre','man','masculino',
+                          'alvaro','alvaro','ricardo','luis','victor','alberto','gustavo']
+    const FEMALE_NAMES = ['angela','maria','lucia','sofia','elena','laura','isabel','valentina',
+                          'ana','female','mujer','woman','femenino','dalia','marisol','sabina',
+                          'conchita','esperanza','monica','paula','andrea']
     const score = (v: SpeechSynthesisVoice) => {
       let s = 0
       const n = v.name.toLowerCase(), lang = v.lang.toLowerCase()
-      if (lang === 'es-pe' || /peru/i.test(n)) s += 300
-      else if (lang.startsWith('es-')) s += 60
-      else if (lang.startsWith('es')) s += 40
-      if (!v.localService) s += 30
-      if (/neural|natural|enhanced|premium/i.test(n)) s += 25
-      if (MALE_NAMES.some(m => n.includes(m))) s += 200  // prioridad absoluta a voz masculina
+      // 1. GÉNERO — prioridad máxima absoluta
+      if (MALE_NAMES.some(m => n.includes(m)))   s += 500   // voz masculina → gana siempre
+      if (FEMALE_NAMES.some(f => n.includes(f))) s -= 500   // voz femenina  → descartada
+      // 2. Idioma (secundario al género)
+      if (lang === 'es-pe' || /peru/i.test(n)) s += 80
+      else if (lang.startsWith('es-'))          s += 40
+      else if (lang.startsWith('es'))           s += 20
+      // 3. Calidad
+      if (/neural|natural|enhanced|premium/i.test(n)) s += 15
       return s
     }
     const spanish = all.filter(v => /^es/i.test(v.lang))
@@ -680,13 +686,10 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
   viewed: boolean; speaking: boolean; audioLoading: boolean; played: boolean; showExplanation: boolean
   onSpeak: (p: Pregunta) => void; onViewed: () => void
 }) {
-  const [selected,    setSelected]    = useState<string | null>(null)
-  const [showFormula, setShowFormula] = useState(false)
+  const [selected, setSelected] = useState<string | null>(null)
   const pf       = getPureFormula(p.area, p.enunciado)
   const answered = selected !== null
   const isRight  = selected === p.respuesta
-
-  useEffect(() => { if (answered && pf) setShowFormula(true) }, [answered])
 
   const qvp = { id: p.id, stem: p.enunciado, area: p.area, points: 1, difficulty: p.dificultad, options: p.opciones }
 
@@ -704,9 +707,14 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
       <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{p.enunciado}</p>
 
+      {/* Gráfico visual (diagrama canvas + chips de datos) — siempre visible */}
       <QuestionInlineVisual question={qvp} color={materia.color} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 10 }}>
+      {/* Fórmula / estrategia — siempre visible, sin necesidad de responder */}
+      {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
+
+      {/* Opciones */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 14 }}>
         {p.opciones.map(o => {
           const isCorrect  = o.label === p.respuesta
           const isSelected = o.label === selected
@@ -744,15 +752,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
         ) : (
           <span style={{ padding: '6px 14px', fontSize: 11, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 8 }}>✓ Audio reproducido</span>
         )}
-        {pf && (
-          <button onClick={() => setShowFormula(f => !f)}
-            style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(210,153,34,0.3)', borderRadius: 8, color: '#d29922', fontSize: 11, cursor: 'pointer' }}>
-            {showFormula ? 'Ocultar fórmula' : '🧮 Ver fórmula'}
-          </button>
-        )}
       </div>
-
-      {showFormula && pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
       {answered && (
         <div style={{ marginTop: 14, background: 'rgba(12,18,38,0.95)', border: `1px solid ${materia.color}30`, borderLeft: `3px solid ${materia.color}`, borderRadius: 10, padding: '14px 16px', animation: 'fadeIn 0.5s ease' }}>

@@ -357,7 +357,26 @@ async def banco_tts(body: TTSRequest):
         ]
 
     try:
+        import json, os
         from google.cloud import texttospeech
+
+        # Soporte Railway: credenciales desde env var JSON (no ruta de archivo local)
+        def _make_tts_client():
+            creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+            if creds_json:
+                try:
+                    from google.oauth2 import service_account
+                    info = json.loads(creds_json)
+                    creds = service_account.Credentials.from_service_account_info(
+                        info,
+                        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    )
+                    logger.info("[banco/tts] Usando credenciales desde GOOGLE_CREDENTIALS_JSON")
+                    return texttospeech.TextToSpeechClient(credentials=creds)
+                except Exception as e_creds:
+                    logger.warning(f"[banco/tts] Error cargando GOOGLE_CREDENTIALS_JSON: {e_creds}")
+            # Fallback: archivo o ADC (desarrollo local)
+            return texttospeech.TextToSpeechClient()
 
         # SSML expresivo con pausas naturales y tono más grave
         t = texto
@@ -372,7 +391,7 @@ async def banco_tts(body: TTSRequest):
             '</speak>'
         )
 
-        client = texttospeech.TextToSpeechClient()
+        client = _make_tts_client()
         inp    = texttospeech.SynthesisInput(ssml=ssml)
         cfg    = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3,
