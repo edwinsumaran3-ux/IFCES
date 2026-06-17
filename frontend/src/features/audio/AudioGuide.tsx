@@ -4,7 +4,7 @@
 // =============================================================================
 import React, {
   createContext, useContext, useCallback,
-  useRef, useState, useEffect
+  useRef, useState, useEffect, useMemo
 } from 'react'
 
 // ─── 10 Bienvenidas (se eligen aleatoriamente) ───────────────────────────────
@@ -124,8 +124,13 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
     }
   }, [])
 
+  const ctxValue = useMemo(
+    () => ({ play, playWelcome, stop, speaking, enabled, toggleEnabled }),
+    [play, playWelcome, stop, speaking, enabled, toggleEnabled]
+  )
+
   return (
-    <Ctx.Provider value={{ play, playWelcome, stop, speaking, enabled, toggleEnabled }}>
+    <Ctx.Provider value={ctxValue}>
       {children}
       <AudioFloatingBtn />
     </Ctx.Provider>
@@ -182,13 +187,17 @@ function AudioFloatingBtn() {
 // ─── Hook: auto-play on screen mount ─────────────────────────────────────────
 export function useScreenGuide(screen: string, delay = 800) {
   const { play, enabled } = useAudioGuide()
+  const playRef = useRef(play)
+  const enabledRef = useRef(enabled)
+  playRef.current = play
+  enabledRef.current = enabled
+
   useEffect(() => {
-    if (!enabled) return
+    if (!enabledRef.current) return
     const key = `guide_played_${screen}`
-    // Only auto-play once per session
     if (sessionStorage.getItem(key)) return
     sessionStorage.setItem(key, '1')
-    const t = setTimeout(() => play(screen), delay)
+    const t = setTimeout(() => playRef.current(screen), delay)
     return () => clearTimeout(t)
-  }, [screen, enabled])
+  }, [])  // solo al montar — refs mantienen valores actualizados
 }
