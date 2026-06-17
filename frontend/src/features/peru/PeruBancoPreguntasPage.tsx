@@ -1111,6 +1111,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
   const isRight  = selected === p.respuesta
 
   const qvp = { id: p.id, stem: p.enunciado, area: p.area, points: 1, difficulty: p.dificultad, options: p.opciones }
+  const esCiencia = /matemát|física|química|biología|biolog/i.test(p.area)
 
   // Para preguntas cortas (sin contexto del PDF), extraer "Del enunciado:" de la resolución
   const isContinuation = /problema anterior|anterior pregunta/i.test(p.explicacion || '')
@@ -1148,11 +1149,11 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
       <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{cleanEnunciado(p.enunciado)}</p>
 
-      {/* Gráfico visual (diagrama canvas + chips de datos) — siempre visible */}
-      <QuestionInlineVisual question={qvp} color={materia.color} />
+      {/* Gráfico visual solo para materias de ciencias */}
+      {esCiencia && <QuestionInlineVisual question={qvp} color={materia.color} />}
 
-      {/* Fórmula / estrategia — siempre visible, sin necesidad de responder */}
-      {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
+      {/* Fórmula / estrategia — solo para ciencias */}
+      {esCiencia && pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
       {/* Opciones */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 14 }}>
@@ -1212,9 +1213,9 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
             <span style={{ fontWeight: 400 }}>{p.opciones.find(o => o.label === p.respuesta)?.text}</span>
           </div>
 
-          {/* Diagrama visual en la resolución — mismo canvas que arriba */}
-          <QuestionInlineVisual question={qvp} color={materia.color} />
-          {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
+          {/* Diagrama visual en la resolución — solo para ciencias */}
+          {esCiencia && <QuestionInlineVisual question={qvp} color={materia.color} />}
+          {esCiencia && pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
           <PizarraExplicacion
             explicacion_ia={p.explicacion_ia || ''}
