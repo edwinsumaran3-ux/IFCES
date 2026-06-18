@@ -4,7 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { useScreenGuide } from '../audio/AudioGuide';
-import { makeSocratic } from '../audio/voiceUtils';
+import { makeSocratic, cleanForAudio } from '../audio/voiceUtils';
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
 import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
 import AvatarTutorIA from '../avatar/AvatarTutorIA';
@@ -237,20 +237,21 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
   // ── Web Speech con voz colombiana del navegador ───────────────────────────
   function speakWithBrowser(id: string, partes: string[], gender: 'male' | 'female') {
     if (!('speechSynthesis' in window)) { onAudioFinished(id); return; }
-    const voz   = pickColombianVoice(gender);
-    const token = speakToken.current; // snapshot — si cambia, esta cadena es obsoleta
-    let idx     = 0;
+    const voz     = pickColombianVoice(gender);
+    const token   = speakToken.current; // snapshot — si cambia, esta cadena es obsoleta
+    const limpias = partes.map(cleanForAudio);
+    let idx       = 0;
     const next  = () => {
       if (speakToken.current !== token) return; // cancelada
-      if (idx >= partes.length) { onAudioFinished(id); return; }
-      const utt   = new SpeechSynthesisUtterance(partes[idx]);
+      if (idx >= limpias.length) { onAudioFinished(id); return; }
+      const utt   = new SpeechSynthesisUtterance(limpias[idx] || '.');
       utt.lang    = 'es-CO';
       utt.rate    = 0.93;
       utt.pitch   = gender === 'female' ? 1.15 : 0.95;
       utt.volume  = 1;
       if (voz) utt.voice = voz;
       utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id); };
-      utt.onend   = () => { idx++; next(); };
+      utt.onend   = () => { idx++; next(); }; // idx sobre limpias
       utt.onerror = () => { if (speakToken.current === token) onAudioFinished(id); };
       window.speechSynthesis.speak(utt);
     };
@@ -646,23 +647,22 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
     if (speaking || audioLoading) cancelAudio();
     setCurrentReadText(p.enunciado);
 
-    const partes = buildScript(p);
-    const texto  = partes.join(' ');
+    const partes      = buildScript(p);
+    const textoLimpio = cleanForAudio(partes.join(' '));
 
     // ── OPCIÓN A: Voz colombiana neural del navegador (Edge/Chrome con voces MS) ──
-    // Si el alumno usa Edge, tiene Salomé (mujer) o Gonzalo (hombre) — gratis y nativa
     if (hasColombiaNeuralVoice()) {
       speakWithBrowser(p.id, partes, g);
       return;
     }
 
-    // ── OPCIÓN B: Backend Google Neural2 (ya configurado en Railway) ──────────
+    // ── OPCIÓN B: Backend Google Neural2 ──────────────────────────────────────
     setAudioLoading(p.id);
     try {
       const res = await fetch(`${API}/banco/tts`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text: texto, gender: g }),
+        body:    JSON.stringify({ text: textoLimpio, gender: g }),
       });
       if (res.ok) {
         const data = await res.json();

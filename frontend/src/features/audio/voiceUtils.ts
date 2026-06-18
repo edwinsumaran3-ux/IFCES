@@ -1,3 +1,68 @@
+// ── Limpia todo símbolo/LaTeX que el TTS leería como basura ─────────────────
+export function cleanForAudio(text: string): string {
+  return text
+    // LaTeX bloques display $$...$$
+    .replace(/\$\$[\s\S]*?\$\$/g, '')
+    // LaTeX inline $...$
+    .replace(/\$[^$\n]+?\$/g, '')
+    // LaTeX comandos con argumentos: \frac{a}{b}, \sqrt{x}, etc.
+    .replace(/\\[a-zA-Z]+(?:\{[^}]*\})+/g, '')
+    // LaTeX comandos sueltos: \cdot \times \leq \geq \approx etc.
+    .replace(/\\[a-zA-Z]+/g, '')
+    // Barras y dólares residuales
+    .replace(/[\\\$]/g, '')
+    // Operadores matemáticos → palabras en español
+    .replace(/\s*×\s*/g, ' por ')
+    .replace(/\s*÷\s*/g, ' entre ')
+    .replace(/\s*≈\s*/g, ' aproximadamente ')
+    .replace(/\s*≤\s*/g, ' menor o igual a ')
+    .replace(/\s*≥\s*/g, ' mayor o igual a ')
+    .replace(/\s*≠\s*/g, ' distinto de ')
+    .replace(/\s*→\s*/g, '. ')
+    .replace(/\s*[←↑↓↔⇒⇔]\s*/g, '. ')
+    .replace(/∑/g, 'la suma de ')
+    .replace(/∫/g, 'la integral de ')
+    .replace(/√/g, 'la raíz de ')
+    .replace(/±/g, ' más o menos ')
+    .replace(/∞/g, ' infinito ')
+    .replace(/∂/g, ' la derivada de ')
+    // Letras griegas usadas como variables matemáticas
+    .replace(/π/g, 'pi')
+    .replace(/θ/g, 'theta')
+    .replace(/α/g, 'alfa')
+    .replace(/β/g, 'beta')
+    .replace(/γ/g, 'gamma')
+    .replace(/δ/g, 'delta')
+    .replace(/λ/g, 'lambda')
+    .replace(/μ/g, 'mu')
+    .replace(/σ/g, 'sigma')
+    .replace(/ω/g, 'omega')
+    .replace(/Δ/g, 'delta')
+    .replace(/Σ/g, 'sigma')
+    // Superíndices → palabras
+    .replace(/²/g, ' al cuadrado')
+    .replace(/³/g, ' al cubo')
+    .replace(/⁴/g, ' a la cuarta')
+    .replace(/⁵/g, ' a la quinta')
+    .replace(/⁰/g, ' a la cero')
+    // Subíndices → quitar (son índices, el TTS no los necesita)
+    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, '')
+    // Caracteres decorativos / cuadros / viñetas especiales
+    .replace(/[■□▪▫▸▹▶▷◀◁◆◇◈★☆✓✗✕✔✘☐☑☒]/g, '')
+    .replace(/[▲▼◀▶]/g, '')
+    // Guiones largos repetidos (separadores) → punto
+    .replace(/[-–—]{3,}/g, '. ')
+    // Viñetas al inicio de línea
+    .replace(/^[•*·‣⁃]\s*/gm, '')
+    // Quitar expresiones matemáticas cortas entre paréntesis: (F=ma), (v=d/t)
+    .replace(/\([A-Za-z][A-Za-z0-9=+\-*/^.\s]{1,25}\)/g, '')
+    // Normalizar espacios y saltos de línea
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, ' ')
+    .replace(/\s+([.,;!?])/g, '$1')
+    .trim()
+}
+
 // ── Convierte explicación plana en narración socrática (pregunta → respuesta) ──
 export function makeSocratic(area: string, enunciado: string, texto: string): string {
   const ctx = (area + ' ' + enunciado).toLowerCase()
@@ -39,11 +104,30 @@ export function makeSocratic(area: string, enunciado: string, texto: string): st
     '¿Por qué ocurre esto y cómo lo resolvemos?'
 
   const q2 =
-    /matemát|fisica|química|biolog/.test(ctx) ? '¿Y cómo aplicamos eso al problema concreto?' :
-    /lectura|sociales|inglés/.test(ctx)       ? '¿Cómo eliminamos las opciones incorrectas?' :
-    '¿Cómo llegamos a la respuesta correcta?'
+    /celsius|fahrenheit|temperatura|energía|física|cin[eé]tica|potencial|newton|caída|onda|ohm/.test(ctx)
+      ? '¿Cómo sustituimos los datos en la fórmula paso a paso?' :
+    /mol|estequiom|reactivo|reacción|ph|ácido|átomo|enlace|tabla periódica|solución/.test(ctx)
+      ? '¿Cómo aplicamos esa propiedad química en este caso concreto?' :
+    /pitágor|cateto|hipotenusa|área|perímetro|volumen|trigon|porcentaje|probabilidad|promedio/.test(ctx)
+      ? '¿Cómo sustituimos los valores y calculamos el resultado?' :
+    /ecuación|despeja|función|proporción|sucesión|logarit|polinomio/.test(ctx)
+      ? '¿Cómo aplicamos eso al problema concreto y obtenemos el resultado?' :
+    /lectura|crítica|texto|fragmento|literatur|novela|cuento|narrador/.test(ctx)
+      ? '¿Qué opciones podemos descartar y por qué no encajan con el texto?' :
+    /historia|sociales|geografía|ciudadan|filosof|psicolog/.test(ctx)
+      ? '¿Cuál es la causa, consecuencia o concepto clave aquí?' :
+    /inglés|ingles/.test(ctx)
+      ? '¿Qué tiempo verbal o estructura gramatical debemos usar?' :
+    '¿Cómo llegamos al resultado correcto con esa lógica?'
 
-  const q3 = '¿En qué detalle debemos tener cuidado?'
+  const q3 =
+    /matemát|física|química|biolog|ciencia|trigon|ecuac|función|energía/.test(ctx)
+      ? '¿Qué error típico cometen los estudiantes en este tipo de problema?' :
+    /lectura|crítica|texto|literatur|narrador|fragmento|novela/.test(ctx)
+      ? '¿Qué trampa tiene esta pregunta y cómo evitamos confundirnos?' :
+    /historia|sociales|ciudadan|filosof|psicolog/.test(ctx)
+      ? '¿Qué dato o fecha clave no debemos olvidar aquí?' :
+    '¿Qué detalle debemos tener muy en cuenta para no equivocarnos?'
 
   // Dividir en frases y agrupar en 3 bloques
   const frases = texto.split(/(?<=[.!?])\s+/).filter(Boolean)

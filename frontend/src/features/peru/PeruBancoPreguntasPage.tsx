@@ -4,7 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react'
 import { useScreenGuide } from '../audio/AudioGuide'
-import { pickMaleVoice, makeSocratic } from '../audio/voiceUtils'
+import { pickMaleVoice, makeSocratic, cleanForAudio } from '../audio/voiceUtils'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
 import PizarraExplicacion from './PizarraExplicacion'
@@ -149,20 +149,21 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
 
   function speakWithBrowser(id: string, partes: string[]) {
     if (!('speechSynthesis' in window)) { onAudioFinished(id); return }
-    const voz   = pickPeruvianVoice()
-    const token = speakToken.current
-    let idx     = 0
+    const voz     = pickPeruvianVoice()
+    const token   = speakToken.current
+    const limpias = partes.map(cleanForAudio)
+    let idx       = 0
     const next  = () => {
       if (speakToken.current !== token) return
-      if (idx >= partes.length) { onAudioFinished(id); return }
-      const utt   = new SpeechSynthesisUtterance(partes[idx])
+      if (idx >= limpias.length) { onAudioFinished(id); return }
+      const utt   = new SpeechSynthesisUtterance(limpias[idx] || '.')
       utt.lang    = 'es-PE'
       utt.rate    = 1.1
       utt.pitch   = 0.85
       utt.volume  = 1
       if (voz) utt.voice = voz
       utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id) }
-      utt.onend   = () => { idx++; next() }
+      utt.onend   = () => { idx++; next() }  // idx refers to limpias
       utt.onerror = () => { if (speakToken.current === token) onAudioFinished(id) }
       window.speechSynthesis.speak(utt)
     }
@@ -744,15 +745,8 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
   // ── Convierte explicacion_ia a narración socrática: pregunta → lógica → respuesta ──
   function iaToAudio(text: string): string {
 
-    // Limpia LaTeX de una línea
-    const clean = (s: string) =>
-      s.replace(/\$\$[\s\S]*?\$\$/g, '')
-       .replace(/\$[^$\n]*?\$/g, '')
-       .replace(/\\[a-zA-Z]+(?:\{[^}]*\})+/g, '')
-       .replace(/\\(?:cdot|times|div|frac|sqrt|sum|int|pm|leq|geq|approx)/g, '')
-       .replace(/\\/g, '').replace(/\$/g, '')
-       .replace(/^[*\-•]\s*/, '')
-       .trim()
+    // Limpia LaTeX, símbolos y caracteres que el TTS lee como basura
+    const clean = (s: string) => cleanForAudio(s)
 
     // Preguntas variadas según el título del PASO
     const preguntaPorTitulo = (titulo: string, idx: number): string => {
@@ -898,13 +892,14 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     if (speaking || audioLoading) cancelAudio()
     setCurrentReadText(p.enunciado)
     setViewed(prev => new Set([...prev, p.id]))
-    const partes = buildScript(p)
+    const partes      = buildScript(p)
+    const textoLimpio = cleanForAudio(partes.join(' '))
     setAudioLoading(p.id)
     try {
       const res = await fetch(`${API}/banco/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: partes.join(' '), gender: 'male', locale: 'pe' }),
+        body: JSON.stringify({ text: textoLimpio, gender: 'male', locale: 'pe' }),
       })
       if (res.ok) {
         const data = await res.json()
