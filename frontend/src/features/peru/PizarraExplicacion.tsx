@@ -3,7 +3,10 @@
 // =============================================================================
 import React, { useEffect, useRef } from 'react'
 
-declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
+declare const MathJax: {
+  typesetPromise: (nodes?: HTMLElement[]) => Promise<void>
+  startup: { promise: Promise<void> }
+}
 
 interface Props {
   explicacion_ia: string
@@ -13,17 +16,17 @@ interface Props {
   color:          string
 }
 
-// Escapa HTML pero deja los bloques $$...$$ intactos para MathJax
+// Escapa HTML pero deja intactos $...$ y $$...$$ para que MathJax los procese
 function mathHtml(text: string): string {
-  const parts = text.split(/(\$\$[\s\S]*?\$\$)/g)
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/g)
   return parts.map(p =>
-    /^\$\$[\s\S]*?\$\$$/.test(p)
-      ? p  // LaTeX: no escapar
-      : p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    /^\$/.test(p)
+      ? p
+      : p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   ).join('')
 }
 
-// ¿La línea es un bloque LaTeX puro?
+// ¿La línea es exclusivamente un bloque $$...$$?
 function isPureLatex(s: string) { return /^\s*\$\$[\s\S]*?\$\$\s*$/.test(s) }
 
 export default function PizarraExplicacion({ explicacion_ia, explicacion, respuesta, opcion_resp, color }: Props) {
@@ -31,11 +34,21 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
 
   const raw = (explicacion_ia || explicacion || '').replace(/\r/g, '').trim()
 
+  // FIX: esperar a startup.promise antes de typesetPromise (MathJax se carga con defer)
   useEffect(() => {
     if (!containerRef.current || !raw) return
-    if (typeof MathJax !== 'undefined') {
-      MathJax.typesetPromise([containerRef.current]).catch(() => {})
+    const node = containerRef.current
+    if (typeof MathJax === 'undefined') return
+    const run = () => {
+      if (typeof MathJax.typesetPromise === 'function') {
+        MathJax.typesetPromise([node]).catch(() => {})
+      }
     }
+    try {
+      const p = (MathJax as any).startup?.promise
+      if (p && typeof p.then === 'function') p.then(run).catch(run)
+      else run()
+    } catch { run() }
   }, [raw])
 
   if (!raw || raw.length < 5) return null
@@ -47,12 +60,23 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
   interface Bloque { tipo: TipoBloque; num?: number; titulo?: string; cuerpo: string }
   const bloques: Bloque[] = []
 
+  // FIX: solo detectar como fórmula inline si la línea EMPIEZA con expresión matemática
+  // (evita false-positive en líneas explicativas como "Donde P_n es...")
   const esFormula = (l: string) =>
-    /[=×÷^√∑±≈≤≥]/.test(l) || /\d+\s*[\/\+\-\*]\s*\d+/.test(l) || /^\s*[A-ZΑ-Ω]\s*=/.test(l)
+    l.length < 100 &&
+    !(/^[A-ZÁÉÍÓÚa-záéíóúüñ]{2,}\s/u.test(l)) && // no empieza con palabra española
+    (/^\s*[A-Za-zΑ-Ω]\s*=/.test(l) ||              // X = algo
+     /^\d[\d\s]*[=+\-×÷]/.test(l) ||               // número luego operador
+     /^[=×÷√∑∫±]/.test(l))                          // empieza con símbolo
 
+  // FIX: (.+) → (.*) — permite encabezado PASO solo en su línea, contenido en siguiente
   const esPaso = (l: string): { num: number; titulo: string; cuerpo: string } | null => {
-    const m = l.match(/^PASO\s+(\d+)\s*[—–\-]+\s*([^:]+)?[:\s]*(.+)/i)
-    if (m) return { num: parseInt(m[1]), titulo: (m[2]||'').trim(), cuerpo: (m[3]||'').trim() }
+    const m = l.match(/^PASO\s+(\d+)\s*[—–\-]+\s*([^:\n]+)?[:\s]*(.*)/i)
+    if (m) return {
+      num:    parseInt(m[1]),
+      titulo: (m[2] || '').trim(),
+      cuerpo: (m[3] || '').trim().replace(/^:\s*/, ''),  // quitar ":" residual
+    }
     const m2 = l.match(/^(?:Paso|paso)\s*(\d+)[:\.\s]+(.+)/i)
     if (m2) return { num: parseInt(m2[1]), titulo: '', cuerpo: m2[2].trim() }
     return null
@@ -68,16 +92,15 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
   }
 
   for (const linea of lineas) {
-    // Bloque LaTeX puro (fórmula en su propia línea)
     if (isPureLatex(linea)) {
       bloques.push({ tipo: 'latexblock', cuerpo: linea.trim() })
       continue
     }
 
-    const logicaTexto    = esSeccion(linea, ['LÓGICA','LOGICA'])
-    const trampaTexto    = esSeccion(linea, ['TRAMPA','ERROR COMÚN','ERROR COMUN'])
-    const respuestaTexto = esSeccion(linea, ['RESPUESTA','RPTA','RESULTADO','∴'])
-    const practicaTexto  = esSeccion(linea, ['PRÁCTICA','PRACTICA'])
+    const logicaTexto    = esSeccion(linea, ['LÓGICA', 'LOGICA'])
+    const trampaTexto    = esSeccion(linea, ['TRAMPA', 'ERROR COMÚN', 'ERROR COMUN'])
+    const respuestaTexto = esSeccion(linea, ['RESPUESTA', 'RPTA', 'RESULTADO', '∴'])
+    const practicaTexto  = esSeccion(linea, ['PRÁCTICA', 'PRACTICA'])
     const paso           = esPaso(linea)
 
     if      (logicaTexto    !== null) bloques.push({ tipo: 'logica',    cuerpo: logicaTexto })
@@ -88,8 +111,12 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
     else if (esFormula(linea))        bloques.push({ tipo: 'formula',   cuerpo: linea })
     else if (bloques.length > 0) {
       const last = bloques[bloques.length - 1]
-      if (!['formula','respuesta','latexblock'].includes(last.tipo)) last.cuerpo += ' ' + linea
-      else bloques.push({ tipo: 'texto', cuerpo: linea })
+      // Acumular en el bloque anterior si no es formula/respuesta/latexblock
+      if (!['formula', 'respuesta', 'latexblock'].includes(last.tipo)) {
+        last.cuerpo += (last.cuerpo ? ' ' : '') + linea
+      } else {
+        bloques.push({ tipo: 'texto', cuerpo: linea })
+      }
     } else {
       bloques.push({ tipo: 'texto', cuerpo: linea })
     }
@@ -97,7 +124,6 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
 
   const tieneRespuesta = bloques.some(b => b.tipo === 'respuesta')
 
-  // Renderiza texto con LaTeX inline $$...$$ y HTML escapado
   const MathSpan = ({ text }: { text: string }) => (
     <span dangerouslySetInnerHTML={{ __html: mathHtml(text) }} />
   )
@@ -111,7 +137,7 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
         <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.1em' }}>RESOLUCIÓN COMPLETA — PASO A PASO</span>
       </div>
 
-      {/* Contenido — ref para MathJax */}
+      {/* Contenido */}
       <div ref={containerRef} style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {bloques.map((b, i) => {
 
@@ -136,14 +162,13 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
               fontSize: 17,
               color,
               fontWeight: 700,
-              letterSpacing: '.01em',
               boxShadow: `0 0 12px ${color}20`,
             }}>
               <MathSpan text={b.cuerpo} />
             </div>
           )
 
-          /* ── FÓRMULA inline (texto con símbolos) ─────────────── */
+          /* ── FÓRMULA inline (texto con símbolos matemáticos) ─── */
           if (b.tipo === 'formula') return (
             <div key={i} style={{
               padding: '8px 16px',
@@ -153,7 +178,6 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
               fontFamily: 'Courier New, monospace',
               fontSize: 14, fontWeight: 700,
               color, textAlign: 'center' as const,
-              letterSpacing: '.02em',
             }}>
               <MathSpan text={b.cuerpo} />
             </div>
@@ -171,7 +195,7 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
                     {b.titulo}
                   </div>
                 )}
-                <MathSpan text={b.cuerpo} />
+                {b.cuerpo && <MathSpan text={b.cuerpo} />}
               </div>
             </div>
           )
