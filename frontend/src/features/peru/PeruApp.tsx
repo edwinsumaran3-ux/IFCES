@@ -13,8 +13,8 @@ const BACKEND = 'https://ifces-production.up.railway.app'
 interface PeruUser { id: string; email: string; full_name: string; role: string; plan_code?: string; country: 'PE' }
 
 type Seccion = 'A' | 'B' | 'C' | 'D'
-type SeccionCombo = 'A' | 'AB' | 'BC' | 'D' | 'ABCD'
-type View = 'home' | 'selector' | 'exam' | 'banco'
+type SeccionCombo = 'A' | 'B' | 'AB' | 'BC' | 'D' | 'ABCD'
+type View = 'home' | 'selector' | 'exam' | 'banco' | 'admin'
 interface ExamState { attemptId: string; questions: any[]; durationSecs: number; seccion: SeccionCombo }
 
 interface Props {
@@ -27,6 +27,7 @@ const SECCIONES_INFO: Record<SeccionCombo, { label: string; desc: string; materi
   B:    { label: 'Sección B',   color: '#16a34a', desc: 'Ciencias y Matemáticas',     materias: ['Matemática', 'Física', 'Química', 'Biología'] },
   AB:   { label: 'Sección A+B', color: '#7c3aed', desc: 'Letras + Ciencias',          materias: ['Lenguaje', 'Literatura', 'Historia', 'Matemática', 'Física', 'Química', 'Biología'] },
   BC:   { label: 'Sección B+C', color: '#ca8a04', desc: 'Ciencias + General',         materias: ['Matemática', 'Física', 'Química', 'Biología', 'Razonamiento Verbal', 'Razonamiento Matemático'] },
+  D:    { label: 'Sección D',   color: '#ea580c', desc: 'Agropecuaria',               materias: ['Agronomía', 'Veterinaria', 'Zootecnia'] },
   ABCD: { label: 'Completo',    color: '#dc2626', desc: 'Todas las secciones',        materias: ['Lenguaje', 'Matemática', 'Historia', 'Física', 'Química', 'Biología', 'Geografía', 'Filosofía'] },
 }
 
@@ -131,6 +132,16 @@ export default function PeruApp({ user, onLogout }: Props) {
     )
   }
 
+  // ── ADMIN PAGOS PERÚ ─────────────────────────────────────────────────────
+  if (view === 'admin') {
+    return (
+      <div style={r.root}>
+        <NavBar user={user} onLogout={onLogout} onBack={() => setView('home')} speaking={speaking} enabled={enabled} onAudio={() => speaking ? stop() : toggleEnabled()} />
+        <PeruAdminPayments />
+      </div>
+    )
+  }
+
   // ── BANCO DE PREGUNTAS ───────────────────────────────────────────────────
   if (view === 'banco') {
     return (
@@ -189,6 +200,11 @@ export default function PeruApp({ user, onLogout }: Props) {
               <button onClick={() => setView('selector')} disabled={loading} style={{ ...r.bigBtn, background: 'transparent', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', fontSize: 13 }}>
                 🚀 Examen de Admisión
               </button>
+              {user.role === 'admin' && (
+                <button onClick={() => setView('admin')} style={{ ...r.bigBtn, background: 'transparent', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24', fontSize: 13 }}>
+                  💳 Gestionar Pagos Perú
+                </button>
+              )}
             </div>
             {error && <div style={{ ...r.errorBox, marginTop: 12 }}>⚠ {error}</div>}
           </div>
@@ -284,6 +300,160 @@ function NavBar({ user, onLogout, onBack, speaking, enabled, onAudio }: {
         <button onClick={onLogout} style={{ ...r.navBtn, color: '#f87171', borderColor: 'rgba(239,68,68,0.2)' }}>Salir</button>
       </div>
     </nav>
+  )
+}
+
+// ── Panel Admin Pagos Perú ────────────────────────────────────────────────────
+const BACKEND_URL = 'https://ifces-production.up.railway.app'
+
+interface PeruPayment {
+  id: string; student_name: string; email: string
+  plan_code: string; amount: number; voucher: string
+  metodo: string; status: string; created_at: string
+}
+
+function PeruAdminPayments() {
+  const [payments, setPayments] = useState<PeruPayment[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [msg,      setMsg]      = useState('')
+  const [filter,   setFilter]   = useState<'all' | 'pending' | 'approved'>('all')
+
+  const token = localStorage.getItem('access_token_peru') || localStorage.getItem('access_token') || ''
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/v1/peru/admin/payments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const d = await res.json()
+      setPayments(d.payments || [])
+    } catch { setMsg('Error al cargar pagos') }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  const approve = async (id: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/v1/peru/admin/payments/${id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) { setMsg('✅ Pago aprobado y plan activado'); load() }
+      else { const d = await res.json(); setMsg('⚠ ' + (d.detail || 'Error')) }
+    } catch { setMsg('Error de conexión') }
+  }
+
+  const reject = async (id: string) => {
+    try {
+      await fetch(`${BACKEND_URL}/api/v1/peru/admin/payments/${id}/reject`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setMsg('Pago rechazado'); load()
+    } catch {}
+  }
+
+  const visible = payments.filter(p => filter === 'all' ? true : p.status === filter)
+  const pending = payments.filter(p => p.status === 'pending').length
+
+  const METODO_ICON: Record<string, string> = { yape: '💚', plin: '🔵', efectivo: '💵' }
+  const STATUS_COLOR: Record<string, string> = {
+    pending:  '#fbbf24',
+    approved: '#34d399',
+    rejected: '#f87171',
+  }
+  const STATUS_LABEL: Record<string, string> = {
+    pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado',
+  }
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 20px', fontFamily: 'Inter,system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9' }}>💳 Pagos Perú — TES-LA PRO</div>
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>S/ 15 por alumno · Yape · Plin · Efectivo</div>
+        </div>
+        {pending > 0 && (
+          <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 20, padding: '6px 16px', fontSize: 12, color: '#fbbf24' }}>
+            ⚠ {pending} pago{pending > 1 ? 's' : ''} pendiente{pending > 1 ? 's' : ''}
+          </div>
+        )}
+      </div>
+
+      {msg && (
+        <div style={{ background: msg.startsWith('✅') ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msg.startsWith('✅') ? 'rgba(52,211,153,0.25)' : 'rgba(239,68,68,0.25)'}`, borderRadius: 8, padding: '10px 14px', fontSize: 12, color: msg.startsWith('✅') ? '#34d399' : '#f87171', marginBottom: 16 }}>
+          {msg}
+        </div>
+      )}
+
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {(['all', 'pending', 'approved'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{ padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid', fontFamily: 'inherit', background: filter === f ? 'rgba(220,38,38,0.12)' : 'transparent', color: filter === f ? '#fca5a5' : '#475569', borderColor: filter === f ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.08)' }}>
+            {f === 'all' ? 'Todos' : f === 'pending' ? 'Pendientes' : 'Aprobados'}
+          </button>
+        ))}
+        <button onClick={load} style={{ marginLeft: 'auto', padding: '5px 14px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', fontFamily: 'inherit' }}>
+          ↻ Actualizar
+        </button>
+      </div>
+
+      {/* Tabla */}
+      <div style={{ background: 'rgba(12,18,38,0.8)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#475569', fontSize: 13 }}>Cargando pagos...</div>
+        ) : visible.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#334155', fontSize: 13 }}>No hay pagos {filter !== 'all' ? filter === 'pending' ? 'pendientes' : 'aprobados' : 'registrados'}</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Alumno', 'Método', 'Voucher', 'Monto', 'Fecha', 'Estado', 'Acción'].map(h => (
+                  <th key={h} style={{ fontSize: 10, fontWeight: 600, color: '#475569', letterSpacing: '.5px', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'left' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(p => (
+                <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding: '12px 14px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{p.student_name}</div>
+                    <div style={{ fontSize: 10, color: '#475569' }}>{p.email}</div>
+                  </td>
+                  <td style={{ padding: '12px 14px', fontSize: 13, color: '#94a3b8' }}>
+                    {METODO_ICON[p.metodo] || '💳'} {p.metodo?.charAt(0).toUpperCase() + p.metodo?.slice(1)}
+                  </td>
+                  <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: 12, color: '#a78bfa' }}>{p.voucher}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#34d399' }}>S/ {p.amount}</td>
+                  <td style={{ padding: '12px 14px', fontSize: 11, color: '#475569' }}>
+                    {new Date(p.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: STATUS_COLOR[p.status] + '18', color: STATUS_COLOR[p.status], border: `1px solid ${STATUS_COLOR[p.status]}40` }}>
+                      {STATUS_LABEL[p.status] || p.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 14px' }}>
+                    {p.status === 'pending' && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => approve(p.id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.1)', color: '#34d399', fontFamily: 'inherit' }}>
+                          ✓ Aprobar
+                        </button>
+                        <button onClick={() => reject(p.id)} style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.07)', color: '#f87171', fontFamily: 'inherit' }}>
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
   )
 }
 

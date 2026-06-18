@@ -3,6 +3,8 @@
 // =============================================================================
 import React, { useState } from 'react'
 
+const BACKEND = 'https://ifces-production.up.railway.app'
+
 interface PeruUser { id: string; email: string; full_name: string; plan_code?: string }
 interface Props { user: PeruUser; onPaid: () => void; onClose: () => void }
 
@@ -34,11 +36,32 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
   const [step,    setStep]    = useState<'pay' | 'done'>('pay')
   const [loading, setLoading] = useState(false)
 
+  const [error, setError] = useState('')
+
   const confirm = async () => {
     if (!voucher.trim()) return
-    setLoading(true)
-    await new Promise(r => setTimeout(r, 1500))
-    setStep('done')
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`${BACKEND}/api/v1/peru/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token_peru') || ''}`,
+        },
+        body: JSON.stringify({
+          user_id:   user.id,
+          plan_code: PLAN.code,
+          amount:    15,
+          voucher:   voucher.trim(),
+          metodo,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Error al registrar el pago')
+      setStep('done')
+    } catch (e: any) {
+      setError(e.message)
+    }
     setLoading(false)
   }
 
@@ -128,6 +151,11 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
               )
             })()}
 
+            {error && (
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#f87171', marginBottom: 10 }}>
+                ⚠ {error}
+              </div>
+            )}
             <div style={{ fontSize: 11, color: '#475569', marginBottom: 6 }}>N° DE OPERACIÓN / VOUCHER</div>
             <input
               type="text" value={voucher} placeholder="Ingresa el código de operación..."

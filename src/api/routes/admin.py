@@ -78,6 +78,7 @@ async def get_payments(db=Depends(get_db)):
                    p.amount_cop as amount, p.nequi_ref, p.status, p.created_at
             FROM payments p
             JOIN users u ON u.id = p.user_id
+            WHERE p.pais = 'CO' OR p.pais IS NULL
             ORDER BY p.created_at DESC
         """))).fetchall()
         return {"payments": [

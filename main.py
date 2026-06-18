@@ -14,6 +14,7 @@ from src.api.routes.banco_preguntas  import router as banco_router
 from src.api.routes.peru_auth        import router as peru_auth_router
 from src.api.routes.peru_exams       import router as peru_exams_router
 from src.api.routes.peru_banco       import router as peru_banco_router
+from src.api.routes.peru_payments    import router as peru_payments_router
 from src.infrastructure.database import engine
 from sqlalchemy import text
 
@@ -44,7 +45,8 @@ app.include_router(oauth_router,      prefix="/api/v1")
 app.include_router(banco_router,      prefix="/api/v1")
 app.include_router(peru_auth_router,  prefix="/api/v1")
 app.include_router(peru_exams_router, prefix="/api/v1")
-app.include_router(peru_banco_router, prefix="/api/v1")
+app.include_router(peru_banco_router,     prefix="/api/v1")
+app.include_router(peru_payments_router,  prefix="/api/v1")
 
 @app.on_event("startup")
 async def run_migrations():
@@ -214,6 +216,20 @@ async def run_migrations():
                 created_at  TIMESTAMPTZ DEFAULT NOW()
             )
         """))
+        # Columnas pais y metodo_pago en payments (separa CO vs PE)
+        try:
+            await conn.execute(text(
+                "ALTER TABLE payments ADD COLUMN IF NOT EXISTS pais VARCHAR(2) DEFAULT 'CO'"
+            ))
+        except Exception:
+            pass
+        try:
+            await conn.execute(text(
+                "ALTER TABLE payments ADD COLUMN IF NOT EXISTS metodo_pago VARCHAR(20)"
+            ))
+        except Exception:
+            pass
+
         # Columna tema en preguntas (para banco de preguntas por tema)
         try:
             await conn.execute(text(
