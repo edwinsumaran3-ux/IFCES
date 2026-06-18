@@ -461,6 +461,14 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     const e   = enunciado.toLowerCase()
     const ctx = (area + ' ' + e).toLowerCase()
 
+    // ── LECTURA CRÍTICA / LITERATURA — SIEMPRE PRIMERO para evitar falsos positivos ──
+    if (/lectura|crítica|critica|literatur|lenguaje|comunicac/.test(ctx) ||
+        /fragmento|párrafo|parrafo|el narrador|se infiere|de acuerdo con|según el texto/.test(e) ||
+        /novela|cuento|poema|ensayo|crónica|realismo|naturalismo|modernismo|boom latinoamericano/.test(e) ||
+        /garcía márquez|garcia marquez|vallejo|neruda|vargas llosa|arguedas|palma|cervantes|shakespeare/.test(e)) {
+      return `Tienes el texto o fragmento con una pregunta de comprensión. Lo que debes identificar es la opción que mejor refleja el sentido del texto. Lee el fragmento completo con atención, identifica la idea principal, el tono del autor y su intención; luego descarta las opciones que contradigan lo planteado o incluyan información ajena al texto.`
+    }
+
     // ── TRIGONOMETRÍA ────────────────────────────────────────────────────────────
     if (/trigon|seno\b|coseno\b|tangente\b|\bsen\b|\bcos\b|\btan\b/.test(ctx)) {
       const hAng = /[aá]ngulo|°|\bθ\b/.test(e)
@@ -866,11 +874,12 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     saludoCounter.current += 1
     const iC = (saludoCounter.current >> 2) % CIERRES_PE.length
 
-    const saludo  = SALUDOS_PE[idx]
-    const pf      = getPureFormula(p.area, p.enunciado)
-    const subtema = detectSubtema(p.area, p.enunciado)
-    const fLabel  = pf ? pf.label : subtema
-    const cierre  = CIERRES_PE[iC](fLabel)
+    const saludo    = SALUDOS_PE[idx]
+    const trueArea  = fixArea(p.area, p.enunciado)
+    const pf        = getPureFormula(trueArea, p.enunciado)
+    const subtema   = detectSubtema(trueArea, p.enunciado)
+    const fLabel    = pf ? pf.label : subtema
+    const cierre    = CIERRES_PE[iC](fLabel)
 
     // Usar explicacion_ia (única por pregunta) si está disponible
     const ia = (p.explicacion_ia || '').trim()
@@ -880,7 +889,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     }
 
     // Fallback: método genérico por materia — con formato socrático
-    const metodo = makeSocratic(p.area, p.enunciado, buildPasoAPaso(p.area, p.enunciado))
+    const metodo = makeSocratic(trueArea, p.enunciado, buildPasoAPaso(trueArea, p.enunciado))
     return [saludo, metodo, cierre]
   }
 
@@ -1222,6 +1231,21 @@ function extractTema(explicacion: string): string {
   return m ? m[1].trim() : ''
 }
 
+// Detecta y corrige área incorrecta en BD basándose en el contenido del enunciado
+function fixArea(area: string, enunciado: string): string {
+  const a = area.toLowerCase()
+  // Si el área ya es de humanidades/ciencias sociales, confiar en ella
+  if (/lectura|literatur|comunicac|lenguaje|histor|filosof|psicolog|econom|ciudadan|inglés|ingles|biolog/.test(a)) return area
+  // Detectar comprensión lectora y literatura por contenido del enunciado
+  const e = enunciado.toLowerCase()
+  const isReading =
+    /fragmento|párrafo|parrafo|el texto|del texto|lee el texto|el narrador|se infiere|de acuerdo con el|según el texto/.test(e) ||
+    /novela|cuento|poema|ensayo|crónica|cuentista|narrativa|realismo|naturalismo|modernismo|vanguardia|boom latinoamericano/.test(e) ||
+    /garcía márquez|garcia marquez|vallejo|neruda|vargas llosa|arguedas|palma|cervantes|shakespeare|rulfo|cortázar|borges/.test(e)
+  if (isReading) return 'Lectura Crítica'
+  return area
+}
+
 // ── QuestionCard ──────────────────────────────────────────────────────────────
 function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoading, played, showExplanation, onSpeak, onViewed, onResolStart, onResolEnd }: {
   p: Pregunta; idx: number; materia: Materia
@@ -1234,12 +1258,13 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
   const [speakingResol, setSpeakingResol] = useState(false)
   const [resolPlayed,   setResolPlayed]   = useState(false)
   const resolUtterRef = useRef<SpeechSynthesisUtterance | null>(null)
-  const pf       = getPureFormula(p.area, p.enunciado)
-  const answered = selected !== null
-  const isRight  = selected === p.respuesta
+  const trueArea  = fixArea(p.area, p.enunciado)
+  const pf        = getPureFormula(trueArea, p.enunciado)
+  const answered  = selected !== null
+  const isRight   = selected === p.respuesta
 
-  const qvp = { id: p.id, stem: p.enunciado, area: p.area, points: 1, difficulty: p.dificultad, options: p.opciones }
-  const esCiencia = /matemát|física|química|biología|biolog/i.test(p.area)
+  const qvp = { id: p.id, stem: p.enunciado, area: trueArea, points: 1, difficulty: p.dificultad, options: p.opciones }
+  const esCiencia = /matemát|física|química|biología|biolog/i.test(trueArea)
 
   // Para preguntas cortas (sin contexto del PDF), extraer "Del enunciado:" de la resolución
   const isContinuation = /problema anterior|anterior pregunta/i.test(p.explicacion || '')

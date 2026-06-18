@@ -32,9 +32,10 @@ export function makeSocratic(area: string, enunciado: string, texto: string): st
     /función|pendiente|coordenadas/.test(ctx)            ? '¿Qué nos dice la función lineal?' :
     /permut|combina|factorial/.test(ctx)                 ? '¿Cuándo usamos permutaciones y cuándo combinaciones?' :
     /probabilidad|azar|evento/.test(ctx)                 ? '¿Cómo calculamos la probabilidad?' :
-    /lectura|crítica|texto/.test(ctx)                    ? '¿Cómo abordamos la lectura crítica?' :
+    /lectura|crítica|texto|fragmento|narrador|novela|cuento|literatur|realismo|narrativa/.test(ctx) ? '¿Cómo abordamos la lectura crítica?' :
     /sociales|historia|geografía|ciudadan/.test(ctx)     ? '¿Qué relación causa-efecto hay aquí?' :
     /inglés|ingles/.test(ctx)                            ? '¿Qué estrategia usamos en comprensión de lectura?' :
+    /ecuación|despeja|incógnita/.test(ctx)               ? '¿Cómo despejamos una incógnita?' :
     '¿Por qué ocurre esto y cómo lo resolvemos?'
 
   const q2 =
