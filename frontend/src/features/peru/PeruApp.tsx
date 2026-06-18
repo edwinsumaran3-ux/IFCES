@@ -39,7 +39,15 @@ export default function PeruApp({ user, onLogout }: Props) {
   const [examState,   setExamState]   = useState<ExamState | null>(null)
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
-  const [showPayment, setShowPayment] = useState(false)
+  const isPending = !user.plan_code || user.plan_code === 'pending'
+  // Mostrar pago automático solo la primera vez que el alumno entra
+  const [showPayment, setShowPayment] = useState(() => {
+    if (!isPending) return false
+    const key = `peru_payment_shown_${user.id}`
+    if (localStorage.getItem(key)) return false   // ya lo vio antes
+    localStorage.setItem(key, '1')
+    return true
+  })
   const [selSeccion,  setSelSeccion]  = useState<SeccionCombo | null>(null)
 
   useEffect(() => {
@@ -207,6 +215,19 @@ export default function PeruApp({ user, onLogout }: Props) {
               )}
             </div>
             {error && <div style={{ ...r.errorBox, marginTop: 12 }}>⚠ {error}</div>}
+            {isPending && !showPayment && (
+              <div
+                onClick={() => setShowPayment(true)}
+                style={{ marginTop: 14, padding: '12px 16px', background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+              >
+                <span style={{ fontSize: 18 }}>💳</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#fbbf24' }}>Tu suscripción está pendiente</div>
+                  <div style={{ fontSize: 11, color: '#92400e' }}>Haz clic aquí para completar tu pago de S/ 15 y activar acceso completo</div>
+                </div>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#fbbf24' }}>→</span>
+              </div>
+            )}
           </div>
 
           {/* Distribución por secciones */}
@@ -257,7 +278,7 @@ export default function PeruApp({ user, onLogout }: Props) {
         </div>
       </div>
 
-      {showPayment && <PeruPaymentPage user={user} onPaid={() => setShowPayment(false)} onClose={() => setShowPayment(false)} />}
+      {showPayment && <PeruPaymentPage user={user} isFirstTime={isPending} onPaid={() => setShowPayment(false)} onClose={() => setShowPayment(false)} />}
     </div>
   )
 }

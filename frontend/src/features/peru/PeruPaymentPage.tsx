@@ -6,7 +6,7 @@ import React, { useState } from 'react'
 const BACKEND = 'https://ifces-production.up.railway.app'
 
 interface PeruUser { id: string; email: string; full_name: string; plan_code?: string }
-interface Props { user: PeruUser; onPaid: () => void; onClose: () => void }
+interface Props { user: PeruUser; onPaid: () => void; onClose: () => void; isFirstTime?: boolean }
 
 const PLAN = {
   code: 'pro',
@@ -30,7 +30,7 @@ const METODOS = [
   { id: 'efectivo',icon: '💵', name: 'Efectivo', number: 'Agente BCP · Código: 12345', banco: 'Presencial' },
 ]
 
-export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
+export default function PeruPaymentPage({ user, onPaid, onClose, isFirstTime }: Props) {
   const [metodo,  setMetodo]  = useState('yape')
   const [voucher, setVoucher] = useState('')
   const [step,    setStep]    = useState<'pay' | 'done'>('pay')
@@ -72,9 +72,25 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🇵🇪</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', margin: 0 }}>TES-LA PRO</h2>
-          <p style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Acceso completo a toda la plataforma</p>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🇵🇪</div>
+          {isFirstTime ? (
+            <>
+              <h2 style={{ fontSize: 19, fontWeight: 800, color: '#f1f5f9', margin: '0 0 6px' }}>
+                ¡Bienvenido, {user.full_name?.split(' ')[0]}!
+              </h2>
+              <p style={{ fontSize: 12, color: '#fbbf24', margin: '0 0 6px', fontWeight: 600 }}>
+                Tu cuenta está lista 🎉
+              </p>
+              <p style={{ fontSize: 11, color: '#475569', margin: 0, lineHeight: 1.6 }}>
+                Por solo <strong style={{ color: '#dc2626' }}>S/ 15</strong> activas acceso completo al banco de preguntas, simulacros, explicaciones con IA y mucho más.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', margin: 0 }}>TES-LA PRO</h2>
+              <p style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Activa tu acceso completo</p>
+            </>
+          )}
         </div>
 
         {/* Done */}
