@@ -81,7 +81,7 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.lang  = locale.includes('PE') ? 'es-PE' : 'es-CO'
-    u.rate  = 0.92
+    u.rate  = 1.25
     u.pitch = 1.05
     u.volume = 1
     const voice = getVoice()

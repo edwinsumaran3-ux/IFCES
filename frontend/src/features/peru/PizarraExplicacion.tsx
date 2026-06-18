@@ -1,9 +1,9 @@
 // =============================================================================
-//  PizarraExplicacion.tsx
-//  Muestra la resolución IA paso a paso en estilo PIZARRA (HTML, no canvas).
-//  El canvas ya lo maneja QuestionInlineVisual para los diagramas.
+//  PizarraExplicacion.tsx — Resolución paso a paso con MathJax + LaTeX
 // =============================================================================
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+
+declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
 
 interface Props {
   explicacion_ia: string
@@ -13,166 +13,224 @@ interface Props {
   color:          string
 }
 
-interface Bloque {
-  tipo: 'datos' | 'paso' | 'resultado' | 'texto'
-  num?: number
-  titulo: string
-  cuerpo: string
+// Escapa HTML pero deja los bloques $$...$$ intactos para MathJax
+function mathHtml(text: string): string {
+  const parts = text.split(/(\$\$[\s\S]*?\$\$)/g)
+  return parts.map(p =>
+    /^\$\$[\s\S]*?\$\$$/.test(p)
+      ? p  // LaTeX: no escapar
+      : p.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  ).join('')
 }
 
-function parsearIA(raw: string): Bloque[] {
-  if (!raw || raw.trim().length < 10) return []
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
-  const bloques: Bloque[] = []
-
-  for (const line of lines) {
-    const datosM = line.match(/^DATOS?:\s*(.+)/i)
-    const pasoM  = line.match(/^PASO\s*(\d+)\s*:\s*(.+)/i)
-    const resM   = line.match(/^[∴∴]\s*(.+)|^(?:La respuesta|Respuesta)\s*[:\-]\s*(.+)/i)
-
-    if (datosM) {
-      bloques.push({ tipo: 'datos', titulo: 'DATOS DEL PROBLEMA', cuerpo: datosM[1] })
-    } else if (pasoM) {
-      bloques.push({ tipo: 'paso', num: parseInt(pasoM[1]), titulo: `PASO ${pasoM[1]}`, cuerpo: pasoM[2] })
-    } else if (resM) {
-      const texto = resM[1] || resM[2] || line.replace(/^[∴∴]\s*/, '')
-      bloques.push({ tipo: 'resultado', titulo: 'RESULTADO', cuerpo: texto })
-    } else if (bloques.length > 0) {
-      bloques[bloques.length - 1].cuerpo += ' ' + line
-    } else {
-      bloques.push({ tipo: 'texto', titulo: '', cuerpo: line })
-    }
-  }
-  return bloques
-}
-
-// Detecta si un trozo de texto es una fórmula/ecuación
-function isFormula(text: string): boolean {
-  return /[=×÷^√∫∑]/.test(text) && /[\d\w]/.test(text) && text.length < 120
-}
-
-// Divide el cuerpo de un paso en líneas normales vs fórmulas
-function renderCuerpo(cuerpo: string, color: string) {
-  const partes = cuerpo.split(/([^\s]*[=×÷^√∑][^\s]*\s*[=\d][^\s]*|(?:\d+\/\d+\s*[×÷\-+]\s*\d+\/\d+\s*=\s*\d+\/\d+))/g)
-  return partes.map((p, i) => {
-    if (!p.trim()) return null
-    if (isFormula(p)) {
-      return (
-        <span key={i} style={{
-          display: 'inline-block',
-          background: color + '22',
-          border: `1px solid ${color}50`,
-          borderRadius: 5,
-          padding: '1px 8px',
-          margin: '2px 3px',
-          fontFamily: 'Courier New, monospace',
-          fontSize: 13,
-          fontWeight: 700,
-          color: color,
-          letterSpacing: '.04em',
-        }}>{p.trim()}</span>
-      )
-    }
-    return <span key={i} style={{ color: '#c9d1d9', fontSize: 12 }}>{p}</span>
-  })
-}
+// ¿La línea es un bloque LaTeX puro?
+function isPureLatex(s: string) { return /^\s*\$\$[\s\S]*?\$\$\s*$/.test(s) }
 
 export default function PizarraExplicacion({ explicacion_ia, explicacion, respuesta, opcion_resp, color }: Props) {
-  const bloques = parsearIA(explicacion_ia)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Si no hay explicación IA todavía — mostrar texto raw
-  if (bloques.length === 0) {
-    const lines = explicacion
-      .replace(/[■□▪▫☐☑☒]/g, '')
-      .replace(/[^\x09\x0a\x0d\x20-\xffÀ-ɏ∀-⋿°²³½¼]/g, ' ')
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l.length > 3 && !/^\d{1,3}$/.test(l)
-        && l.split(/\s+/).some(w => /[a-záéíóúüñ]{3,}/i.test(w)))
-    if (lines.length === 0) return null
-    return (
-      <div style={{ marginTop: 10, padding: '12px 14px', background: '#0d1117', border: `1px solid ${color}25`, borderRadius: 8 }}>
-        <div style={{ fontSize: 10, color: color, fontWeight: 700, marginBottom: 8, letterSpacing: '.06em' }}>📋 RESOLUCIÓN (PDF)</div>
-        {lines.slice(0, 14).map((l, i) => (
-          <p key={i} style={{ fontSize: 12, color: '#8b949e', margin: '3px 0', lineHeight: 1.6, fontFamily: /[=×÷]/.test(l) ? 'Courier New, monospace' : 'inherit' }}>{l}</p>
-        ))}
-      </div>
-    )
+  const raw = (explicacion_ia || explicacion || '').replace(/\r/g, '').trim()
+
+  useEffect(() => {
+    if (!containerRef.current || !raw) return
+    if (typeof MathJax !== 'undefined') {
+      MathJax.typesetPromise([containerRef.current]).catch(() => {})
+    }
+  }, [raw])
+
+  if (!raw || raw.length < 5) return null
+
+  const lineas = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  if (lineas.length === 0) return null
+
+  type TipoBloque = 'logica' | 'paso' | 'trampa' | 'respuesta' | 'practica' | 'latexblock' | 'formula' | 'texto'
+  interface Bloque { tipo: TipoBloque; num?: number; titulo?: string; cuerpo: string }
+  const bloques: Bloque[] = []
+
+  const esFormula = (l: string) =>
+    /[=×÷^√∑±≈≤≥]/.test(l) || /\d+\s*[\/\+\-\*]\s*\d+/.test(l) || /^\s*[A-ZΑ-Ω]\s*=/.test(l)
+
+  const esPaso = (l: string): { num: number; titulo: string; cuerpo: string } | null => {
+    const m = l.match(/^PASO\s+(\d+)\s*[—–\-]+\s*([^:]+)?[:\s]*(.+)/i)
+    if (m) return { num: parseInt(m[1]), titulo: (m[2]||'').trim(), cuerpo: (m[3]||'').trim() }
+    const m2 = l.match(/^(?:Paso|paso)\s*(\d+)[:\.\s]+(.+)/i)
+    if (m2) return { num: parseInt(m2[1]), titulo: '', cuerpo: m2[2].trim() }
+    return null
   }
 
+  const esSeccion = (l: string, palabras: string[]): string | null => {
+    for (const p of palabras) {
+      if (l.toUpperCase().startsWith(p + ':') || l.toUpperCase().startsWith(p + ' —') || l.toUpperCase().startsWith(p + ' -')) {
+        return l.replace(new RegExp('^' + p + '\\s*[:\\u2014\\u2013\\-]+\\s*', 'i'), '').trim()
+      }
+    }
+    return null
+  }
+
+  for (const linea of lineas) {
+    // Bloque LaTeX puro (fórmula en su propia línea)
+    if (isPureLatex(linea)) {
+      bloques.push({ tipo: 'latexblock', cuerpo: linea.trim() })
+      continue
+    }
+
+    const logicaTexto    = esSeccion(linea, ['LÓGICA','LOGICA'])
+    const trampaTexto    = esSeccion(linea, ['TRAMPA','ERROR COMÚN','ERROR COMUN'])
+    const respuestaTexto = esSeccion(linea, ['RESPUESTA','RPTA','RESULTADO','∴'])
+    const practicaTexto  = esSeccion(linea, ['PRÁCTICA','PRACTICA'])
+    const paso           = esPaso(linea)
+
+    if      (logicaTexto    !== null) bloques.push({ tipo: 'logica',    cuerpo: logicaTexto })
+    else if (trampaTexto    !== null) bloques.push({ tipo: 'trampa',    cuerpo: trampaTexto })
+    else if (respuestaTexto !== null) bloques.push({ tipo: 'respuesta', cuerpo: respuestaTexto })
+    else if (practicaTexto  !== null) bloques.push({ tipo: 'practica',  cuerpo: practicaTexto })
+    else if (paso)                    bloques.push({ tipo: 'paso', num: paso.num, titulo: paso.titulo, cuerpo: paso.cuerpo })
+    else if (esFormula(linea))        bloques.push({ tipo: 'formula',   cuerpo: linea })
+    else if (bloques.length > 0) {
+      const last = bloques[bloques.length - 1]
+      if (!['formula','respuesta','latexblock'].includes(last.tipo)) last.cuerpo += ' ' + linea
+      else bloques.push({ tipo: 'texto', cuerpo: linea })
+    } else {
+      bloques.push({ tipo: 'texto', cuerpo: linea })
+    }
+  }
+
+  const tieneRespuesta = bloques.some(b => b.tipo === 'respuesta')
+
+  // Renderiza texto con LaTeX inline $$...$$ y HTML escapado
+  const MathSpan = ({ text }: { text: string }) => (
+    <span dangerouslySetInnerHTML={{ __html: mathHtml(text) }} />
+  )
+
   return (
-    <div style={{
-      marginTop: 12,
-      background: 'linear-gradient(135deg, #0a0f1e 0%, #0d1428 100%)',
-      border: `1px solid ${color}35`,
-      borderLeft: `3px solid ${color}`,
-      borderRadius: 10,
-      overflow: 'hidden',
-    }}>
-      {/* Cabecera estilo pizarra */}
-      <div style={{
-        padding: '8px 14px',
-        background: color + '12',
-        borderBottom: `1px solid ${color}20`,
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <span style={{ fontSize: 15 }}>🖊️</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.1em' }}>RESOLUCIÓN — PASO A PASO</span>
+    <div style={{ marginTop: 12, background: 'linear-gradient(135deg,#0a0f1e,#0d1428)', border: `1px solid ${color}35`, borderLeft: `3px solid ${color}`, borderRadius: 10, overflow: 'hidden' }}>
+
+      {/* Header */}
+      <div style={{ padding: '8px 14px', background: color + '12', borderBottom: `1px solid ${color}20`, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13 }}>🖊️</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: '.1em' }}>RESOLUCIÓN COMPLETA — PASO A PASO</span>
       </div>
 
-      <div style={{ padding: '12px 16px' }}>
+      {/* Contenido — ref para MathJax */}
+      <div ref={containerRef} style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {bloques.map((b, i) => {
-          if (b.tipo === 'datos') return (
-            <div key={i} style={{ marginBottom: 12, padding: '8px 12px', background: color + '10', border: `1px solid ${color}30`, borderRadius: 7 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color, marginBottom: 5, letterSpacing: '.06em' }}>📌 {b.titulo}</div>
-              <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', lineHeight: 1.65 }}>{b.cuerpo}</p>
+
+          /* ── LÓGICA ──────────────────────────────────────────── */
+          if (b.tipo === 'logica') return (
+            <div key={i} style={{ padding: '8px 14px', background: color + '0e', border: `1px solid ${color}30`, borderRadius: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>🧠</span>
+              <p style={{ margin: 0, fontSize: 12, color: '#c9d1d9', lineHeight: 1.75, fontStyle: 'italic' }}>
+                <MathSpan text={b.cuerpo} />
+              </p>
             </div>
           )
 
+          /* ── BLOQUE LaTeX puro (display math) ────────────────── */
+          if (b.tipo === 'latexblock') return (
+            <div key={i} style={{
+              padding: '12px 20px',
+              background: `linear-gradient(135deg, ${color}18, ${color}08)`,
+              border: `1.5px solid ${color}55`,
+              borderRadius: 10,
+              textAlign: 'center' as const,
+              fontSize: 17,
+              color,
+              fontWeight: 700,
+              letterSpacing: '.01em',
+              boxShadow: `0 0 12px ${color}20`,
+            }}>
+              <MathSpan text={b.cuerpo} />
+            </div>
+          )
+
+          /* ── FÓRMULA inline (texto con símbolos) ─────────────── */
+          if (b.tipo === 'formula') return (
+            <div key={i} style={{
+              padding: '8px 16px',
+              background: color + '1a',
+              border: `1px solid ${color}50`,
+              borderRadius: 7,
+              fontFamily: 'Courier New, monospace',
+              fontSize: 14, fontWeight: 700,
+              color, textAlign: 'center' as const,
+              letterSpacing: '.02em',
+            }}>
+              <MathSpan text={b.cuerpo} />
+            </div>
+          )
+
+          /* ── PASO numerado ───────────────────────────────────── */
           if (b.tipo === 'paso') return (
-            <div key={i} style={{ marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              {/* Círculo numerado */}
-              <div style={{
-                minWidth: 26, height: 26, borderRadius: '50%',
-                background: color, color: '#0d1117',
-                fontSize: 12, fontWeight: 800,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, marginTop: 1,
-              }}>{b.num}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4, letterSpacing: '.04em' }}>{b.titulo}</div>
-                <div style={{ lineHeight: 1.75 }}>
-                  {renderCuerpo(b.cuerpo, color)}
-                </div>
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <div style={{ minWidth: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg,${color},${color}aa)`, color: '#0d1117', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 2px 8px ${color}40` }}>
+                {b.num}
+              </div>
+              <div style={{ flex: 1, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${color}25`, borderRadius: 8, fontSize: 12, color: '#c9d1d9', lineHeight: 1.8 }}>
+                {b.titulo && (
+                  <div style={{ fontWeight: 800, color, marginBottom: 4, fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '.07em' }}>
+                    {b.titulo}
+                  </div>
+                )}
+                <MathSpan text={b.cuerpo} />
               </div>
             </div>
           )
 
-          if (b.tipo === 'resultado') return (
-            <div key={i} style={{
-              marginTop: 12, padding: '10px 14px',
-              background: 'rgba(63,185,80,0.10)',
-              border: '2px solid rgba(63,185,80,0.45)',
-              borderRadius: 8,
-              display: 'flex', alignItems: 'center', gap: 10,
-            }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
+          /* ── TRAMPA ──────────────────────────────────────────── */
+          if (b.tipo === 'trampa') return (
+            <div key={i} style={{ padding: '10px 14px', background: 'rgba(248,81,73,0.08)', border: '1.5px solid rgba(248,81,73,0.40)', borderRadius: 9, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#3fb950', marginBottom: 3 }}>RESPUESTA CORRECTA — Opción {respuesta}</div>
-                <div style={{ fontSize: 13, color: '#4ade80', fontFamily: 'Courier New, monospace', fontWeight: 600 }}>
-                  {b.cuerpo}
-                </div>
-                {opcion_resp && (
-                  <div style={{ fontSize: 11, color: '#86efac', marginTop: 2 }}>{opcion_resp}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#f85149', marginBottom: 3, letterSpacing: '.08em' }}>ERROR FRECUENTE</div>
+                <p style={{ margin: 0, fontSize: 12, color: '#fca5a5', lineHeight: 1.7 }}><MathSpan text={b.cuerpo} /></p>
+              </div>
+            </div>
+          )
+
+          /* ── PRÁCTICA ────────────────────────────────────────── */
+          if (b.tipo === 'practica') return (
+            <div key={i} style={{ padding: '10px 14px', background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.28)', borderRadius: 9, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>✏️</span>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#38bdf8', marginBottom: 3, letterSpacing: '.08em' }}>PRACTICA ESTE TIPO</div>
+                <p style={{ margin: 0, fontSize: 12, color: '#93c5fd', lineHeight: 1.7 }}><MathSpan text={b.cuerpo} /></p>
+              </div>
+            </div>
+          )
+
+          /* ── RESPUESTA ───────────────────────────────────────── */
+          if (b.tipo === 'respuesta') return (
+            <div key={i} style={{ padding: '12px 16px', background: 'rgba(63,185,80,0.10)', border: '2px solid rgba(63,185,80,0.50)', borderRadius: 10, display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 0 16px rgba(63,185,80,0.12)' }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>✅</span>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#3fb950', marginBottom: 5, letterSpacing: '.06em' }}>RESPUESTA CORRECTA — Opción {respuesta}</div>
+                <p style={{ margin: 0, fontSize: 13, color: '#4ade80', fontWeight: 600, lineHeight: 1.65 }}>
+                  <MathSpan text={b.cuerpo || opcion_resp} />
+                </p>
+                {opcion_resp && b.cuerpo !== opcion_resp && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#86efac' }}>{opcion_resp}</p>
                 )}
               </div>
             </div>
           )
 
+          /* ── TEXTO genérico ──────────────────────────────────── */
           return (
-            <p key={i} style={{ fontSize: 12, color: '#64748b', margin: '2px 0', lineHeight: 1.6 }}>{b.cuerpo}</p>
+            <p key={i} style={{ margin: 0, fontSize: 12, color: '#94a3b8', lineHeight: 1.75 }}>
+              <MathSpan text={b.cuerpo} />
+            </p>
           )
         })}
+
+        {!tieneRespuesta && (
+          <div style={{ padding: '10px 14px', background: 'rgba(63,185,80,0.10)', border: '2px solid rgba(63,185,80,0.45)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16 }}>✅</span>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#3fb950', marginBottom: 2 }}>RESPUESTA CORRECTA — Opción {respuesta}</div>
+              {opcion_resp && <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>{opcion_resp}</div>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -14,3 +14,14 @@ venv/
 env/
 *.egg-info/
 *.code-workspace
+# Scripts locales con credenciales — no subir al repo
+generar_gemini.py
+generar_explicaciones_ia_v2.py
+fix_*.py
+extraer_*.py
+scripts/seed_ia.py
+/PERU/
+progreso_*.json
+texto_extraido.txt
+tmp_*.txt
+frontend/.netlify/

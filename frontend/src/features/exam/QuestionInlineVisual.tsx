@@ -18,7 +18,7 @@ interface Props { question: Question; color: string }
 type Kind =
   | 'commercial' | 'pythagoras' | 'circle' | 'statistics'
   | 'energy' | 'kinematics' | 'ohm' | 'force'
-  | 'rectangle' | 'triangle_area' | 'percentage' | 'volume'
+  | 'rectangle' | 'trapezoid' | 'triangle_area' | 'percentage' | 'volume'
   | 'trigonometry' | 'proportionality' | 'functions' | 'probability' | 'sequences'
   | 'chem' | 'periodic' | 'biology'
   | 'reading' | 'english' | 'social' | 'none';
@@ -33,6 +33,8 @@ function kind(area: string, stem: string): Kind {
   // ── Nuevos tipos (específicos) ────────────────────────────────────────────
   if (/[áa]rea.*tri[áa]ngulo|tri[áa]ngulo.*[áa]rea|base.*altura/.test(t)
       && !/pit[áa]gor|cateto|hipotenusa/.test(t)) return 'triangle_area';
+
+  if (/trapecio|trapezoidal|trapeze/.test(t)) return 'trapezoid';
 
   if ((/per[ií]metro|rect[áa]ngul[oa]|lote.*mide|mide.*largo|largo.*ancho|ancho.*largo|cuadrado.*lado/).test(t)
       && !/tri[áa]ngulo|cateto|hipotenusa|pit[áa]gor/.test(t)) return 'rectangle';
@@ -357,6 +359,108 @@ function drawRectangle(cv: HTMLCanvasElement, largo: number, ancho: number, colo
   ctx.fillText(`a = ${ancho}`, 0, 0); ctx.restore();
   ctx.fillStyle = '#f85149'; ctx.font = 'bold 14px Courier New,monospace'; ctx.textAlign = 'center';
   ctx.fillText(askArea ? 'A = ?' : 'P = ?', mx + rw / 2, my + rh / 2 + 5);
+}
+
+// ── Canvas: trapecio isósceles ────────────────────────────────────────────────
+function drawTrapezoid(
+  cv: HTMLCanvasElement,
+  topBase: number, bottomBase: number,
+  leg: number, angleAtBase: number,
+  color: string, askArea: boolean,
+) {
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const angleRad = (angleAtBase * Math.PI) / 180;
+  const hM = leg * Math.sin(angleRad);       // altura real en metros
+  const offset = leg * Math.cos(angleRad);   // desplazamiento horizontal por lado
+
+  const padX = 70, padTop = 28, padBot = 38;
+  const availW = W - padX * 2;
+  const availH = H - padTop - padBot;
+  const scale = Math.min(availW / bottomBase, availH / hM) * 0.88;
+
+  const totalW = bottomBase * scale;
+  const startX = (W - totalW) / 2;
+  const baseY = H - padBot;
+  const topY  = baseY - hM * scale;
+
+  // Vértices: A=inf-izq, B=sup-izq, C=sup-der, D=inf-der
+  const Ax = startX,                    Ay = baseY;
+  const Dx = startX + bottomBase * scale, Dy = baseY;
+  const Bx = Ax + offset * scale,       By = topY;
+  const Cx = Dx - offset * scale,       Cy = topY;
+
+  // Relleno
+  ctx.fillStyle = color + '14';
+  ctx.beginPath();
+  ctx.moveTo(Ax, Ay); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.lineTo(Dx, Dy);
+  ctx.closePath(); ctx.fill();
+
+  // Contorno
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(Ax, Ay); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.lineTo(Dx, Dy);
+  ctx.closePath(); ctx.stroke();
+
+  // Altura (línea punteada verde desde centro BC al piso)
+  const midTopX = (Bx + Cx) / 2;
+  ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(midTopX, By); ctx.lineTo(midTopX, Ay); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Ángulo recto en base de la altura
+  const rs = 8; ctx.lineWidth = 1.2; ctx.strokeStyle = '#3fb95099';
+  ctx.beginPath();
+  ctx.moveTo(midTopX - rs, Ay); ctx.lineTo(midTopX - rs, Ay - rs); ctx.lineTo(midTopX, Ay - rs);
+  ctx.stroke();
+
+  // Arco del ángulo en A y D
+  const arcR = 22;
+  ctx.strokeStyle = '#e3b341'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(Ax, Ay, arcR, -Math.PI, -Math.PI + angleRad); ctx.stroke();
+  ctx.beginPath(); ctx.arc(Dx, Dy, arcR, Math.PI - angleRad, Math.PI); ctx.stroke();
+
+  // Etiquetas de lados
+  ctx.fillStyle = color; ctx.font = 'bold 11px Courier New,monospace'; ctx.textAlign = 'center';
+  ctx.fillText(`AD = ${bottomBase}`, (Ax + Dx) / 2, Ay + 18);
+  ctx.fillText(`BC = ${topBase}`,    (Bx + Cx) / 2, By - 9);
+
+  // Pierna izquierda
+  const lMidX = (Ax + Bx) / 2, lMidY = (Ay + By) / 2;
+  const lAngle = Math.atan2(By - Ay, Bx - Ax);
+  ctx.save(); ctx.translate(lMidX, lMidY); ctx.rotate(lAngle);
+  ctx.fillText(`AB = ${leg}`, 0, -7); ctx.restore();
+
+  // Pierna derecha
+  const rMidX = (Dx + Cx) / 2, rMidY = (Dy + Cy) / 2;
+  const rAngle = Math.atan2(Cy - Dy, Cx - Dx);
+  ctx.save(); ctx.translate(rMidX, rMidY); ctx.rotate(rAngle);
+  ctx.fillText(`CD = ${leg}`, 0, -7); ctx.restore();
+
+  // Altura en verde
+  ctx.fillStyle = '#3fb950'; ctx.textAlign = 'left';
+  const hRounded = Math.round(hM * 10) / 10;
+  ctx.fillText(`h ≈ ${hRounded}`, midTopX + 6, (topY + baseY) / 2);
+
+  // Ángulos
+  ctx.fillStyle = '#e3b341'; ctx.font = 'bold 10px Courier New,monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${angleAtBase}°`, Ax + arcR + 3, Ay - 5);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${angleAtBase}°`, Dx - arcR - 3, Dy - 5);
+
+  // Etiquetas de vértices
+  ctx.fillStyle = '#e6edf3'; ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('A', Ax - 13, Ay + 5);
+  ctx.fillText('B', Bx - 13, By - 5);
+  ctx.fillText('C', Cx + 13, Cy - 5);
+  ctx.fillText('D', Dx + 13, Dy + 5);
+
+  // ¿qué pedimos?
+  ctx.fillStyle = '#f85149'; ctx.font = 'bold 13px Courier New,monospace'; ctx.textAlign = 'center';
+  ctx.fillText(askArea ? 'A = ?' : 'P = ?', W / 2, (topY + baseY) / 2 + 6);
 }
 
 // ── Canvas: triángulo (área base×altura) ──────────────────────────────────────
@@ -795,6 +899,21 @@ export function getPureFormula(area: string, stem: string): PureFormula | null {
         vars: 'l = largo  ·  a = ancho  →  suma de todos los lados',
       };
 
+    case 'trapezoid':
+      if (/[áa]rea/.test(t))
+        return {
+          tex: 'A = \\dfrac{(B + b) \\times h}{2}',
+          isLatex: true,
+          label: 'Área del trapecio',
+          vars: 'B = base mayor  ·  b = base menor  ·  h = altura perpendicular  →  unidades²',
+        };
+      return {
+        tex: 'P = AB + BC + CD + AD',
+        isLatex: false,
+        label: 'Perímetro del trapecio',
+        vars: 'Suma de los cuatro lados: base mayor + base menor + pierna izquierda + pierna derecha',
+      };
+
     case 'percentage':
       return {
         tex: '\\% = \\dfrac{\\text{parte}}{\\text{total}} \\times 100',
@@ -971,8 +1090,20 @@ export default function QuestionInlineVisual({ question, color }: Props) {
   const trigAngleM = question.stem.match(/(\d+)\s*°/);
   const trigAngle  = trigAngleM ? parseInt(trigAngleM[1]) : 37;
 
+  // Trapecio params — parsea ABCD donde AB=BC=CD=leg y AD=bottomBase
+  const trapAbBcCdM    = question.stem.match(/AB\s*=\s*BC\s*=\s*CD\s*=\s*(\d+(?:[.,]\d+)?)/i);
+  const trapBottomBaseM = question.stem.match(/(?:base\s*mayor\s*[A-Z]{2}\s*=\s*|AD\s*=\s*)(\d+(?:[.,]\d+)?)/i);
+  const trapAngleBaseM  = question.stem.match(/miden?\s*(\d+)\s*°|[áa]ngulos.*?(\d+)\s*°/i);
+  const trapLeg        = trapAbBcCdM ? parseFloat(trapAbBcCdM[1]) : 16;
+  const trapBottomBase = trapBottomBaseM ? parseFloat(trapBottomBaseM[1]) : 32;
+  const trapAngleBase  = trapAngleBaseM ? parseFloat(trapAngleBaseM[1] ?? trapAngleBaseM[2]) : 60;
+  const trapTopBase    = trapAbBcCdM
+    ? trapLeg  // BC = same as AB=CD when the pattern AB=BC=CD=x is found
+    : Math.round((trapBottomBase - 2 * trapLeg * Math.cos((trapAngleBase * Math.PI) / 180)) * 100) / 100;
+  const trapAskArea    = /[áa]rea/.test(t);
+
   const hasCanvas = ['pythagoras', 'circle', 'statistics', 'kinematics', 'ohm',
-                     'rectangle', 'triangle_area', 'energy',
+                     'rectangle', 'trapezoid', 'triangle_area', 'energy',
                      'force', 'volume', 'percentage', 'commercial', 'trigonometry',
                      'proportionality', 'functions', 'probability', 'sequences'].includes(k);
 
@@ -985,6 +1116,7 @@ export default function QuestionInlineVisual({ question, color }: Props) {
     if (k === 'kinematics')    drawKinematics(cv, v0, g, color);
     if (k === 'ohm')           drawCircuit(cv, ohm.R, ohm.V, ohm.I, ohm.asking, color);
     if (k === 'rectangle')     drawRectangle(cv, rectLargo, rectAncho, color, rectAskArea);
+    if (k === 'trapezoid')     drawTrapezoid(cv, trapTopBase, trapBottomBase, trapLeg, trapAngleBase, color, trapAskArea);
     if (k === 'triangle_area') drawTriangleArea(cv, trBase, trAlt, color);
     if (k === 'energy')        drawEnergy(cv, energy.m ?? 2, energy.h ?? 30, energy.g, energy.isKinetic, color);
     if (k === 'force')         drawForce(cv, forceM, forceA, color);
@@ -1030,6 +1162,12 @@ export default function QuestionInlineVisual({ question, color }: Props) {
       { label: 'Largo l',  val: `${rectLargo}` },
       { label: 'Ancho a',  val: `${rectAncho}` },
       { label: rectAskArea ? 'Área A' : 'Perímetro P', val: '?' },
+    ];
+    if (k === 'trapezoid') return [
+      { label: 'Base mayor AD', val: `${trapBottomBase} m` },
+      { label: 'Base menor BC', val: `${trapTopBase} m` },
+      { label: 'Pierna AB=CD', val: `${trapLeg} m` },
+      { label: trapAskArea ? 'Área A' : 'Perímetro P', val: '?' },
     ];
     if (k === 'triangle_area') return [
       { label: 'Base b',   val: `${trBase}` },
@@ -1167,6 +1305,7 @@ export default function QuestionInlineVisual({ question, color }: Props) {
             {k === 'pythagoras'    && '📐 DIAGRAMA — TRIÁNGULO RECTÁNGULO'}
             {k === 'triangle_area' && '📐 DIAGRAMA — TRIÁNGULO (BASE × ALTURA)'}
             {k === 'rectangle'     && '▭ DIAGRAMA — ' + (rectAskArea ? 'ÁREA' : 'PERÍMETRO') + ' DEL RECTÁNGULO'}
+            {k === 'trapezoid'     && '⬡ DIAGRAMA — ' + (trapAskArea ? 'ÁREA' : 'PERÍMETRO') + ' DEL TRAPECIO ISÓSCELES'}
             {k === 'circle'        && '⭕ FIGURA: CÍRCULO'}
             {k === 'statistics'    && '📊 DISTRIBUCIÓN DE DATOS'}
             {k === 'kinematics'    && '📈 GRÁFICA h(t) — LANZAMIENTO VERTICAL'}

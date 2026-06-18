@@ -50,6 +50,8 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
   const [played,           setPlayed]           = useState<Set<string>>(new Set())
   const [explanationShown, setExplanationShown] = useState<Set<string>>(new Set())
   const [currentReadText,  setCurrentReadText]  = useState('')
+  const [resolSpeaking,    setResolSpeaking]    = useState(false)
+  const [resolAvatarText,  setResolAvatarText]  = useState('')
   const audioRef      = useRef<HTMLAudioElement | null>(null)
   const voicesRef     = useRef<SpeechSynthesisVoice[]>([])
   const speakToken    = useRef(0)
@@ -141,30 +143,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
 
   // ── Voz masculina peruana ─────────────────────────────────────────────────────
   function pickPeruvianVoice(): SpeechSynthesisVoice | null {
-    const all = voicesRef.current.length ? voicesRef.current : (window.speechSynthesis?.getVoices() || [])
-    const MALE_NAMES   = ['raúl','raul','jorge','diego','carlos','miguel','pablo',
-                          'andres','juan','antonio','rodrigo','sergio','male','hombre','man','masculino',
-                          'alvaro','alvaro','ricardo','luis','victor','alberto','gustavo']
-    const FEMALE_NAMES = ['angela','maria','lucia','sofia','elena','laura','isabel','valentina',
-                          'ana','female','mujer','woman','femenino','dalia','marisol','sabina',
-                          'conchita','esperanza','monica','paula','andrea']
-    const score = (v: SpeechSynthesisVoice) => {
-      let s = 0
-      const n = v.name.toLowerCase(), lang = v.lang.toLowerCase()
-      // 1. GÉNERO — prioridad máxima absoluta
-      if (MALE_NAMES.some(m => n.includes(m)))   s += 500   // voz masculina → gana siempre
-      if (FEMALE_NAMES.some(f => n.includes(f))) s -= 500   // voz femenina  → descartada
-      // 2. Idioma (secundario al género)
-      if (lang === 'es-pe' || /peru/i.test(n)) s += 80
-      else if (lang.startsWith('es-'))          s += 40
-      else if (lang.startsWith('es'))           s += 20
-      // 3. Calidad
-      if (/neural|natural|enhanced|premium/i.test(n)) s += 15
-      return s
-    }
-    const spanish = all.filter(v => /^es/i.test(v.lang))
-    if (!spanish.length) return all[0] ?? null
-    return spanish.sort((a, b) => score(b) - score(a))[0]
+    return pickMaleVoice()
   }
 
   function speakWithBrowser(id: string, partes: string[]) {
@@ -177,8 +156,8 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       if (idx >= partes.length) { onAudioFinished(id); return }
       const utt   = new SpeechSynthesisUtterance(partes[idx])
       utt.lang    = 'es-PE'
-      utt.rate    = 0.88     // Más lento = más claro
-      utt.pitch   = 0.80     // Más grave = más masculino
+      utt.rate    = 1.1
+      utt.pitch   = 1.0
       utt.volume  = 1
       if (voz) utt.voice = voz
       utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id) }
@@ -753,19 +732,71 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     return area || 'General'
   }
 
-  // ── buildScript: nombra curso + subtema, luego explica el método ──────────────
+  // ── Convierte explicacion_ia a texto oral limpio (sin LaTeX, sin markdown) ─────
+  function iaToAudio(text: string): string {
+    const NUMS = ['Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto']
+    const lines = text.split('\n').map(raw => {
+      // 1. Quitar bloques $$...$$ (display math) y $...$ (inline math) enteros
+      // 2. Limpiar comandos LaTeX residuales y signos sueltos
+      const l = raw
+        .replace(/\$\$[\s\S]*?\$\$/g, '')
+        .replace(/\$[^$\n]*?\$/g, '')
+        .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '')
+        .replace(/\\/g, '')
+        .replace(/\$/g, '')
+        .trim()
+      if (!l) return ''
+      // Encabezados estructurados → lenguaje oral
+      if (/^(LÓGICA|LOGICA):\s*/i.test(l))
+        return 'Escucha bien la lógica de este problema: ' + l.replace(/^(LÓGICA|LOGICA):\s*/i, '')
+      const mPaso = l.match(/^PASO\s+(\d+)\s*[—–\-]+\s*([\wáéíóúüñÁÉÍÓÚÜÑ\s,]+)?:\s*(.*)/i)
+      if (mPaso) {
+        const n = parseInt(mPaso[1])
+        const titulo = (mPaso[2] || '').trim()
+        const resto  = (mPaso[3] || '').trim()
+        const spoken = (NUMS[n - 1] || `Paso ${n}`) + (titulo ? `, ${titulo.toLowerCase()}` : '') + ': '
+        return spoken + resto
+      }
+      if (/^TRAMPA:\s*/i.test(l))
+        return 'Atención, aquí está la trampa que hace fallar a muchos: ' + l.replace(/^TRAMPA:\s*/i, '')
+      if (/^ERROR\s+COM[UÚ]N:\s*/i.test(l))
+        return 'Atención, el error más frecuente es: ' + l.replace(/^ERROR\s+COM[UÚ]N:\s*/i, '')
+      if (/^(RESPUESTA|RPTA|RESULTADO):\s*/i.test(l))
+        return 'La respuesta correcta es: ' + l.replace(/^(RESPUESTA|RPTA|RESULTADO):\s*/i, '')
+      // PRÁCTICA — no leer en audio
+      if (/^(PRÁCTICA|PRACTICA):/i.test(l)) return ''
+      // Bullet / guión suelto — limpiar
+      return l.replace(/^[*\-•]\s*/, '')
+    })
+    return lines
+      .filter(l => l.length > 0)
+      .join(' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  }
+
+  // ── buildScript: saludo único + explicación IA (con trampa) + cierre motivador ─
   function buildScript(p: Pregunta): string[] {
     const idx = saludoCounter.current % SALUDOS_PE.length
     saludoCounter.current += 1
     const iC = (saludoCounter.current >> 2) % CIERRES_PE.length
 
-    const saludo   = SALUDOS_PE[idx]
-    const subtema  = detectSubtema(p.area, p.enunciado)
-    const intro    = `Curso: ${p.area || 'General'}. Tema: ${subtema}.`
-    const metodo   = buildPasoAPaso(p.area, p.enunciado)
-    const pf       = getPureFormula(p.area, p.enunciado)
-    const fLabel   = pf ? pf.label : subtema
-    const cierre   = CIERRES_PE[iC](fLabel)
+    const saludo  = SALUDOS_PE[idx]
+    const pf      = getPureFormula(p.area, p.enunciado)
+    const subtema = detectSubtema(p.area, p.enunciado)
+    const fLabel  = pf ? pf.label : subtema
+    const cierre  = CIERRES_PE[iC](fLabel)
+
+    // Usar explicacion_ia (única por pregunta) si está disponible
+    const ia = (p.explicacion_ia || '').trim()
+    if (ia && ia.length > 60) {
+      const cuerpo = iaToAudio(ia)
+      return [saludo, cuerpo, cierre]
+    }
+
+    // Fallback: método genérico por materia
+    const intro  = `Materia: ${p.area || 'General'}. Tema: ${subtema}.`
+    const metodo = buildPasoAPaso(p.area, p.enunciado)
     return [saludo, intro + ' ' + metodo, cierre]
   }
 
@@ -854,7 +885,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
 
   // ── VISTA: PREGUNTAS ──────────────────────────────────────────────────────────
   const m = materia!
-  const avatarState = audioLoading ? 'thinking' : speaking ? 'talking' : 'idle'
+  const avatarState = audioLoading ? 'thinking' : (speaking || resolSpeaking) ? 'talking' : 'idle'
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 20px' }}>
@@ -901,6 +932,8 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
               showExplanation={explanationShown.has(p.id)}
               onSpeak={handleSpeak}
               onViewed={() => setViewed(prev => new Set([...prev, p.id]))}
+              onResolStart={(text: string) => { setResolSpeaking(true); setResolAvatarText(text) }}
+              onResolEnd={() => { setResolSpeaking(false); setResolAvatarText('') }}
             />
           ))}
 
@@ -923,7 +956,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
 
         <div className="peru-banco-avatar" style={{ flex: '0 0 320px', position: 'sticky' as const, top: 72, height: 'calc(100vh - 100px)', minHeight: 460 }}>
           <AvatarTutorIA
-            text={currentReadText || m.label}
+            text={resolAvatarText || currentReadText || m.label}
             gender="male"
             autoPlay={false}
             externalState={avatarState as any}
@@ -1098,14 +1131,49 @@ function formatExplicacion(raw: string): Seg[] {
   })
 }
 
+// ── Selecciona voz masculina española para TTS ────────────────────────────────
+function pickMaleVoice(): SpeechSynthesisVoice | null {
+  const all = window.speechSynthesis?.getVoices() || []
+  const MALE   = ['pablo','jorge','diego','carlos','miguel','raul','raúl','juan','andres',
+                  'antonio','rodrigo','sergio','male','hombre','man','masculino','alvaro',
+                  'ricardo','luis','victor','alberto','gustavo']
+  const FEMALE = ['angela','maria','lucia','sofia','elena','laura','isabel','valentina',
+                  'ana','female','mujer','woman','femenino','dalia','marisol','sabina',
+                  'conchita','esperanza','monica','paula','andrea','helena']
+  const score = (v: SpeechSynthesisVoice) => {
+    const n = v.name.toLowerCase(), lang = v.lang.toLowerCase()
+    let s = 0
+    if (MALE.some(m => n.includes(m)))   s += 500
+    if (FEMALE.some(f => n.includes(f))) s -= 500
+    if (lang === 'es-pe' || /peru/i.test(n)) s += 80
+    else if (lang.startsWith('es-'))         s += 40
+    else if (lang.startsWith('es'))          s += 20
+    if (/neural|natural|enhanced|premium/i.test(n)) s += 15
+    return s
+  }
+  const es = all.filter(v => /^es/i.test(v.lang))
+  if (!es.length) return all[0] ?? null
+  return es.sort((a, b) => score(b) - score(a))[0]
+}
+
+// ── Extrae el tema real desde la explicación del libro ───────────────────────
+function extractTema(explicacion: string): string {
+  const m = explicacion.match(/^Tema:\s*(.+)/im)
+  return m ? m[1].trim() : ''
+}
+
 // ── QuestionCard ──────────────────────────────────────────────────────────────
-function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoading, played, showExplanation, onSpeak, onViewed }: {
+function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoading, played, showExplanation, onSpeak, onViewed, onResolStart, onResolEnd }: {
   p: Pregunta; idx: number; materia: Materia
   viewed: boolean; speaking: boolean; audioLoading: boolean; played: boolean; showExplanation: boolean
   onSpeak: (p: Pregunta) => void; onViewed: () => void
+  onResolStart: (text: string) => void; onResolEnd: () => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [showSolution, setShowSolution] = useState(false)
+  const [speakingResol, setSpeakingResol] = useState(false)
+  const [resolPlayed,   setResolPlayed]   = useState(false)
+  const resolUtterRef = useRef<SpeechSynthesisUtterance | null>(null)
   const pf       = getPureFormula(p.area, p.enunciado)
   const answered = selected !== null
   const isRight  = selected === p.respuesta
@@ -1129,7 +1197,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: materia.color }}>Pregunta #{idx + 1}</span>
           <span style={{ fontSize: 9, color: '#334155', fontFamily: 'monospace' }}>{p.codigo}</span>
-          <span style={{ fontSize: 10, color: '#475569' }}>{p.tema}</span>
+          <span style={{ fontSize: 10, color: '#475569' }}>{extractTema(p.explicacion || '') || p.tema}</span>
           <span style={{ fontSize: 9, color: SECCION_COLORS[p.seccion] || '#475569', background: `${SECCION_COLORS[p.seccion] || '#475569'}15`, border: `1px solid ${SECCION_COLORS[p.seccion] || '#475569'}30`, borderRadius: 8, padding: '1px 6px' }}>Sección {p.seccion}</span>
         </div>
       </div>
@@ -1149,11 +1217,8 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
       <p style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 10 }}>{cleanEnunciado(p.enunciado)}</p>
 
-      {/* Gráfico visual solo para materias de ciencias */}
-      {esCiencia && <QuestionInlineVisual question={qvp} color={materia.color} />}
-
-      {/* Fórmula / estrategia — solo para ciencias */}
-      {esCiencia && pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
+      <QuestionInlineVisual question={qvp} color={materia.color} />
+      {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
       {/* Opciones */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 14 }}>
@@ -1206,16 +1271,69 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
       {answered && showSolution && (
         <div style={{ marginTop: 14, background: 'rgba(12,18,38,0.95)', border: `1px solid ${materia.color}30`, borderLeft: `3px solid ${materia.color}`, borderRadius: 10, padding: '14px 16px', animation: 'fadeIn 0.5s ease' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, letterSpacing: '.08em', marginBottom: 10 }}>📋 RESOLUCIÓN COMPLETA — PASO A PASO</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: materia.color, letterSpacing: '.08em' }}>📋 RESOLUCIÓN COMPLETA — PASO A PASO</div>
+            {!resolPlayed ? (
+            <button
+              onClick={() => {
+                if (speakingResol) {
+                  window.speechSynthesis.cancel()
+                  setSpeakingResol(false)
+                  onResolEnd()
+                  return
+                }
+                // Leer siempre desde el libro — no usa IA
+                const expl = (p.explicacion || '').replace(/[■□▪▫☐☑☒■●]/g, '').trim()
+                const segs = formatExplicacion(expl)
+                const correctaText = p.opciones.find(o => o.label === p.respuesta)?.text || ''
+                const lines: string[] = [
+                  `¡Hola! Vamos a resolver esta pregunta. La respuesta correcta es la opción ${p.respuesta}: ${correctaText}.`,
+                ]
+                let stepCount = 0
+                const pasos = ['Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto', 'Luego', 'Finalmente']
+                for (const seg of segs) {
+                  if (seg.type === 'header') {
+                    lines.push(seg.text.replace(/:/g, '.'))
+                  } else if (seg.type === 'step') {
+                    lines.push(`${pasos[stepCount] || `Paso ${stepCount + 1}`}. ${seg.text}`)
+                    stepCount++
+                  } else if (seg.type === 'result') {
+                    lines.push(`Por lo tanto, ${seg.text.replace(/^(resultado:|respuesta:|rpta\.?:|por lo tanto:|entonces:)/i, '').trim()}`)
+                  } else if (seg.type === 'body' && seg.text.length > 15) {
+                    lines.push(seg.text)
+                  }
+                }
+                lines.push(`Practica este procedimiento hasta que sea automático. ¡Tú puedes!`)
+                const finalText = lines.join(' ').replace(/\.\s*\./g, '.').replace(/\s+/g, ' ').trim()
+                window.speechSynthesis.cancel()
+                const u = new SpeechSynthesisUtterance(finalText)
+                u.lang   = 'es-PE'
+                u.rate   = 1.1
+                u.pitch  = 1.0
+                u.volume = 1
+                const voz = pickMaleVoice()
+                if (voz) u.voice = voz
+                u.onstart = () => { setSpeakingResol(true); onResolStart(finalText.slice(0, 120)) }
+                u.onend   = () => { setSpeakingResol(false); setResolPlayed(true); onResolEnd() }
+                u.onerror = () => { setSpeakingResol(false); onResolEnd() }
+                resolUtterRef.current = u
+                window.speechSynthesis.speak(u)
+              }}
+              style={{ padding: '5px 12px', borderRadius: 8, border: `1px solid ${speakingResol ? 'rgba(239,68,68,0.5)' : materia.color + '60'}`, background: speakingResol ? 'rgba(239,68,68,0.1)' : `${materia.color}12`, color: speakingResol ? '#f87171' : materia.color, fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, animation: speakingResol ? 'pulse-audio 1.2s infinite' : 'none' }}
+            >
+              {speakingResol ? '⏹ Detener' : '🔊 Escuchar resolución'}
+            </button>
+            ) : (
+            <span style={{ fontSize: 10, color: materia.color, background: `${materia.color}08`, border: `1px solid ${materia.color}20`, borderRadius: 8, padding: '5px 12px', fontWeight: 700 }}>
+              ✓ Resolución escuchada
+            </span>
+            )}
+          </div>
 
           <div style={{ background: 'rgba(63,185,80,0.08)', border: '1px solid rgba(63,185,80,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#3fb950', fontWeight: 600 }}>
             ✓ Respuesta correcta — Opción {p.respuesta}:{' '}
             <span style={{ fontWeight: 400 }}>{p.opciones.find(o => o.label === p.respuesta)?.text}</span>
           </div>
-
-          {/* Diagrama visual en la resolución — solo para ciencias */}
-          {esCiencia && <QuestionInlineVisual question={qvp} color={materia.color} />}
-          {esCiencia && pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
 
           <PizarraExplicacion
             explicacion_ia={p.explicacion_ia || ''}
