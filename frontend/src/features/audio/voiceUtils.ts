@@ -3,23 +3,42 @@ import { terminosParaAudio } from '../../data/terminosPorMateria'
 // ── Limpia todo símbolo/LaTeX que el TTS leería como basura ─────────────────
 export function cleanForAudio(text: string): string {
   return text
-    // LaTeX bloques display $$...$$
-    .replace(/\$\$[\s\S]*?\$\$/g, '')
-    // LaTeX inline $...$
-    .replace(/\$[^$\n]+?\$/g, '')
-    // LaTeX comandos con argumentos: \frac{a}{b}, \sqrt{x}, etc.
-    .replace(/\\[a-zA-Z]+(?:\{[^}]*\})+/g, '')
-    // LaTeX comandos sueltos: \cdot \times \leq \geq \approx etc.
-    .replace(/\\[a-zA-Z]+/g, '')
-    // Barras y dólares residuales
-    .replace(/[\\\$]/g, '')
-    // Operadores matemáticos → palabras en español
+    // ── PRIMERO: eliminar emojis Unicode ─────────────────────────────────────
+    // Rango principal de emojis (U+1F000–U+1FFFF): 😢 💡 📐 ⚡ 🧠 🎯 etc.
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    // Símbolos misceláneos y dingbats (U+2600–U+27BF): ☆ ✓ ⚠ ⛔ etc.
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    // Símbolos adicionales (U+2300–U+23FF) y flechas ornamentales
+    .replace(/[\u{2300}-\u{23FF}]/gu, '')
+    // Variantes de presentación (U+FE00–U+FE0F) — modificadores de emoji
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+    // Selectores de variación y zero-width joiners
+    .replace(/[​-‏﻿­]/g, '')  // zero-width, BOM
+
+    // ── LaTeX ────────────────────────────────────────────────────────────────
+    .replace(/\$\$[\s\S]*?\$\$/g, '')           // bloques display $$...$$
+    .replace(/\$[^$\n]+?\$/g, '')               // inline $...$
+    .replace(/\\[a-zA-Z]+(?:\{[^}]*\})+/g, '') // \frac{a}{b}, \sqrt{x}
+    .replace(/\\[a-zA-Z]+/g, '')                // \cdot \times \leq
+    .replace(/[\\\$]/g, '')                     // barras y dólares residuales
+
+    // ── Notación de subíndice/superíndice en texto (no Unicode) ─────────────
+    .replace(/_\{[^}]*\}/g, '')   // _{expr} → nada
+    .replace(/\^\{[^}]*\}/g, '')  // ^{expr} → nada
+    .replace(/_(\d+)/g, ' $1')    // I_1 → I 1, x_2 → x 2
+    .replace(/\^(\d+)/g, ' a la $1') // x^2 → x a la 2
+
+    // ── Operadores matemáticos → palabras ────────────────────────────────────
     .replace(/\s*×\s*/g, ' por ')
+    .replace(/\s*·\s*/g, ' por ')           // punto medio U+00B7 (0.40 · C)
+    .replace(/\s*\*\s*/g, ' por ')
     .replace(/\s*÷\s*/g, ' entre ')
     .replace(/\s*≈\s*/g, ' aproximadamente ')
     .replace(/\s*≤\s*/g, ' menor o igual a ')
     .replace(/\s*≥\s*/g, ' mayor o igual a ')
     .replace(/\s*≠\s*/g, ' distinto de ')
+    .replace(/\s*∴\s*/g, ' por lo tanto ')
+    .replace(/\s*∵\s*/g, ' porque ')
     .replace(/\s*→\s*/g, '. ')
     .replace(/\s*[←↑↓↔⇒⇔]\s*/g, '. ')
     .replace(/∑/g, 'la suma de ')
@@ -28,37 +47,36 @@ export function cleanForAudio(text: string): string {
     .replace(/±/g, ' más o menos ')
     .replace(/∞/g, ' infinito ')
     .replace(/∂/g, ' la derivada de ')
-    // Letras griegas usadas como variables matemáticas
-    .replace(/π/g, 'pi')
-    .replace(/θ/g, 'theta')
-    .replace(/α/g, 'alfa')
-    .replace(/β/g, 'beta')
-    .replace(/γ/g, 'gamma')
-    .replace(/δ/g, 'delta')
-    .replace(/λ/g, 'lambda')
-    .replace(/μ/g, 'mu')
-    .replace(/σ/g, 'sigma')
-    .replace(/ω/g, 'omega')
-    .replace(/Δ/g, 'delta')
-    .replace(/Σ/g, 'sigma')
-    // Superíndices → palabras
-    .replace(/²/g, ' al cuadrado')
-    .replace(/³/g, ' al cubo')
-    .replace(/⁴/g, ' a la cuarta')
-    .replace(/⁵/g, ' a la quinta')
-    .replace(/⁰/g, ' a la cero')
-    // Subíndices → quitar (son índices, el TTS no los necesita)
+
+    // ── Letras griegas ───────────────────────────────────────────────────────
+    .replace(/π/g, 'pi').replace(/θ/g, 'theta')
+    .replace(/α/g, 'alfa').replace(/β/g, 'beta')
+    .replace(/γ/g, 'gamma').replace(/δ/g, 'delta')
+    .replace(/λ/g, 'lambda').replace(/μ/g, 'mu')
+    .replace(/σ/g, 'sigma').replace(/ω/g, 'omega')
+    .replace(/Δ/g, 'delta').replace(/Σ/g, 'sigma')
+    .replace(/Ω/g, 'omega').replace(/Φ/g, 'fi')
+
+    // ── Superíndices Unicode ─────────────────────────────────────────────────
+    .replace(/²/g, ' al cuadrado').replace(/³/g, ' al cubo')
+    .replace(/⁴/g, ' a la cuarta').replace(/⁵/g, ' a la quinta')
+    .replace(/⁰/g, ' a la cero').replace(/¹/g, '')
+    // Subíndices Unicode → quitar
     .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, '')
-    // Caracteres decorativos / cuadros / viñetas especiales
-    .replace(/[■□▪▫▸▹▶▷◀◁◆◇◈★☆✓✗✕✔✘☐☑☒]/g, '')
-    .replace(/[▲▼◀▶]/g, '')
-    // Guiones largos repetidos (separadores) → punto
+
+    // ── Caracteres decorativos y viñetas ────────────────────────────────────
+    .replace(/[■□▪▫▸▹▶▷◀◁◆◇◈★☆✓✗✕✔✘☐☑☒▲▼]/g, '')
     .replace(/[-–—]{3,}/g, '. ')
-    // Viñetas al inicio de línea
     .replace(/^[•*·‣⁃]\s*/gm, '')
-    // Quitar expresiones matemáticas cortas entre paréntesis: (F=ma), (v=d/t)
-    .replace(/\([A-Za-z][A-Za-z0-9=+\-*/^.\s]{1,25}\)/g, '')
-    // Normalizar espacios y saltos de línea
+    // Encabezados Markdown ## y **negrita**
+    .replace(/^#+\s*/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+
+    // ── Limpiar etiquetas de sección que no aporten contenido oral ───────────
+    .replace(/^(PRÁCTICA|PRACTICA)\s*:?\s*/gim, '')
+
+    // ── Normalizar espacios ──────────────────────────────────────────────────
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, ' ')
     .replace(/\s+([.,;!?])/g, '$1')

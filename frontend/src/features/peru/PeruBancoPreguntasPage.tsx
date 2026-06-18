@@ -795,32 +795,35 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     let cur: Sec | null = null
 
     for (const rawLine of text.split('\n')) {
-      const l = clean(rawLine)
+      // Limpiar ANTES de detectar tipo — cleanForAudio ya elimina emojis
+      const l = clean(rawLine).trim()
       if (!l) continue
 
-      if (/^(LÓGICA|LOGICA):\s*/i.test(l)) {
-        cur = { tipo: 'logica', titulo: '', cuerpo: l.replace(/^(LÓGICA|LOGICA):\s*/i, '') }
+      // Detectar secciones — los emojis ya fueron eliminados por cleanForAudio
+      if (/^(LÓGICA|LOGICA)\s*[:\-—–]\s*/i.test(l)) {
+        cur = { tipo: 'logica', titulo: '', cuerpo: l.replace(/^(LÓGICA|LOGICA)\s*[:\-—–]\s*/i, '') }
         secs.push(cur); continue
       }
-      if (/^(TRAMPA|ERROR\s+COM[UÚ]N):\s*/i.test(l)) {
-        cur = { tipo: 'trampa', titulo: '', cuerpo: l.replace(/^(TRAMPA|ERROR\s+COM[UÚ]N):\s*/i, '') }
+      if (/^(TRAMPA|ERROR\s+COM[UÚ]N)\s*[:\-—–]\s*/i.test(l)) {
+        cur = { tipo: 'trampa', titulo: '', cuerpo: l.replace(/^(TRAMPA|ERROR\s+COM[UÚ]N)\s*[:\-—–]\s*/i, '') }
         secs.push(cur); continue
       }
-      if (/^(RESPUESTA|RPTA|RESULTADO):\s*/i.test(l)) {
-        cur = { tipo: 'respuesta', titulo: '', cuerpo: l.replace(/^(RESPUESTA|RPTA|RESULTADO):\s*/i, '') }
+      if (/^(RESPUESTA|RPTA|RESULTADO|CONCLUSI[OÓ]N)\s*[:\-—–]\s*/i.test(l)) {
+        cur = { tipo: 'respuesta', titulo: '', cuerpo: l.replace(/^(RESPUESTA|RPTA|RESULTADO|CONCLUSI[OÓ]N)\s*[:\-—–]\s*/i, '') }
         secs.push(cur); continue
       }
-      if (/^(PRÁCTICA|PRACTICA):/i.test(l)) { cur = null; continue }
+      if (/^(PRÁCTICA|PRACTICA)\s*:/i.test(l)) { cur = null; continue }
 
-      const mPaso = l.match(/^PASO\s+\d+\s*[—–\-]+\s*([^:\n]+)?[:\s]*(.*)/i)
+      // PASO N — TITULO o PASO N: contenido
+      const mPaso = l.match(/^PASO\s+(\d+)\s*[—–\-:]+\s*([^:\n]*)?:?\s*(.*)/i)
       if (mPaso) {
-        const titulo = (mPaso[1] || '').trim().replace(/:\s*$/, '')
-        const cuerpo = (mPaso[2] || '').trim().replace(/^:\s*/, '')
+        const titulo = (mPaso[2] || '').trim().replace(/[:]\s*$/, '')
+        const cuerpo = (mPaso[3] || '').trim()
         cur = { tipo: 'paso', titulo, cuerpo }
         secs.push(cur); continue
       }
 
-      // Línea de continuación
+      // Línea de continuación — acumula en sección actual
       if (cur && cur.tipo !== 'respuesta') {
         cur.cuerpo += (cur.cuerpo ? ' ' : '') + l
       } else if (!cur) {
