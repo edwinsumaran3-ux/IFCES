@@ -8,6 +8,9 @@ import { pickMaleVoice, makeSocratic, cleanForAudio } from '../audio/voiceUtils'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
 import PizarraExplicacion from './PizarraExplicacion'
+import GraficoFuncion from '../../components/GraficoFuncion'
+import GraficoEstadistico from '../../components/GraficoEstadistico'
+import { detectarGrafico } from '../../utils/detectarGrafico'
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> }
 
@@ -1299,6 +1302,14 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
 
       <QuestionInlineVisual question={qvp} color={materia.color} />
       {pf && <FormulaBox tex={pf.tex} isLatex={pf.isLatex} label={pf.label} vars={pf.vars} color={materia.color} />}
+
+      {/* Gráfica automática por tipo de pregunta */}
+      {(() => {
+        const gi = detectarGrafico(trueArea, p.enunciado)
+        if (gi.tipo === 'estadistica' || gi.tipo === 'probabilidad') return <GraficoEstadistico info={gi} />
+        if (gi.tipo !== null) return <GraficoFuncion info={gi} />
+        return null
+      })()}
 
       {/* Opciones */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, marginTop: 14 }}>

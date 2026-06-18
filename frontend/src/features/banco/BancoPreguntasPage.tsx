@@ -8,6 +8,9 @@ import { makeSocratic, cleanForAudio } from '../audio/voiceUtils';
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
 import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
 import AvatarTutorIA from '../avatar/AvatarTutorIA';
+import GraficoFuncion from '../../components/GraficoFuncion';
+import GraficoEstadistico from '../../components/GraficoEstadistico';
+import { detectarGrafico } from '../../utils/detectarGrafico';
 
 declare const MathJax: { typesetPromise: (nodes?: HTMLElement[]) => Promise<void> };
 
@@ -1150,6 +1153,14 @@ function QuestionCard({
 
       {/* Visual inline */}
       <QuestionInlineVisual question={qvp} color={materia.color} />
+
+      {/* Gráfica automática por tipo de pregunta */}
+      {(() => {
+        const gi = detectarGrafico(p.area, p.enunciado);
+        if (gi.tipo === 'estadistica' || gi.tipo === 'probabilidad') return <GraficoEstadistico info={gi} />;
+        if (gi.tipo !== null) return <GraficoFuncion info={gi} />;
+        return null;
+      })()}
 
       {/* Instrucción cuando el audio ya se escuchó */}
       {played && !answered && (
