@@ -733,46 +733,130 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     return area || 'General'
   }
 
-  // ── Convierte explicacion_ia a texto oral limpio (sin LaTeX, sin markdown) ─────
+  // ── Convierte explicacion_ia a narración socrática: pregunta → lógica → respuesta ──
   function iaToAudio(text: string): string {
-    const NUMS = ['Primero', 'Segundo', 'Tercero', 'Cuarto', 'Quinto']
-    const lines = text.split('\n').map(raw => {
-      // 1. Quitar bloques $$...$$ (display math) y $...$ (inline math) enteros
-      // 2. Limpiar comandos LaTeX residuales y signos sueltos
-      const l = raw
-        .replace(/\$\$[\s\S]*?\$\$/g, '')
-        .replace(/\$[^$\n]*?\$/g, '')
-        .replace(/\\[a-zA-Z]+\{[^}]*\}/g, '')
-        .replace(/\\/g, '')
-        .replace(/\$/g, '')
-        .trim()
-      if (!l) return ''
-      // Encabezados estructurados → lenguaje oral
-      if (/^(LÓGICA|LOGICA):\s*/i.test(l))
-        return 'Escucha bien la lógica de este problema: ' + l.replace(/^(LÓGICA|LOGICA):\s*/i, '')
-      const mPaso = l.match(/^PASO\s+(\d+)\s*[—–\-]+\s*([\wáéíóúüñÁÉÍÓÚÜÑ\s,]+)?:\s*(.*)/i)
-      if (mPaso) {
-        const n = parseInt(mPaso[1])
-        const titulo = (mPaso[2] || '').trim()
-        const resto  = (mPaso[3] || '').trim()
-        const spoken = (NUMS[n - 1] || `Paso ${n}`) + (titulo ? `, ${titulo.toLowerCase()}` : '') + ': '
-        return spoken + resto
+
+    // Limpia LaTeX de una línea
+    const clean = (s: string) =>
+      s.replace(/\$\$[\s\S]*?\$\$/g, '')
+       .replace(/\$[^$\n]*?\$/g, '')
+       .replace(/\\[a-zA-Z]+(?:\{[^}]*\})+/g, '')
+       .replace(/\\(?:cdot|times|div|frac|sqrt|sum|int|pm|leq|geq|approx)/g, '')
+       .replace(/\\/g, '').replace(/\$/g, '')
+       .replace(/^[*\-•]\s*/, '')
+       .trim()
+
+    // Preguntas variadas según el título del PASO
+    const preguntaPorTitulo = (titulo: string, idx: number): string => {
+      const t = titulo.toLowerCase()
+      const opts: Record<string, string[]> = {
+        datos:   ['¿Qué datos nos da el problema?','¿Cuál es la información que tenemos?','¿Con qué elementos trabajamos?'],
+        identif: ['¿Qué datos debemos identificar primero?','¿Qué información es clave aquí?'],
+        formula: ['¿Qué fórmula necesitamos?','¿Cuál es la expresión que aplicamos?','¿Qué fórmula usamos en este caso?'],
+        calculo: ['¿Cómo hacemos el cálculo?','¿Cómo aplicamos la fórmula paso a paso?','¿Cómo llegamos al número?'],
+        calcula: ['¿Cómo operamos?','¿Cuánto da el cálculo?'],
+        verif:   ['¿Cómo verificamos que el resultado es correcto?','¿Cómo comprobamos la respuesta?'],
+        interp:  ['¿Qué significa este resultado?','¿Cómo interpretamos lo que obtuvimos?'],
+        plant:   ['¿Cómo planteamos la ecuación?','¿Cómo expresamos el problema matemáticamente?'],
+        simplif: ['¿Cómo simplificamos la expresión?','¿Cómo reducimos esto?'],
+        conclu:  ['¿A qué conclusión llegamos?','¿Qué nos dice el resultado?'],
+        analiz:  ['¿Qué debemos analizar aquí?','¿Cómo analizamos este punto?'],
       }
-      if (/^TRAMPA:\s*/i.test(l))
-        return 'Atención, aquí está la trampa que hace fallar a muchos: ' + l.replace(/^TRAMPA:\s*/i, '')
-      if (/^ERROR\s+COM[UÚ]N:\s*/i.test(l))
-        return 'Atención, el error más frecuente es: ' + l.replace(/^ERROR\s+COM[UÚ]N:\s*/i, '')
-      if (/^(RESPUESTA|RPTA|RESULTADO):\s*/i.test(l))
-        return 'La respuesta correcta es: ' + l.replace(/^(RESPUESTA|RPTA|RESULTADO):\s*/i, '')
-      // PRÁCTICA — no leer en audio
-      if (/^(PRÁCTICA|PRACTICA):/i.test(l)) return ''
-      // Bullet / guión suelto — limpiar
-      return l.replace(/^[*\-•]\s*/, '')
-    })
-    return lines
-      .filter(l => l.length > 0)
+      for (const [key, arr] of Object.entries(opts)) {
+        if (t.includes(key)) return arr[idx % arr.length]
+      }
+      const defaults = [
+        '¿Qué hacemos en este paso?',
+        '¿Cuál es el siguiente movimiento?',
+        '¿Cómo continuamos la solución?',
+        '¿Qué viene ahora?',
+      ]
+      return defaults[idx % defaults.length]
+    }
+
+    // Respuestas-apertura variadas
+    const RESPONDE = [
+      'Pues bien,', 'Fíjate:', 'Mira esto:', 'Resulta que',
+      'Lo que hacemos es:', 'Te explico:', 'Aquí va:', 'Escucha:',
+    ]
+    const CONECTA = [
+      'Perfecto. Ahora,', 'Sigamos.', 'Continuemos.', 'El siguiente paso:',
+      'Avancemos.', 'Bien. Luego,', 'Ahora viene lo importante.',
+    ]
+
+    // Parsear secciones
+    interface Sec { tipo: 'logica'|'paso'|'trampa'|'respuesta'|'texto'; titulo: string; cuerpo: string }
+    const secs: Sec[] = []
+    let cur: Sec | null = null
+
+    for (const rawLine of text.split('\n')) {
+      const l = clean(rawLine)
+      if (!l) continue
+
+      if (/^(LÓGICA|LOGICA):\s*/i.test(l)) {
+        cur = { tipo: 'logica', titulo: '', cuerpo: l.replace(/^(LÓGICA|LOGICA):\s*/i, '') }
+        secs.push(cur); continue
+      }
+      if (/^(TRAMPA|ERROR\s+COM[UÚ]N):\s*/i.test(l)) {
+        cur = { tipo: 'trampa', titulo: '', cuerpo: l.replace(/^(TRAMPA|ERROR\s+COM[UÚ]N):\s*/i, '') }
+        secs.push(cur); continue
+      }
+      if (/^(RESPUESTA|RPTA|RESULTADO):\s*/i.test(l)) {
+        cur = { tipo: 'respuesta', titulo: '', cuerpo: l.replace(/^(RESPUESTA|RPTA|RESULTADO):\s*/i, '') }
+        secs.push(cur); continue
+      }
+      if (/^(PRÁCTICA|PRACTICA):/i.test(l)) { cur = null; continue }
+
+      const mPaso = l.match(/^PASO\s+\d+\s*[—–\-]+\s*([^:\n]+)?[:\s]*(.*)/i)
+      if (mPaso) {
+        const titulo = (mPaso[1] || '').trim().replace(/:\s*$/, '')
+        const cuerpo = (mPaso[2] || '').trim().replace(/^:\s*/, '')
+        cur = { tipo: 'paso', titulo, cuerpo }
+        secs.push(cur); continue
+      }
+
+      // Línea de continuación
+      if (cur && cur.tipo !== 'respuesta') {
+        cur.cuerpo += (cur.cuerpo ? ' ' : '') + l
+      } else if (!cur) {
+        cur = { tipo: 'texto', titulo: '', cuerpo: l }
+        secs.push(cur)
+      }
+    }
+
+    // Construir narración socrática
+    const partes: string[] = []
+    let pasoIdx = 0
+
+    for (const s of secs) {
+      const cb = s.cuerpo.trim()
+      if (!cb) continue
+
+      if (s.tipo === 'logica') {
+        partes.push(`¿De qué trata este problema? ${cb}`)
+      }
+      else if (s.tipo === 'paso') {
+        const pregunta = preguntaPorTitulo(s.titulo, pasoIdx)
+        const responde = pasoIdx === 0 ? RESPONDE[0] : RESPONDE[pasoIdx % RESPONDE.length]
+        const conecta  = pasoIdx === 0 ? '' : CONECTA[(pasoIdx - 1) % CONECTA.length] + ' '
+        partes.push(`${conecta}${pregunta} ${responde} ${cb}`)
+        pasoIdx++
+      }
+      else if (s.tipo === 'trampa') {
+        partes.push(`¡Ojo! ¿En qué fallan muchos estudiantes aquí? En que ${cb} ¡No caigas en esa trampa!`)
+      }
+      else if (s.tipo === 'respuesta') {
+        partes.push(`Por todo esto, la respuesta correcta es ${cb}.`)
+      }
+      else if (s.tipo === 'texto') {
+        partes.push(cb)
+      }
+    }
+
+    return partes
       .join(' ')
       .replace(/\s{2,}/g, ' ')
+      .replace(/\.\s*\./g, '.')
       .trim()
   }
 
