@@ -29,26 +29,44 @@ function mathHtml(text: string): string {
 // ¿La línea es exclusivamente un bloque $$...$$?
 function isPureLatex(s: string) { return /^\s*\$\$[\s\S]*?\$\$\s*$/.test(s) }
 
+// Definido a nivel módulo para que React no desmonte/remonte en cada render
+function MathSpan({ text }: { text: string }) {
+  return <span dangerouslySetInnerHTML={{ __html: mathHtml(text) }} />
+}
+
 export default function PizarraExplicacion({ explicacion_ia, explicacion, respuesta, opcion_resp, color }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const raw = (explicacion_ia || explicacion || '').replace(/\r/g, '').trim()
 
-  // FIX: esperar a startup.promise antes de typesetPromise (MathJax se carga con defer)
   useEffect(() => {
     if (!containerRef.current || !raw) return
     const node = containerRef.current
-    if (typeof MathJax === 'undefined') return
-    const run = () => {
-      if (typeof MathJax.typesetPromise === 'function') {
-        MathJax.typesetPromise([node]).catch(() => {})
+
+    // Llama typesetPromise solo cuando MathJax esté completamente inicializado
+    const typeset = () => {
+      if (typeof MathJax !== 'undefined' && typeof (MathJax as any).typesetPromise === 'function') {
+        ;(MathJax as any).typesetPromise([node]).catch(() => {})
+        return true
       }
+      return false
     }
-    try {
-      const p = (MathJax as any).startup?.promise
-      if (p && typeof p.then === 'function') p.then(run).catch(run)
-      else run()
-    } catch { run() }
+
+    // Caso 1: MathJax ya está listo
+    if (typeset()) return
+
+    // Caso 2: startup.promise existe (script defer en progreso)
+    if (typeof MathJax !== 'undefined') {
+      const p = (MathJax as any).startup?.promise as Promise<void> | undefined
+      if (p && typeof p.then === 'function') { p.then(typeset).catch(() => {}); return }
+    }
+
+    // Caso 3: script defer aún no cargó — polling cada 200ms hasta 8 seg
+    let attempts = 0
+    const id = setInterval(() => {
+      if (typeset() || ++attempts >= 40) clearInterval(id)
+    }, 200)
+    return () => clearInterval(id)
   }, [raw])
 
   if (!raw || raw.length < 5) return null
@@ -123,10 +141,6 @@ export default function PizarraExplicacion({ explicacion_ia, explicacion, respue
   }
 
   const tieneRespuesta = bloques.some(b => b.tipo === 'respuesta')
-
-  const MathSpan = ({ text }: { text: string }) => (
-    <span dangerouslySetInnerHTML={{ __html: mathHtml(text) }} />
-  )
 
   return (
     <div style={{ marginTop: 12, background: 'linear-gradient(135deg,#0a0f1e,#0d1428)', border: `1px solid ${color}35`, borderLeft: `3px solid ${color}`, borderRadius: 10, overflow: 'hidden' }}>
