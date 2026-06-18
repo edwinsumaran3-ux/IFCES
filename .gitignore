@@ -16,6 +16,7 @@ env/
 *.code-workspace
 # Scripts locales con credenciales — no subir al repo
 generar_gemini.py
+generar_explicaciones_ia.py
 generar_explicaciones_ia_v2.py
 fix_*.py
 extraer_*.py
