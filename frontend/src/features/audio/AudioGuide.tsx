@@ -6,6 +6,7 @@ import React, {
   createContext, useContext, useCallback,
   useRef, useState, useEffect, useMemo
 } from 'react'
+import { pickMaleVoice } from './voiceUtils'
 
 // ─── 10 Bienvenidas (se eligen aleatoriamente) ───────────────────────────────
 const WELCOMES = [
@@ -65,26 +66,25 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
   })
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null)
 
-  const getVoice = useCallback(() => {
-    if (!window.speechSynthesis) return null
-    const voices = window.speechSynthesis.getVoices()
-    const prefs = [
-      voices.find(v => v.lang.startsWith(locale) && !v.localService),
-      voices.find(v => v.lang.startsWith(locale)),
-      voices.find(v => v.lang.startsWith('es')),
-    ]
-    return prefs.find(Boolean) || null
-  }, [locale])
-
   const speak = useCallback((text: string) => {
     if (!enabled || !window.speechSynthesis) return
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
-    u.lang  = locale.includes('PE') ? 'es-PE' : 'es-CO'
-    u.rate  = 1.25
-    u.pitch = 1.05
+    const isPe = locale.includes('PE') || locale.includes('pe')
+    u.lang   = isPe ? 'es-PE' : 'es-CO'
+    u.rate   = 1.25
+    u.pitch  = isPe ? 0.85 : 1.05
     u.volume = 1
-    const voice = getVoice()
+    // Perú siempre voz masculina; Colombia primera voz disponible del locale
+    const voice = isPe
+      ? pickMaleVoice()
+      : (() => {
+          const vs = window.speechSynthesis.getVoices()
+          return vs.find(v => v.lang.startsWith(locale) && !v.localService)
+              || vs.find(v => v.lang.startsWith(locale))
+              || vs.find(v => v.lang.startsWith('es'))
+              || null
+        })()
     if (voice) u.voice = voice
     // Notifica a los listeners (solo AudioFloatingBtn) sin re-renderizar el contexto
     u.onstart = () => _notifySpeaking(true)
@@ -92,7 +92,7 @@ export function AudioGuideProvider({ children, locale = 'es' }: { children: Reac
     u.onerror = () => _notifySpeaking(false)
     utterRef.current = u
     window.speechSynthesis.speak(u)
-  }, [enabled, locale, getVoice])
+  }, [enabled, locale])
 
   const stop = useCallback(() => {
     window.speechSynthesis?.cancel()

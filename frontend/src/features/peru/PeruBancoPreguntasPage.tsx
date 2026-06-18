@@ -4,6 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react'
 import { useScreenGuide } from '../audio/AudioGuide'
+import { pickMaleVoice } from '../audio/voiceUtils'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
 import PizarraExplicacion from './PizarraExplicacion'
@@ -157,7 +158,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       const utt   = new SpeechSynthesisUtterance(partes[idx])
       utt.lang    = 'es-PE'
       utt.rate    = 1.1
-      utt.pitch   = 1.0
+      utt.pitch   = 0.85
       utt.volume  = 1
       if (voz) utt.voice = voz
       utt.onstart = () => { if (speakToken.current === token && idx === 0) setSpeaking(id) }
@@ -1131,30 +1132,6 @@ function formatExplicacion(raw: string): Seg[] {
   })
 }
 
-// ── Selecciona voz masculina española para TTS ────────────────────────────────
-function pickMaleVoice(): SpeechSynthesisVoice | null {
-  const all = window.speechSynthesis?.getVoices() || []
-  const MALE   = ['pablo','jorge','diego','carlos','miguel','raul','raúl','juan','andres',
-                  'antonio','rodrigo','sergio','male','hombre','man','masculino','alvaro',
-                  'ricardo','luis','victor','alberto','gustavo']
-  const FEMALE = ['angela','maria','lucia','sofia','elena','laura','isabel','valentina',
-                  'ana','female','mujer','woman','femenino','dalia','marisol','sabina',
-                  'conchita','esperanza','monica','paula','andrea','helena']
-  const score = (v: SpeechSynthesisVoice) => {
-    const n = v.name.toLowerCase(), lang = v.lang.toLowerCase()
-    let s = 0
-    if (MALE.some(m => n.includes(m)))   s += 500
-    if (FEMALE.some(f => n.includes(f))) s -= 500
-    if (lang === 'es-pe' || /peru/i.test(n)) s += 80
-    else if (lang.startsWith('es-'))         s += 40
-    else if (lang.startsWith('es'))          s += 20
-    if (/neural|natural|enhanced|premium/i.test(n)) s += 15
-    return s
-  }
-  const es = all.filter(v => /^es/i.test(v.lang))
-  if (!es.length) return all[0] ?? null
-  return es.sort((a, b) => score(b) - score(a))[0]
-}
 
 // ── Extrae el tema real desde la explicación del libro ───────────────────────
 function extractTema(explicacion: string): string {
@@ -1309,7 +1286,7 @@ function QuestionCard({ p, idx, materia, viewed: isViewed, speaking, audioLoadin
                 const u = new SpeechSynthesisUtterance(finalText)
                 u.lang   = 'es-PE'
                 u.rate   = 1.1
-                u.pitch  = 1.0
+                u.pitch  = 0.85
                 u.volume = 1
                 const voz = pickMaleVoice()
                 if (voz) u.voice = voz
