@@ -6,11 +6,21 @@ import React, { useState } from 'react'
 interface PeruUser { id: string; email: string; full_name: string; plan_code?: string }
 interface Props { user: PeruUser; onPaid: () => void; onClose: () => void }
 
-const PLANS = [
-  { code: 'basico',   name: 'Básico',   price: 'S/ 15',  period: '/mes',   color: '#2563eb', features: ['1 sección', 'Banco básico', '3 ayudas IA/examen'] },
-  { code: 'plus',     name: 'Plus',     price: 'S/ 25',  period: '/mes',   color: '#dc2626', features: ['Todas las secciones', 'Banco completo', '5 ayudas IA/examen', 'Voz pedagógica'], recommended: true },
-  { code: 'premium',  name: 'Premium',  price: 'S/ 40',  period: '/mes',   color: '#7c3aed', features: ['Todo Plus', 'Simulacros ilimitados', 'Reportes detallados', 'Soporte prioritario'] },
-]
+const PLAN = {
+  code: 'pro',
+  name: 'TES-LA PRO',
+  price: 'S/ 15',
+  period: '/mes',
+  color: '#dc2626',
+  features: [
+    'Acceso completo al banco de preguntas',
+    'Todas las secciones del examen',
+    'Explicaciones paso a paso con IA',
+    'Voz pedagógica inteligente',
+    'Simulacros ilimitados',
+    'Estadísticas de rendimiento',
+  ],
+}
 
 const METODOS = [
   { id: 'yape',    icon: '💚', name: 'Yape',     number: '999-123-456', banco: 'BCP' },
@@ -19,18 +29,15 @@ const METODOS = [
 ]
 
 export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
-  const [plan,     setPlan]    = useState('plus')
-  const [metodo,   setMetodo]  = useState('yape')
-  const [voucher,  setVoucher] = useState('')
-  const [step,     setStep]    = useState<'plan' | 'pay' | 'done'>('plan')
-  const [loading,  setLoading] = useState(false)
-
-  const selectedPlan = PLANS.find(p => p.code === plan)!
+  const [metodo,  setMetodo]  = useState('yape')
+  const [voucher, setVoucher] = useState('')
+  const [step,    setStep]    = useState<'pay' | 'done'>('pay')
+  const [loading, setLoading] = useState(false)
 
   const confirm = async () => {
     if (!voucher.trim()) return
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1500)) // demo delay
+    await new Promise(r => setTimeout(r, 1500))
     setStep('done')
     setLoading(false)
   }
@@ -43,8 +50,8 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>🇵🇪</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', margin: 0 }}>TES-LA PRO · Planes</h2>
-          <p style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Elige tu plan y accede a todo el contenido</p>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', margin: 0 }}>TES-LA PRO</h2>
+          <p style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Acceso completo a toda la plataforma</p>
         </div>
 
         {/* Done */}
@@ -59,46 +66,33 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
           </div>
         )}
 
-        {/* Step 1: Plan */}
-        {step === 'plan' && (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {PLANS.map(p => (
-                <div
-                  key={p.code}
-                  onClick={() => setPlan(p.code)}
-                  style={{
-                    ...s.planCard,
-                    border: `1px solid ${plan === p.code ? p.color : 'rgba(255,255,255,0.07)'}`,
-                    background: plan === p.code ? `rgba(${hexToRgb(p.color)},0.08)` : 'rgba(12,18,38,0.8)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: plan === p.code ? p.color : '#94a3b8' }}>{p.name}</span>
-                      {p.recommended && <span style={{ marginLeft: 8, fontSize: 9, background: p.color, color: '#fff', borderRadius: 20, padding: '2px 7px', fontWeight: 700 }}>RECOMENDADO</span>}
-                    </div>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: p.color }}>{p.price}<span style={{ fontSize: 10, fontWeight: 400, color: '#475569' }}>{p.period}</span></span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                    {p.features.map(f => <span key={f} style={{ fontSize: 10, color: '#64748b', background: 'rgba(255,255,255,0.04)', borderRadius: 20, padding: '2px 8px' }}>✓ {f}</span>)}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setStep('pay')} style={{ ...s.btn, background: selectedPlan.color }}>
-              Continuar con {selectedPlan.name} · {selectedPlan.price}
-            </button>
-          </>
-        )}
-
-        {/* Step 2: Pago */}
+        {/* Paso único: Pago */}
         {step === 'pay' && (
           <>
-            <div style={{ fontSize: 12, color: '#475569', marginBottom: 16, textAlign: 'center' }}>
-              Plan seleccionado: <strong style={{ color: selectedPlan.color }}>{selectedPlan.name} — {selectedPlan.price}/mes</strong>
+            {/* Tarjeta del plan */}
+            <div style={{
+              borderRadius: 14, padding: '16px 18px', marginBottom: 20,
+              background: 'rgba(220,38,38,0.07)',
+              border: '1.5px solid rgba(220,38,38,0.35)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#dc2626' }}>{PLAN.name}</div>
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>Acceso completo · Sin restricciones</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: 24, fontWeight: 900, color: '#dc2626' }}>{PLAN.price}</span>
+                  <span style={{ fontSize: 11, color: '#475569' }}>{PLAN.period}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {PLAN.features.map(f => (
+                  <span key={f} style={{ fontSize: 10, color: '#94a3b8', background: 'rgba(255,255,255,0.04)', borderRadius: 20, padding: '3px 9px' }}>✓ {f}</span>
+                ))}
+              </div>
             </div>
 
+            {/* Método */}
             <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 8 }}>MÉTODO DE PAGO</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
               {METODOS.map(m => (
@@ -114,7 +108,7 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
               ))}
             </div>
 
-            {/* Instrucciones de pago */}
+            {/* Instrucciones */}
             {(() => {
               const m = METODOS.find(x => x.id === metodo)!
               return (
@@ -124,7 +118,11 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9', letterSpacing: 1 }}>{m.number}</div>
                   <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>
-                    {metodo === 'yape' ? `Envía ${selectedPlan.price} y escribe tu correo en el concepto` : metodo === 'plin' ? `Transfiere ${selectedPlan.price} con tu nombre completo` : `Deposita ${selectedPlan.price} con el código indicado`}
+                    {metodo === 'yape'
+                      ? `Envía ${PLAN.price} y escribe tu correo en el concepto`
+                      : metodo === 'plin'
+                      ? `Transfiere ${PLAN.price} con tu nombre completo`
+                      : `Deposita ${PLAN.price} con el código indicado`}
                   </div>
                 </div>
               )
@@ -137,12 +135,9 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
               style={{ ...s.input, marginBottom: 14 }}
             />
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setStep('plan')} style={{ ...s.btn, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#475569', flex: '0 0 auto', padding: '11px 16px' }}>← Volver</button>
-              <button onClick={confirm} disabled={!voucher.trim() || loading} style={{ ...s.btn, background: '#dc2626', flex: 1, opacity: !voucher.trim() ? 0.5 : 1 }}>
-                {loading ? '⏳ Enviando...' : '✓ Confirmar pago'}
-              </button>
-            </div>
+            <button onClick={confirm} disabled={!voucher.trim() || loading} style={{ ...s.btn, background: '#dc2626', opacity: !voucher.trim() ? 0.5 : 1 }}>
+              {loading ? '⏳ Enviando...' : `✓ Confirmar pago · ${PLAN.price}`}
+            </button>
           </>
         )}
       </div>
@@ -150,16 +145,11 @@ export default function PeruPaymentPage({ user, onPaid, onClose }: Props) {
   )
 }
 
-function hexToRgb(hex: string) {
-  return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`
-}
-
 const s: Record<string, React.CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 },
-  modal: { background: 'rgba(8,12,28,0.98)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 420, position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.7)', fontFamily: 'Inter,system-ui,sans-serif', color: '#e2e8f0', maxHeight: '90vh', overflowY: 'auto' },
-  closeBtn: { position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: '#334155', fontSize: 16, cursor: 'pointer' },
-  planCard: { borderRadius: 12, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.15s' },
+  overlay:    { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 },
+  modal:      { background: 'rgba(8,12,28,0.98)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, position: 'relative', boxShadow: '0 30px 80px rgba(0,0,0,0.7)', fontFamily: 'Inter,system-ui,sans-serif', color: '#e2e8f0', maxHeight: '90vh', overflowY: 'auto' },
+  closeBtn:   { position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: '#334155', fontSize: 16, cursor: 'pointer' },
   metodoCard: { borderRadius: 10, padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, textAlign: 'center' },
-  btn: { width: '100%', padding: '11px 0', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' },
-  input: { width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#e2e8f0', fontSize: 13, fontFamily: 'inherit', outline: 'none' },
+  btn:        { width: '100%', padding: '12px 0', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' },
+  input:      { width: '100%', padding: '10px 13px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#e2e8f0', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
 }
