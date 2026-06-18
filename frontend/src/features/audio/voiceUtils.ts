@@ -1,3 +1,5 @@
+import { terminosParaAudio } from '../../data/terminosPorMateria'
+
 // ── Limpia todo símbolo/LaTeX que el TTS leería como basura ─────────────────
 export function cleanForAudio(text: string): string {
   return text
@@ -100,7 +102,6 @@ export function makeSocratic(area: string, enunciado: string, texto: string): st
     /lectura|crítica|texto|fragmento|narrador|novela|cuento|literatur|realismo|narrativa/.test(ctx) ? '¿Cómo abordamos la lectura crítica?' :
     /sociales|historia|geografía|ciudadan/.test(ctx)     ? '¿Qué relación causa-efecto hay aquí?' :
     /inglés|ingles/.test(ctx)                            ? '¿Qué estrategia usamos en comprensión de lectura?' :
-    /ecuación|despeja|incógnita/.test(ctx)               ? '¿Cómo despejamos una incógnita?' :
     '¿Por qué ocurre esto y cómo lo resolvemos?'
 
   const q2 =
@@ -139,10 +140,13 @@ export function makeSocratic(area: string, enunciado: string, texto: string): st
   const p2 = frases.slice(c1, c2).join(' ')
   const p3 = frases.slice(c2).join(' ')
 
+  const termSuffix = terminosParaAudio(area, enunciado)
+
   const partes: string[] = []
   if (p1) partes.push(`${q1} ${p1}`)
   if (p2) partes.push(`${q2} ${p2}`)
-  if (p3) partes.push(`${q3} ${p3}`)
+  if (p3) partes.push(`${q3} ${p3}${termSuffix ? ' ' + termSuffix : ''}`)
+  else if (termSuffix) partes.push(termSuffix)
 
   return partes.join(' ')
 }
