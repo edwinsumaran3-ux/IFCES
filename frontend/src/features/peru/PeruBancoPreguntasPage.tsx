@@ -4,7 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react'
 import { useScreenGuide } from '../audio/AudioGuide'
-import { pickMaleVoice } from '../audio/voiceUtils'
+import { pickMaleVoice, makeSocratic } from '../audio/voiceUtils'
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual'
 import AvatarTutorIA from '../avatar/AvatarTutorIA'
 import PizarraExplicacion from './PizarraExplicacion'
@@ -879,10 +879,9 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       return [saludo, cuerpo, cierre]
     }
 
-    // Fallback: método genérico por materia
-    const intro  = `Materia: ${p.area || 'General'}. Tema: ${subtema}.`
-    const metodo = buildPasoAPaso(p.area, p.enunciado)
-    return [saludo, intro + ' ' + metodo, cierre]
+    // Fallback: método genérico por materia — con formato socrático
+    const metodo = makeSocratic(p.area, p.enunciado, buildPasoAPaso(p.area, p.enunciado))
+    return [saludo, metodo, cierre]
   }
 
   async function handleSpeak(p: Pregunta) {

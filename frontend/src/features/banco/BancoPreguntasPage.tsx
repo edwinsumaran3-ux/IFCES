@@ -4,6 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect, useRef } from 'react';
 import { useScreenGuide } from '../audio/AudioGuide';
+import { makeSocratic } from '../audio/voiceUtils';
 import QuestionInlineVisual, { getPureFormula } from '../exam/QuestionInlineVisual';
 import QuestionVisualPanel  from '../exam/QuestionVisualPanel';
 import AvatarTutorIA from '../avatar/AvatarTutorIA';
@@ -630,7 +631,7 @@ export default function BancoPreguntasPage({ user, onBuyPlan }: Props) {
     const formulaLabel = formula ? `la fórmula de ${formula.label}` : 'este tipo de preguntas';
 
     const saludo    = SALUDOS_CO[iS](nombre);
-    const pasoAPaso = buildPasoAPaso(p.enunciado, p.area);
+    const pasoAPaso = makeSocratic(p.area, p.enunciado, buildPasoAPaso(p.enunciado, p.area));
     const cierre    = CIERRES_CO[iC](formulaLabel);
 
     return [saludo, pasoAPaso, cierre];
