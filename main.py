@@ -93,8 +93,8 @@ async def run_migrations():
             pass
         # Seed admin users
         for seed in [
-            ('admin@icfes.edu.co',      '$2b$12$Gz.y8gA0X6.VfyDAcA4sLOchxU5Od5EcWcETUaqQFIEC.T4FHYSqC', 'Administrador General', 'admin'),
-            ('edwinsumaran3@gmail.com', '$2b$12$Gz.y8gA0X6.VfyDAcA4sLOchxU5Od5EcWcETUaqQFIEC.T4FHYSqC', 'Edwin Sumaran',         'admin'),
+            ('admin@icfes.edu.co',      '$2b$12$aF7xRr45gaphTqkkXkEIIe3ua2s7V.q9nGR81XZT1S/sj36EBevOi', 'Administrador General', 'admin'),
+            ('edwinsumaran3@gmail.com', '$2b$12$aF7xRr45gaphTqkkXkEIIe3ua2s7V.q9nGR81XZT1S/sj36EBevOi', 'Edwin Sumaran',         'admin'),
         ]:
             await conn.execute(text("""
                 INSERT INTO users (email, password_hash, full_name, role, status, plan_code, is_active)
