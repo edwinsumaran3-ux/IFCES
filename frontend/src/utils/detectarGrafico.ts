@@ -112,8 +112,17 @@ export function detectarGrafico(area: string, enunciado: string): InfoGrafico {
   const ctx = (area + ' ' + enunciado).toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
 
+  // Materias no-STEM: solo mostrar gráfica si hay función matemática explícita
+  const areaNorm = area.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const esNoSTEM = /biolog|histor|geograf|ciudadan|filosof|psicolog|literatur|lenguaj|ingles|econom|social|geodin|cultura|comunicac/.test(areaNorm)
+
   // 1. Intentar extraer función explícita del enunciado
   const funciones = extraerFunciones(enunciado)
+
+  // Áreas no-STEM sin función explícita → sin gráfica
+  if (esNoSTEM && funciones.length === 0) {
+    return { tipo: null, expresiones: [], dominio: [-10, 10], titulo: '' }
+  }
 
   // ── FUNCIONES EXPLÍCITAS ─────────────────────────────────────────────────
   if (funciones.length > 0) {

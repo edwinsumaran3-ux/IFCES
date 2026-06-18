@@ -994,13 +994,41 @@ export function getPureFormula(area: string, stem: string): PureFormula | null {
         vars: 'Z = número atómico  ·  A = masa atómica  ·  N⁰ = número de neutrones',
       };
 
-    case 'biology':
-      return {
-        tex: '6CO_2 + 6H_2O + \\text{luz} \\rightarrow C_6H_{12}O_6 + 6O_2',
-        isLatex: true,
-        label: 'Fotosíntesis',
-        vars: 'CO₂ = dióxido de carbono  ·  H₂O = agua  ·  luz = energía solar  →  C₆H₁₂O₆ = glucosa  ·  O₂ = oxígeno liberado',
-      };
+    case 'biology': {
+      if (/fotosíntesis|fotosintesis|clorofila|cloroplasto|glucosa|6co2|ciclo.*calvin|fase.*luminosa|fase.*oscura/.test(t)) {
+        return {
+          tex: '6CO_2 + 6H_2O + \\text{luz} \\rightarrow C_6H_{12}O_6 + 6O_2',
+          isLatex: true,
+          label: 'Fotosíntesis',
+          vars: 'CO₂ = dióxido de carbono  ·  H₂O = agua  ·  luz = energía solar  →  C₆H₁₂O₆ = glucosa  ·  O₂ = oxígeno liberado',
+        };
+      }
+      if (/mitosis|meiosis|divisi[oó]n.*celular|ciclo.*celular/.test(t)) {
+        return {
+          tex: 'ADN \\rightarrow \\text{Mitosis} \\rightarrow 2\\text{ células }(2n)',
+          isLatex: true,
+          label: 'División celular',
+          vars: 'Interfase → Profase → Metafase → Anafase → Telofase',
+        };
+      }
+      if (/gen[eé]tica|gen[eé]t|cromosoma|alelo|herencia|mendelian|dominan|recesiv/.test(t)) {
+        return {
+          tex: 'P: Dd \\times Dd \\rightarrow F_2:\\,1DD:2Dd:1dd',
+          isLatex: true,
+          label: 'Genética — Leyes de Mendel',
+          vars: 'D = alelo dominante  ·  d = alelo recesivo  ·  F₂: 75% fenotipo dominante : 25% recesivo',
+        };
+      }
+      if (/ecosistema|cadena.*tr[oó]fica|biodiversidad|productor.*consumidor/.test(t)) {
+        return {
+          tex: '\\text{Productores}\\!\\rightarrow\\!\\text{Consumidores}\\!\\rightarrow\\!\\text{Descomponedores}',
+          isLatex: true,
+          label: 'Cadena trófica',
+          vars: 'Productores (plantas) → Consumidores 1° → Consumidores 2° → Descomponedores',
+        };
+      }
+      return null;
+    }
 
     case 'reading': {
       const tl = (area + ' ' + stem).toLowerCase();
@@ -1225,11 +1253,38 @@ export default function QuestionInlineVisual({ question, color }: Props) {
       { label: 'Aceleración a', val: `${forceA} m/s²` },
       { label: 'Fuerza F',     val: '?' },
     ];
-    if (k === 'biology') return [
-      { label: 'Nivel',      val: 'Célula → Tejido' },
-      { label: 'Proceso',    val: 'Fotosíntesis' },
-      { label: 'Energía',    val: 'Luz solar' },
-    ];
+    if (k === 'biology') {
+      const bio = (question.area + ' ' + question.stem).toLowerCase();
+      if (/fotosíntesis|fotosintesis|clorofila|cloroplasto|glucosa/.test(bio)) return [
+        { label: 'Reactivos',  val: 'CO₂+H₂O+luz' },
+        { label: 'Productos',  val: 'C₆H₁₂O₆+O₂' },
+        { label: 'Lugar',      val: 'Cloroplasto' },
+      ];
+      if (/mitosis|meiosis|divisi[oó]n.*celular|ciclo.*celular/.test(bio)) return [
+        { label: 'Proceso',    val: 'División' },
+        { label: 'Fases',      val: 'P→M→A→T' },
+        { label: 'Resultado',  val: '2 células' },
+      ];
+      if (/gen[eé]tica|gen[eé]t|cromosoma|alelo|herencia/.test(bio)) return [
+        { label: 'Alelo Dom.', val: 'D' },
+        { label: 'Alelo Rec.', val: 'd' },
+        { label: 'Ratio F₂',  val: '3:1' },
+      ];
+      if (/ecosistema|cadena.*tr[oó]fica|biodiversidad/.test(bio)) return [
+        { label: 'Nivel 1',   val: 'Productores' },
+        { label: 'Nivel 2',   val: 'Consumidores' },
+        { label: 'Nivel 3',   val: 'Descompon.' },
+      ];
+      if (/endocrino|hormona|oxitocina|insulina|gl[aá]ndula|tiroides/.test(bio)) return [
+        { label: 'Sistema',   val: 'Endocrino' },
+        { label: 'Mensajero', val: 'Hormona' },
+        { label: 'Vía',       val: 'Sangre' },
+      ];
+      return [
+        { label: 'Nivel',     val: 'Célula→Tejido' },
+        { label: 'Estudio',   val: 'Biología' },
+      ];
+    }
     if (k === 'chem') return [
       { label: 'Reactivos',  val: '→' },
       { label: 'Productos',  val: 'CO₂ + H₂O' },
@@ -1356,7 +1411,19 @@ export default function QuestionInlineVisual({ question, color }: Props) {
                         ? '🏛️ Historia — Ubica: período histórico · actores · causas → consecuencias del hecho'
                         : '🗺️ Sociales — Ubica: época · lugar · actores · causa → consecuencia'
             )}
-            {k === 'biology'  && '🌿 Biología — Identifica nivel: célula → tejido → órgano → sistema'}
+            {k === 'biology'  && (
+              /fotosíntesis|fotosintesis|clorofila|glucosa/.test(t)
+                ? '🌿 Fotosíntesis — Fase luminosa: luz → ATP + NADPH  |  Fase oscura: ciclo de Calvin → glucosa'
+                : /mitosis|meiosis|divisi[oó]n.*celular/.test(t)
+                  ? '🔬 División celular — Mitosis: 2 células idénticas (2n)  |  Meiosis: 4 gametos (n)'
+                  : /gen[eé]tica|gen[eé]t|alelo|herencia|cromosoma/.test(t)
+                    ? '🧬 Genética — Gen → Alelo → Fenotipo  |  Dominante (D) enmascara al Recesivo (d)'
+                    : /ecosistema|cadena.*tr[oó]fica|biodiversidad/.test(t)
+                      ? '🌍 Ecología — Productores → Consumidores → Descomponedores  |  Flujo de energía'
+                      : /endocrino|hormona|oxitocina|insulina/.test(t)
+                        ? '💉 Sistema endocrino — Glándulas secretan hormonas → regulan funciones del cuerpo'
+                        : '🌿 Biología — Identifica: organismo · proceso · función · nivel de organización'
+            )}
             {k === 'chem'     && '⚗️ Química — Antes de → : Reactivos  |  Después de → : Productos  |  Balancea átomos'}
             {k === 'periodic' && '🧪 Tabla periódica — Z = protones = e⁻  |  N⁰ = A − Z  |  Período = nº de capas'}
           </span>

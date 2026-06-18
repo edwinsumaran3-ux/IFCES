@@ -790,7 +790,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     ]
 
     // Parsear secciones
-    interface Sec { tipo: 'logica'|'paso'|'trampa'|'respuesta'|'texto'; titulo: string; cuerpo: string }
+    interface Sec { tipo: 'logica'|'paso'|'trampa'|'respuesta'|'texto'; titulo: string; cuerpo: string; num?: number }
     const secs: Sec[] = []
     let cur: Sec | null = null
 
@@ -817,9 +817,10 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
       // PASO N — TITULO o PASO N: contenido
       const mPaso = l.match(/^PASO\s+(\d+)\s*[—–\-:]+\s*([^:\n]*)?:?\s*(.*)/i)
       if (mPaso) {
+        const num    = parseInt(mPaso[1])
         const titulo = (mPaso[2] || '').trim().replace(/[:]\s*$/, '')
         const cuerpo = (mPaso[3] || '').trim()
-        cur = { tipo: 'paso', titulo, cuerpo }
+        cur = { tipo: 'paso', titulo, cuerpo, num }
         secs.push(cur); continue
       }
 
@@ -833,6 +834,7 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
     }
 
     // Construir narración socrática
+    const NUMS_ES = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez']
     const partes: string[] = []
     let pasoIdx = 0
 
@@ -844,10 +846,15 @@ export default function PeruBancoPreguntasPage({ user, onBack }: Props) {
         partes.push(`¿De qué trata este problema? ${cb}`)
       }
       else if (s.tipo === 'paso') {
+        const n = s.num ?? (pasoIdx + 1)
+        const numHablado = NUMS_ES[n - 1] || `${n}`
         const pregunta = preguntaPorTitulo(s.titulo, pasoIdx)
         const responde = pasoIdx === 0 ? RESPONDE[0] : RESPONDE[pasoIdx % RESPONDE.length]
-        const conecta  = pasoIdx === 0 ? '' : CONECTA[(pasoIdx - 1) % CONECTA.length] + ' '
-        partes.push(`${conecta}${pregunta} ${responde} ${cb}`)
+        const encabezado = s.titulo
+          ? `Paso ${numHablado}, ${s.titulo.toLowerCase()}.`
+          : `Paso ${numHablado}.`
+        const conecta = pasoIdx === 0 ? '' : CONECTA[(pasoIdx - 1) % CONECTA.length] + ' '
+        partes.push(`${conecta}${encabezado} ${pregunta} ${responde} ${cb}`)
         pasoIdx++
       }
       else if (s.tipo === 'trampa') {
